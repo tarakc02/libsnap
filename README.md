@@ -1,2 +1,2 @@
 # libsnap
-library code for all the snap* tools 
+library code and shared executables for all the snap* tools 
