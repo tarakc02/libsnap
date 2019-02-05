@@ -93,7 +93,7 @@ rsync_temp_file_suffix="$_chr_$_chr_$_chr_$_chr_$_chr_$_chr_"; unset _chr_
 not_yet() { warn "'$*' not yet available, ignoring"; }
 
 # ----------------------------------------------------------------------------
-# customization for Darwin aka MacOs
+# customization for MacOs (Darwin + Homebrew)
 # ----------------------------------------------------------------------------
 
 [[ -d /Volumes ]] &&			# this needs to be stricter
@@ -102,6 +102,8 @@ readonly is_Darwin=$true
 [[ $is_Darwin ]] && {
 
 warn "tighten up the definition of is_Darwin" # nag PB :-)
+
+[[ -x /usr/local/bin/sed ]] || abort "you need to install Homebrew"
 
 sed() { /usr/local/bin/sed "$@"; }
 df () { /usr/local/bin/df  "$@"; }
