@@ -45,6 +45,11 @@ done
 
 export TMP=$tmp_dir TMP_DIR=$tmp_dir	# caller can change these
 
+export LC_COLLATE=C			# so [A-Z] doesn't include a-z
+export LC_ALL=C				# server needs nothing special
+
+export RSYNC_RSH=ssh
+
 umask 022				# caller can change it
 
 # ----------------------------------------------------------------------------
@@ -89,33 +94,90 @@ rsync_temp_file_suffix="$_chr_$_chr_$_chr_$_chr_$_chr_$_chr_"; unset _chr_
 # shell functions for use by calling script
 ##############################################################################
 
-# used to precede a command/function that is not yet ready to run
-not_yet() { warn "'$*' not yet available, ignoring"; }
-
 # ----------------------------------------------------------------------------
-# customization for MacOs (Darwin + Homebrew)
+# routines to augment path-style variables
 # ----------------------------------------------------------------------------
 
-[[ -d /Volumes ]] &&			# this needs to be stricter
-readonly is_Darwin=$true
+# $1 is path variable name, other args are dirs; append dirs one by one
+append_to_PATH_var() {
+	local do_reverse_dirs=
+	[[ $1 == -r ]] && { do_reverse_dirs=1; shift; }
+	local pathname=$1; shift
+	local path=${!pathname}
 
-[[ $is_Darwin ]] && {
+	local dirs=$* dir
+	[[ $do_reverse_dirs ]] &&
+	for dir
+	    do	dirs="$dir $dirs"
+	done
+	for dir in $dirs
+	    do  case $pathname in
+		    MANPATH ) [[ -L $dir ]] && continue ;;
+		esac
+		case :$path: in
+		   *:$dir:* ) ;;
+		   * ) [[ -d $dir ]] || continue
+		       [[ -n $path ]] && path=$path:$dir || path=$dir
+		       ;;
+		esac
+	done
 
-warn "tighten up the definition of is_Darwin" # nag PB :-)
-
-readonly homebrew_bin=/usr/local/bin
-
-[[ -x $homebrew_bin/sed ]] || abort "you need to install Homebrew"
-
-sed() { $homebrew_bin/sed "$@"; }
-df () { $homebrew_bin/df  "$@"; }
-
+	eval "$pathname=\$path"
 }
 
+# ----------------------------------------------------------------------------
+
+# $1 is path variable name, other args are dirs; prepend dirs one by one
+prepend_to_PATH_var() {
+	local do_reverse_dirs=
+	[[ $1 == -r ]] && { do_reverse_dirs=1; shift; }
+	local pathname=$1; shift
+	local path=${!pathname}
+
+	local dirs=$* dir
+	[[ $do_reverse_dirs ]] &&
+	for dir
+	    do	dirs="$dir $dirs"
+	done
+	for dir in $dirs
+	    do  case $pathname in
+		    MANPATH ) [[ -L $dir ]] && continue ;;
+		esac
+		case :$path: in
+		   *:$dir:* ) ;;
+		   * ) [[ -d $dir ]] || continue
+		       [[ -n $path ]] && path=$dir:$path || path=$dir
+		       ;;
+		esac
+	done
+
+	eval "$pathname=\$path"
+}
+
+# ----------------------------------------------------------------------------
+# customization for Darwin (MacOS) + Homebrew
+# ----------------------------------------------------------------------------
+
+[[ $(uname) == Darwin ]] && readonly is_darwin=$true
+
+[[ $is_darwin ]] && {
+
+set -- /usr/local/opt/*/libexec/*bin
+
+[[ -d $1 ]] || abort "you need to install Homebrew; if your Homebrew packages are not install in /usr/local/opt/, ask $coder to support an alternate Homebrew base directory"
+
+prepend_to_PATH_var PATH $*
+
+}
 
 # ----------------------------------------------------------------------------
 # functions to check for needed utilities
 # ----------------------------------------------------------------------------
+
+# used to precede a command/function that is not yet ready to run
+not_yet() { warn "'$*' not yet available, ignoring"; }
+
+# --------------------------------------------
 
 # return true if have any of the passed commands, else silently return false
 function have_cmd() {
