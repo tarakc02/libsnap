@@ -192,7 +192,7 @@ log() {
 	local _msg="$*"
 
 	(( $level <= $log_level )) || return 1
-set -x
+
 	[[ ! -e $log_cmd_file || -w $log_cmd_file ]] &&
 	   local sudo= || local sudo=sudo
 	local  _date_time=$(date "$log_date_format")
