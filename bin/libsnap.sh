@@ -93,6 +93,23 @@ rsync_temp_file_suffix="$_chr_$_chr_$_chr_$_chr_$_chr_$_chr_"; unset _chr_
 not_yet() { warn "'$*' not yet available, ignoring"; }
 
 # ----------------------------------------------------------------------------
+# customization for Darwin aka MacOs
+# ----------------------------------------------------------------------------
+
+[[ -d /Volumes ]] &&			# this needs to be stricter
+readonly is_Darwin=$true
+
+[[ $is_Darwin ]] && {
+
+warn "tighten up the definition of is_Darwin" # nag PB :-)
+
+sed() { /usr/local/bin/sed "$@"; }
+df () { /usr/local/bin/df  "$@"; }
+
+}
+
+
+# ----------------------------------------------------------------------------
 # functions to check for needed utilities
 # ----------------------------------------------------------------------------
 
