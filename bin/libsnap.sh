@@ -103,10 +103,12 @@ readonly is_Darwin=$true
 
 warn "tighten up the definition of is_Darwin" # nag PB :-)
 
-[[ -x /usr/local/bin/sed ]] || abort "you need to install Homebrew"
+readonly homebrew_bin=/usr/local/bin
 
-sed() { /usr/local/bin/sed "$@"; }
-df () { /usr/local/bin/df  "$@"; }
+[[ -x $homebrew_bin/sed ]] || abort "you need to install Homebrew"
+
+sed() { $homebrew_bin/sed "$@"; }
+df () { $homebrew_bin/df  "$@"; }
 
 }
 
