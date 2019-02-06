@@ -162,11 +162,13 @@ prepend_to_PATH_var() {
 
 [[ $is_darwin ]] && {
 
-set -- /usr/local/opt/*/libexec/*bin
+readonly homebrew_install_dir=/usr/local/opt
+readobly homebrew_coreutils_bin=$homebrew_install_dir/coreutils/libexec/gnubin
 
-[[ -d $1 ]] || abort "you need to install Homebrew; if your Homebrew packages are not install in /usr/local/opt/, ask $coder to support an alternate Homebrew base directory"
+[[ -d $homebrew_coreutils_bin ]] ||
+   abort "you need to install a fairly complete set of GNU utilities with Homebrew; if they're already installed, symlink your Homebrew install directory to $homebrew_install_dir"
 
-prepend_to_PATH_var PATH $*
+prepend_to_PATH_var PATH $homebrew_install_dir/*/libexec/*bin
 
 }
 
