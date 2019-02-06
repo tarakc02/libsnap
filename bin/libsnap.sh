@@ -16,7 +16,13 @@
 
 # to announce errors in this script (these functions will be replaced later)
  warn() { echo -e "\n$0: source libsnap.sh: $*\n" >&2; return 1; }
-abort() { warn "$*"; [[ $0 != -*sh ]] && exit 1; } # no exit if interactive
+abort() {
+	warn "$*"
+	case ${0#-} in			# no exit if interactive
+	    ( bash | csh | ksh | scsh | sh | tcsh | zsh ) return 1 ;;
+	esac
+	exit 1
+}
 
 #############################################################################
 #############################################################################
