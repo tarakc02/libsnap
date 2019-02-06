@@ -2,7 +2,7 @@
 
 #############################################################################
 #############################################################################
-### This file creates a standard environment and basic shell functions.
+### This file sets up a standard environment and defines basic functions.
 ###
 ### Source this file at the beginning of all bash scripts.
 ### Can _run_ this file from a shell to create secure $tmp_dir (see below).
@@ -10,89 +10,19 @@
 #############################################################################
 
 ##############################################################################
-# Setup the environment.
-# Errors in this sections are problems with libsnap.sh, not calling script.
+# As setup the environment, errors are problems with libsnap.sh,
+# not the calling script.
 ##############################################################################
 
 # to announce errors in this script (these functions will be replaced later)
  warn() { echo -e "\n$0: source libsnap.sh: $*\n" >&2; return 1; }
-abort() { warn "$*"; exit 1; }
+abort() { warn "$*"; [[ $0 != -*sh ]] && exit 1; } # no exit if interactive
 
-# ----------------------------------------------------------------------------
-# make sure the shell has needed features
-# errors here are problems/limitations with interpreter
-# ----------------------------------------------------------------------------
-
-readonly \
-bash_version=$(echo $BASH_VERSION | sed -r 's/([1-9]+\.[1-9]+)\..*/\1/')
-
-[[ $bash_version < 4.2 ]] && abort "need bash version 4.2 or later"
-
-# ----------------------------------------------------------------------------
-# provide a directory for temporary files that's safe from symlink attacks
-# ----------------------------------------------------------------------------
-
-tmp_dir=${tmp_dir:-/tmp/$(id -nu)}	# caller is allowed to change tmp_dir
-[[ -w ${TMP-}     ]] && tmp_dir=$TMP
-[[ -w ${TMP_DIR-} ]] && tmp_dir=$TMP_DIR
-
-# the root filesystem is read-only while booting, don't get into infinite loop!
-# GNU mkdir will fail if $tmp_dir is a symlink
-until [[ ! -w /tmp ]] || mkdir -m 0700 -p $tmp_dir
-   do	warn "deleting $(ls -ld $tmp_dir)"
-	rm -f $tmp_dir
-done
-
-export TMP=$tmp_dir TMP_DIR=$tmp_dir	# caller can change these
-
-export LC_COLLATE=C			# so [A-Z] doesn't include a-z
-export LC_ALL=C				# server needs nothing special
-
-export RSYNC_RSH=ssh
-
-umask 022				# caller can change it
-
-# ----------------------------------------------------------------------------
-# setup global variables for calling script
-# ----------------------------------------------------------------------------
-
-our_path=${0#-}
-[[ $our_path == */* ]] || our_path=$(type -p $our_path)
-[[ $our_path == ./* ]] && our_path=${0#./}
-[[ $our_path ==  /* ]] || our_path=$PWD/$our_path	; readonly our_path
-
-# we might have been run as a script to create $tmp_dir (see above)
-[[ $our_path == */libsnap.sh ]] && exit 0
-
-# basename of calling script; if already non-blank, we don't change it
-our_name=${our_name:-${0##*/}}		# user can change
-
-# put $RunIf in front of key commands, so -d means: debug only, simulate
-: ${RunIf=}
-
-true=t True=t					; readonly true  True
-false= False=					; readonly false False
-
-_chr_='[a-zA-Z0-9]'
-rsync_temp_file_suffix="$_chr_$_chr_$_chr_$_chr_$_chr_$_chr_"; unset _chr_
-					  readonly rsync_temp_file_suffix
-
-##############################################################################
-##############################################################################
-## there are three kinds of syntax for routines (not always followed):
-##    function func()	# returns status, takes arguments
-##    function func	# returns status, doesn't take arguments
-##    procedure()	# doesn't return status (exits on fatal error)
-##
-## there are two kinds of routines that set global variables:
-##    set_foo		# set variable foo
-##    set__foo__bar	# set variable foo and variable bar
-##############################################################################
-##############################################################################
-
-##############################################################################
-# shell functions for use by calling script
-##############################################################################
+#############################################################################
+#############################################################################
+### First, create PATH that provides priority access to full GNU utilities.
+#############################################################################
+#############################################################################
 
 # ----------------------------------------------------------------------------
 # routines to augment path-style variables
@@ -154,8 +84,15 @@ prepend_to_PATH_var() {
 	eval "$pathname=\$path"
 }
 
+
 # ----------------------------------------------------------------------------
-# customization for Darwin (MacOS) + Homebrew
+# let sysadmin install newer versions of (GNU) commands in /usr/local/*bin
+# ----------------------------------------------------------------------------
+
+prepend_to_PATH_var PATH /usr/local/bin /usr/local/sbin
+
+# ----------------------------------------------------------------------------
+# Customization for Darwin (MacOS) + Homebrew, precedence over /usr/local/*bin
 # ----------------------------------------------------------------------------
 
 [[ $(uname) == Darwin ]] && readonly is_darwin=$true
@@ -172,44 +109,91 @@ prepend_to_PATH_var PATH $homebrew_install_dir/*/libexec/*bin
 
 }
 
-# ----------------------------------------------------------------------------
-# functions to check for needed utilities
-# ----------------------------------------------------------------------------
-
-# used to precede a command/function that is not yet ready to run
-not_yet() { warn "'$*' not yet available, ignoring"; }
-
-# --------------------------------------------
-
-# return true if have any of the passed commands, else silently return false
-function have_cmd() {
-	local _cmd
-
-	for _cmd
-	   do	type -t $_cmd && return 0
-	done &> /dev/null
-	return 1
-}
-
-# exit noisily if missing (e.g. not in PATH) any of the $* commands
-need_cmds() {
-
-	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
-
-	local _cmd is_cmd_missing=
-	for _cmd
-	    do	have_cmd $_cmd && continue
-
-		echo "$our_name: command '$_cmd' is not in current path."
-		is_cmd_missing=1
-	done
-
-	[[ $is_cmd_missing ]] && exit 2
-	$xtrace
-}
+#############################################################################
+#############################################################################
+### We now have a PATH that provides priority access to full GNU utilities.
+#############################################################################
+#############################################################################
 
 # ----------------------------------------------------------------------------
-# simple error and warning and trace functions
+# provide a directory for temporary files that's safe from symlink attacks
+# ----------------------------------------------------------------------------
+
+tmp_dir=${tmp_dir:-/tmp/$(id -nu)}	# caller is allowed to change tmp_dir
+[[ -w ${TMP-}     ]] && tmp_dir=$TMP
+[[ -w ${TMP_DIR-} ]] && tmp_dir=$TMP_DIR
+
+# the root filesystem is read-only while booting, don't get into infinite loop!
+# GNU mkdir will fail if $tmp_dir is a symlink
+until [[ ! -w /tmp ]] || mkdir -m 0700 -p $tmp_dir
+   do	warn "deleting $(ls -ld $tmp_dir)"
+	rm -f $tmp_dir
+done
+
+export TMP=$tmp_dir TMP_DIR=$tmp_dir	# caller can change these
+
+export LC_COLLATE=C			# so [A-Z] doesn't include a-z
+export LC_ALL=C				# server needs nothing special
+
+export RSYNC_RSH=ssh
+
+umask 022				# caller can change it
+
+# ----------------------------------------------------------------------------
+# setup global variables for calling script
+# ----------------------------------------------------------------------------
+
+our_path=${0#-}
+[[ $our_path == */* ]] || our_path=$(type -p $our_path)
+[[ $our_path == ./* ]] && our_path=${0#./}
+[[ $our_path ==  /* ]] || our_path=$PWD/$our_path	; readonly our_path
+
+# we might have been run as a script to create $tmp_dir (see above)
+[[ $our_path == */libsnap.sh ]] && exit 0
+
+# basename of calling script; if already non-blank, we don't change it
+our_name=${our_name:-${0##*/}}		# user can change
+
+# put $RunIf in front of key commands, so -d means: debug only, simulate
+: ${RunIf=}
+
+true=t True=t					; readonly true  True
+false= False=					; readonly false False
+
+_chr_='[a-zA-Z0-9]'
+rsync_temp_file_suffix="$_chr_$_chr_$_chr_$_chr_$_chr_$_chr_"; unset _chr_
+					  readonly rsync_temp_file_suffix
+
+# ----------------------------------------------------------------------------
+# make sure shell has needed features (need' GNU sed)
+# ----------------------------------------------------------------------------
+
+readonly \
+bash_version=$(echo $BASH_VERSION | sed -r 's/([1-9]+\.[1-9]+)\..*/\1/')
+
+[[ $bash_version < 4.2 ]] && abort "need bash version 4.2 or later"
+
+##############################################################################
+##############################################################################
+# Finally, define shell functions for use by calling script.
+##############################################################################
+##############################################################################
+
+##############################################################################
+## there are three kinds of syntax for routines (not always followed):
+##    function func()	# returns status, takes arguments
+##    function func	# returns status, doesn't take arguments
+##    procedure()	# doesn't return status (exits on fatal error)
+##
+## there are two kinds of routines that set global variables:
+##    set_foo		# set variable foo
+##    set__foo__bar	# set variable foo and variable bar
+##############################################################################
+
+# ----------------------------------------------------------------------------
+# simple error and warning and trace functions.
+# don't assign these until all the environment setup is finished, otherwise
+#   a login shell might source it and be terminated by abort's exit. 
 # ----------------------------------------------------------------------------
 
  warn() { echo -e "\n$our_name: $*\n" >&2; return 1; }
@@ -260,7 +244,7 @@ print_or_egrep_Usage_then_exit() {
 }
 
 # ----------------------------------------------------------------------------
-# generic logging function
+# Generic logging function, with customization globals that caller can set.
 # ----------------------------------------------------------------------------
 
 log_date_format="+%a %m/%d %H:%M:%S"	# caller can change
@@ -296,6 +280,42 @@ header() {
 	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
 
 	echo -e "\n==> $* <=="
+	$xtrace
+}
+
+# ----------------------------------------------------------------------------
+# functions to check for needed utilities
+# ----------------------------------------------------------------------------
+
+# used to precede a command/function that is not yet ready to run
+not_yet() { warn "'$*' not yet available, ignoring"; }
+
+# --------------------------------------------
+
+# return true if have any of the passed commands, else silently return false
+function have_cmd() {
+	local _cmd
+
+	for _cmd
+	   do	type -t $_cmd && return 0
+	done &> /dev/null
+	return 1
+}
+
+# exit noisily if missing (e.g. not in PATH) any of the $* commands
+need_cmds() {
+
+	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
+
+	local _cmd is_cmd_missing=
+	for _cmd
+	    do	have_cmd $_cmd && continue
+
+		echo "$our_name: command '$_cmd' is not in current path."
+		is_cmd_missing=1
+	done
+
+	[[ $is_cmd_missing ]] && exit 2
 	$xtrace
 }
 
