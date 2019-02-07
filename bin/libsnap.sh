@@ -174,10 +174,7 @@ rsync_temp_file_suffix="$_chr_$_chr_$_chr_$_chr_$_chr_$_chr_"; unset _chr_
 # make sure shell has needed features (need' GNU sed)
 # ----------------------------------------------------------------------------
 
-readonly \
-bash_version=$(echo $BASH_VERSION | sed -r 's/([1-9]+\.[1-9]+)\..*/\1/')
-
-[[    $bash_version <  4.2 ]] &&
+[[    $BASH_VERSION <  4.2 ]] &&
 abort "bash version >= 4.2 must appear earlier in the PATH than an older bash"
 
 ##############################################################################
