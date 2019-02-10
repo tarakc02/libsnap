@@ -215,6 +215,7 @@ umask 022				# caller can change it
 # make sure shell has needed features (need' GNU sed)
 # ----------------------------------------------------------------------------
 
+[[ ! $is_sourced_by_interactive_shell ]] &&
 [[    $BASH_VERSION <  4.2 ]] &&
 abort "bash version >= 4.2 must appear earlier in the PATH than an older bash"
 
