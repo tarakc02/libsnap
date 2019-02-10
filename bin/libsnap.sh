@@ -90,6 +90,43 @@ prepend_to_PATH_var() {
 	eval "$pathname=\$path"
 }
 
+# ----------------------------------------------------------------------------
+# functions to make sure needed utilities are in the PATH
+# ----------------------------------------------------------------------------
+
+# return true if have any of the passed commands, else silently return false
+function have_cmd() {
+	local _cmd
+
+	for _cmd
+	   do	type -t $_cmd && return 0
+	done &> /dev/null
+	return 1
+}
+
+# --------------------------------------------
+
+# exit noisily if missing (e.g. not in PATH) any of the $* commands
+need_cmds() {
+
+	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
+
+	local _cmd is_cmd_missing=
+	for _cmd
+	    do	have_cmd $_cmd && continue
+
+		echo "$our_name: command '$_cmd' is not in current path."
+		is_cmd_missing=1
+	done
+
+	[[ $is_cmd_missing ]] && exit 2
+	$xtrace
+}
+
+# -----------------------------------------------------------------------------
+
+# used to precede a command/function that is not yet ready to run
+not_yet() { warn "'$*' not yet available, ignoring"; }
 
 # ----------------------------------------------------------------------------
 # let sysadmin install newer versions of (GNU) commands in /usr/local/*bin
@@ -101,12 +138,12 @@ prepend_to_PATH_var PATH /usr/local/bin /usr/local/sbin
 # Customization for Darwin (MacOS) + Homebrew, precedence over /usr/local/*bin
 # ----------------------------------------------------------------------------
 
-[[ $(uname) == Darwin ]] && readonly is_darwin=$true
+[[ $(uname) == Darwin ]] && readonly is_darwin=$true || readonly is_darwin=
 
 [[ $is_darwin ]] && {
 
 readonly homebrew_install_dir=/usr/local/opt
-readobly homebrew_coreutils_bin=$homebrew_install_dir/coreutils/libexec/gnubin
+readonly homebrew_coreutils_bin=$homebrew_install_dir/coreutils/libexec/gnubin
 
 [[ -d $homebrew_coreutils_bin ]] ||
    abort "you need to install a fairly complete set of GNU utilities with Homebrew; if they're already installed, symlink your Homebrew install directory to $homebrew_install_dir"
@@ -178,12 +215,6 @@ rsync_temp_file_suffix="$_chr_$_chr_$_chr_$_chr_$_chr_$_chr_"; unset _chr_
 abort "bash version >= 4.2 must appear earlier in the PATH than an older bash"
 
 ##############################################################################
-##############################################################################
-# Finally, define shell functions for use by calling script.
-##############################################################################
-##############################################################################
-
-##############################################################################
 ## there are three kinds of syntax for routines (not always followed):
 ##    function func()	# returns status, takes arguments
 ##    function func	# returns status, doesn't take arguments
@@ -191,8 +222,139 @@ abort "bash version >= 4.2 must appear earlier in the PATH than an older bash"
 ##
 ## there are two kinds of routines that set global variables:
 ##    set_foo		# set variable foo
+##    set_foo___from_xx	# set variable foo ... using method xx on args
 ##    set__foo__bar	# set variable foo and variable bar
 ##############################################################################
+
+###########################################################################
+# define functions that abstract OS/kernel-specific operations or queries #
+###########################################################################
+
+# -------------------------------------------------------------------------
+# Linux functions for querying hardware; email ${coder-Scott} if rewrite. #
+# snapback or snapcrypt users can write a replacement in configure.sh .   #
+# -------------------------------------------------------------------------
+
+FS_type=
+
+set_FS_type___from_FS_device() {
+	local dev=$1
+
+	have_cmd lsblk ||
+	  abort "you need to rewrite $FUNCNAME and email it to ${coder-Scott}"
+
+	cmd="lsblk --noheadings --output=fstype $dev"
+	FS_type=$($cmd)		; [[ $FS_type ]] ||
+	FS_type=$(sudo $cmd)
+
+	[[ $FS_type ]] || abort "$FUNCNAME $dev"
+}
+
+# ----------------------------------------------------------------------------
+
+FS_label=
+
+# snapback or snapcrypt users can write a replacement in configure.sh
+set_FS_label___from_FS_device() {
+	local dev=$1
+
+	have_cmd lsblk ||
+	  abort "you need to rewrite $FUNCNAME and email it to ${coder-Scott}"
+
+	cmd="lsblk --noheadings --output=label $dev"
+	FS_label=$($cmd)		; [[ $FS_label ]] ||
+	FS_label=$(sudo $cmd)
+
+	[[ $FS_label ]] || abort "$FUNCNAME $dev"
+}
+
+# ----------------------------------------------------------------------------
+
+label_drive() {
+	local device=$1 mount_dir=$2
+
+	set_FS_type___from_FS_device $device
+
+	set_FS_label___from_mount_dir $mount_dir
+
+	case $FS_type in
+	   ( ext? ) $RunIf sudo e2label $device $FS_label ;;
+	   ( xfs  ) $RunIf sudo xfs_admin -L $FS_label $device ;;
+	   (  *   ) abort "rewrite $FUNCNAME for $FS_type, email ${coder-}" ;;
+	esac || abort "$FUNCNAME $device $mount_dir -> $? ($FS_type)"
+}
+
+# ----------------------------------------------------------------------------
+
+FS_device=
+
+set_FS_device___from_FS_label() {
+	local FS_label=$1
+
+	if [[ -d /Volumes ]]		# Darwin, use FS_label for basename
+	   then set_FS_device_from_mount_dir /Volumes/$FS_label
+		return
+	fi
+
+	have_cmd blkid ||
+	  abort "you need to rewrite $FUNCNAME and email it to ${coder-Scott}"
+
+	# -L has a different meaning in older versions, so use old method
+	local cmd="blkid -l -o device -t LABEL=$FS_label"
+	FS_device=$($cmd)		; [[ $FS_device ]] ||
+	FS_device=$(sudo $cmd)
+
+	[[ $FS_device ]] || abort "$FUNCNAME $FS_label"
+}
+
+##############################################################################
+##############################################################################
+# Finally, define shell functions that only need GNU utilities.
+##############################################################################
+##############################################################################
+
+# -----------------------------------------------------------------------
+# Define FS-label naming conventions.					#
+# snapback or snapcrypt users can write replacements in configure.sh .	#
+# -----------------------------------------------------------------------
+
+set_FS_device___from_mount_dir() {
+	local dir=$dir
+
+	FS_device=$(set -- $(df $dir | tail -n1); echo $1)
+
+	[[ $FS_device ]] || abort "$FUNCNAME $dir"
+}
+
+# ----------------------------
+
+mount_dir=
+
+set_mount_dir___from_FS_device() {
+	local dev=$1
+
+	mount_dir=$(set -- $(df $dir | tail -n1); echo ${!#})
+
+	[[ $mount_dir ]] || abort "$FUNCNAME $dir"
+}
+
+# ----------------------------
+
+set_mount_dir___from_FS_label() {
+	local label=$1
+
+	mount_dir=/${FS_label//_/\/}
+}
+
+# -------------------------------
+
+set_FS_label___from_mount_dir() {
+	local mount_dir=$1
+
+	FS_label=${mount_dir#/}
+	FS_label=${FS_label//\//_}
+}
+
 
 # ----------------------------------------------------------------------------
 # simple error and warning and trace functions.
@@ -284,42 +446,6 @@ header() {
 	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
 
 	echo -e "\n==> $* <=="
-	$xtrace
-}
-
-# ----------------------------------------------------------------------------
-# functions to check for needed utilities
-# ----------------------------------------------------------------------------
-
-# used to precede a command/function that is not yet ready to run
-not_yet() { warn "'$*' not yet available, ignoring"; }
-
-# --------------------------------------------
-
-# return true if have any of the passed commands, else silently return false
-function have_cmd() {
-	local _cmd
-
-	for _cmd
-	   do	type -t $_cmd && return 0
-	done &> /dev/null
-	return 1
-}
-
-# exit noisily if missing (e.g. not in PATH) any of the $* commands
-need_cmds() {
-
-	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
-
-	local _cmd is_cmd_missing=
-	for _cmd
-	    do	have_cmd $_cmd && continue
-
-		echo "$our_name: command '$_cmd' is not in current path."
-		is_cmd_missing=1
-	done
-
-	[[ $is_cmd_missing ]] && exit 2
 	$xtrace
 }
 
@@ -540,7 +666,8 @@ function assert_writable_files() { assert_writable -f    "$@"; }
 
 # ----------------------------------------------------------------------------
 
-# file $1 is modified in-place (with optional backup) by subsequent command
+# File $1 is modified in-place (with optional backup) by subsequent command.
+# You don't need this in general, you can use: perl -i~ -e ...
 modify_file() {
 	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
 	local backup_ext=
