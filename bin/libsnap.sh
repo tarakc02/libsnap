@@ -24,6 +24,31 @@ abort() {
 	exit 1
 }
 
+# ----------------------------------------------------------------------------
+# setup global variables for calling script
+# ----------------------------------------------------------------------------
+
+our_path=${0#-}
+[[ $our_path == */* ]] || our_path=$(type -p $our_path)
+[[ $our_path == ./* ]] && our_path=${0#./}
+[[ $our_path ==  /* ]] || our_path=$PWD/$our_path	; readonly our_path
+
+# we might have been run as a script to create $tmp_dir (see above)
+[[ $our_path == */libsnap.sh ]] && exit 0
+
+# basename of calling script; if already non-blank, we don't change it
+our_name=${our_name:-${0##*/}}		# user can change
+
+# put $RunIf in front of key commands, so -d means: debug only, simulate
+: ${RunIf=}
+
+true=t True=t					; readonly true  True
+false= False=					; readonly false False
+
+_chr_='[a-zA-Z0-9]'
+rsync_temp_file_suffix="$_chr_$_chr_$_chr_$_chr_$_chr_$_chr_"; unset _chr_
+					  readonly rsync_temp_file_suffix
+
 #############################################################################
 #############################################################################
 ### First, create PATH that provides priority access to full GNU utilities.
@@ -181,31 +206,6 @@ export LC_ALL=C				# server needs nothing special
 export RSYNC_RSH=ssh
 
 umask 022				# caller can change it
-
-# ----------------------------------------------------------------------------
-# setup global variables for calling script
-# ----------------------------------------------------------------------------
-
-our_path=${0#-}
-[[ $our_path == */* ]] || our_path=$(type -p $our_path)
-[[ $our_path == ./* ]] && our_path=${0#./}
-[[ $our_path ==  /* ]] || our_path=$PWD/$our_path	; readonly our_path
-
-# we might have been run as a script to create $tmp_dir (see above)
-[[ $our_path == */libsnap.sh ]] && exit 0
-
-# basename of calling script; if already non-blank, we don't change it
-our_name=${our_name:-${0##*/}}		# user can change
-
-# put $RunIf in front of key commands, so -d means: debug only, simulate
-: ${RunIf=}
-
-true=t True=t					; readonly true  True
-false= False=					; readonly false False
-
-_chr_='[a-zA-Z0-9]'
-rsync_temp_file_suffix="$_chr_$_chr_$_chr_$_chr_$_chr_$_chr_"; unset _chr_
-					  readonly rsync_temp_file_suffix
 
 # ----------------------------------------------------------------------------
 # make sure shell has needed features (need' GNU sed)
