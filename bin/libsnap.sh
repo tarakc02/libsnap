@@ -43,7 +43,7 @@ our_name=${our_name:-${0##*/}}		# user can change
 true=t True=t					; readonly true  True
 false= False=					; readonly false False
 
-case $our_name in
+case ${0#-} in
     ( bash | csh | ksh | scsh | sh | tcsh | zsh )
 	  is_sourced_by_interactive_shell=$true  ;;
     ( * ) is_sourced_by_interactive_shell=$false ;;
