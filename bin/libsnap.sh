@@ -18,9 +18,7 @@
  warn() { echo -e "\n$0: source libsnap.sh: $*\n" >&2; return 1; }
 abort() {
 	warn "$*"
-	case ${0#-} in			# no exit if interactive
-	    ( bash | csh | ksh | scsh | sh | tcsh | zsh ) return 1 ;;
-	esac
+	[[ $is_sourced_by_interactive_shell ]] && return 1
 	exit 1
 }
 
@@ -44,6 +42,12 @@ our_name=${our_name:-${0##*/}}		# user can change
 
 true=t True=t					; readonly true  True
 false= False=					; readonly false False
+
+case $our_name in
+    ( bash | csh | ksh | scsh | sh | tcsh | zsh )
+	  is_sourced_by_interactive_shell=$true  ;;
+    ( * ) is_sourced_by_interactive_shell=$false ;;
+esac
 
 _chr_='[a-zA-Z0-9]'
 rsync_temp_file_suffix="$_chr_$_chr_$_chr_$_chr_$_chr_$_chr_"; unset _chr_
