@@ -368,17 +368,36 @@ set_FS_label___from_mount_dir() {
 # ----------------------------------------------------------------------------
 
  warn() { echo -e "\n$our_name: $*\n" >&2; return 1; }
-abort() { warn "$*"; exit 1; }
+abort() { echoE -n -1 "$*"; exit 1; }
 
 # ----------------------------------------------------------------------------
 
-echoE () { echo -e "$@" >&2; }		# echo to stdError
-echoEV() { local var; for var; do echo "$var=${!var}"; done >&2; } # var=value
+echoE () {				 # echo to stdError
+	[[ $1 == -n ]] && { local show_name=$true; shift; } || local show_name=
+	declare -i stack_frame_to_show=1 # default to our caller's stack frame
+	[[ $1 == -[0-9]* ]] && { stack_frame_to_show=${1#-}+1; shift; }
+
+	local   line_no=${BASH_LINENO[stack_frame_to_show-1]}
+	local func_name=${FUNCNAME[stack_frame_to_show]}
+	[[   $func_name ]] && func_name="line $line_no in $func_name():"
+
+	[[ $show_name ]] && local name="$our_name:" || local name=
+	echo -e $name $func_name "$@" >&2
+}
+echoEV() {
+	declare -i stack_frame_to_show=1 # default to our caller's stack frame
+	[[ $1 == -[0-9]* ]] && { stack_frame_to_show=${1#-}+1; shift; }
+
+	local var
+	for var
+	   do	echoE -$stack_frame_to_show "$var=${!var}"
+	done >&2
+}
 
 declare -i Trace_level=0		# default to none (probably)
 
-Trace () { (( $1 <= Trace_level )) || return 1; shift; echoE  "$@"; return 0; }
-TraceV() { (( $1 <= Trace_level )) || return 1; shift; echoEV "$@"; return 0; }
+Trace () { (( $1 <= Trace_level )) || return 1; shift; echoE  -1 "$@"; }
+TraceV() { (( $1 <= Trace_level )) || return 1; shift; echoEV -1 "$@"; }
 
 # ----------------------------------------------------------------------------
 
