@@ -368,7 +368,16 @@ set_FS_label___from_mount_dir() {
 # ----------------------------------------------------------------------------
 
  warn() { echo -e "\n$our_name: $*\n" >&2; return 1; }
-abort() { echoE -n -1 "$*"; exit 1; }
+abort() {
+	echo >&2
+	echoE -n -1 "$*"
+	header "call stack"
+	for i in ${!FUNCNAME[*]}
+	   do	(( i ==0 )) && continue	# skip ourself
+		echo "line ${BASH_LINENO[i-1]} in ${FUNCNAME[i]}()"
+	done
+	exit 1
+}
 
 # ----------------------------------------------------------------------------
 
@@ -384,6 +393,7 @@ echoE () {				 # echo to stdError
 	[[ $show_name ]] && local name="$our_name:" || local name=
 	echo -e $name $func_name "$@" >&2
 }
+
 echoEV() {
 	declare -i stack_frame_to_show=1 # default to our caller's stack frame
 	[[ $1 == -[0-9]* ]] && { stack_frame_to_show=${1#-}+1; shift; }
