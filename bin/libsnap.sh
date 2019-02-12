@@ -263,6 +263,23 @@ FS_label=
 set_FS_label___from_FS_device() {
 	local dev=$1
 
+	have_cmd blkid ||
+	  abort "you need to rewrite $FUNCNAME and email it to ${coder-Scott}"
+
+	cmd="blkid $dev | sed -n -r 's@.* LABEL=\"?([^ \"]*)\"? .*@\1@p'"
+	eval "FS_label=\$($cmd)"	; [[ $FS_label ]] ||
+	eval "FS_label=\$(sudo $cmd)"
+
+	[[ $FS_label ]] || abort "$FUNCNAME $dev"
+}
+
+# ---
+
+# lsblk often returns a very-old label
+# snapback or snapcrypt users can write a replacement in configure.sh
+set_FS_label___from_FS_device___unreliable_version() {
+	local dev=$1
+
 	have_cmd lsblk ||
 	  abort "you need to rewrite $FUNCNAME and email it to ${coder-Scott}"
 
@@ -308,6 +325,9 @@ set_FS_device___from_FS_label() {
 	local cmd="blkid -l -o device -t LABEL=$FS_label"
 	FS_device=$($cmd)		; [[ $FS_device ]] ||
 	FS_device=$(sudo $cmd)
+
+	[[ $(e2label $FS_device) == $FS_label ]] ||
+	  abort "'blkid' lies: pass device to '$our_name' by-hand"
 
 	[[ $FS_device ]] || abort "$FUNCNAME $FS_label"
 }
@@ -369,13 +389,15 @@ set_FS_label___from_mount_dir() {
 
  warn() { echo -e "\n$our_name: $*\n" >&2; return 1; }
 abort() {
-	echo >&2
-	echoE -n -1 "$*"
+	set +x
+	warn "$@"
+
 	header "call stack"
 	for i in ${!FUNCNAME[*]}
 	   do	(( i ==0 )) && continue	# skip ourself
 		echo "line ${BASH_LINENO[i-1]} in ${FUNCNAME[i]}()"
 	done
+	echo >&2
 	exit 1
 }
 
