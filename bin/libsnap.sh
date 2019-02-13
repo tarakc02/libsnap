@@ -390,14 +390,22 @@ set_FS_label___from_mount_dir() {
  warn() { echo -e "\n$our_name: $*\n" >&2; return 1; }
 abort() {
 	set +x
-	warn "$@"
+	[[ $1 == -r ]] && { shift; is_recursion=$true; } || is_recursion=$false
 
-	header "call stack"
+	if [[ $is_recursion ]]
+	   then echo "$@" ; declare -i stack_skip=2
+	   else	warn "$@" ; declare -i stack_skip=1
+	fi
+
+	header -E "call stack"
 	for i in ${!FUNCNAME[*]}
-	   do	(( i ==0 )) && continue	# skip ourself
+	   do	(( i < stack_skip )) && continue # skip ourself
 		echo "line ${BASH_LINENO[i-1]} in ${FUNCNAME[i]}()"
 	done
 	echo >&2
+
+	[[ ! $is_recursion ]] && log "$(abort -r $* 2>&1)" > /dev/null
+
 	exit 1
 }
 
@@ -471,7 +479,7 @@ print_or_egrep_Usage_then_exit() {
 
 log_date_format="+%a %m/%d %H:%M:%S"	# caller can change
 
-log_cmd_file=/dev/null			# append to it; caller can change
+file_for_logging=/dev/null		# append to it; caller can change
 
 declare -i log_level=0			# usually set by getopts
 
@@ -484,13 +492,14 @@ log() {
 
 	(( $level <= $log_level )) || return 1
 
-	[[ ! -e $log_cmd_file || -w $log_cmd_file ]] &&
+	[[ ! -e $file_for_logging || -w $file_for_logging ]] &&
 	   local sudo= || local sudo=sudo
 	local  _date_time=$(date "$log_date_format")
 	local _log_msg_prefix=$log_msg_prefix
 	eval "_log_msg_prefix=\"$_log_msg_prefix\""
 	_log_msg_prefix=$(echo "$_log_msg_prefix" | sed 's/ *$//')
-	echo "$_date_time$_log_msg_prefix: $_msg" | $sudo tee -a $log_cmd_file
+	echo "$_date_time$_log_msg_prefix: $_msg" |
+	   $sudo tee -a $file_for_logging
 	$xtrace
 	return 0
 }
@@ -500,8 +509,9 @@ log() {
 # show head-style header
 header() {
 	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
+	[[ $1 == -E ]] && shift || echo
 
-	echo -e "\n==> $* <=="
+	echo -e "==> $* <=="
 	$xtrace
 }
 
