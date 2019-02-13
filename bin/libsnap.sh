@@ -358,7 +358,7 @@ mount_dir=
 set_mount_dir___from_FS_device() {
 	local dev=$1
 
-	mount_dir=$(set -- $(df $dir | tail -n1); echo ${!#})
+	mount_dir=$(set -- $(df $dev | tail -n1); echo ${!#})
 
 	[[ $mount_dir ]] || abort "$FUNCNAME $dir"
 }
@@ -454,7 +454,7 @@ function suspend_tracing {
 
 restore_tracing() {
 
-	[[ $_was_tracing ]] || return
+	[[ $_was_tracing ]] || return 0
 
 	for variable
 	    do	echo "+ $variable=${!variable}"
