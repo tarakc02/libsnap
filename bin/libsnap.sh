@@ -37,8 +37,8 @@ our_path=${0#-}
 # basename of calling script; if already non-blank, we don't change it
 our_name=${our_name:-${0##*/}}		# user can change
 
-# put $RunIf in front of key commands, so -d means: debug only, simulate
-: ${RunIf=}
+# put $IfRUn in front of key commands, so -d means: debug only, simulate
+: ${IfRUn=}
 
 true=t True=t					; readonly true  True
 false= False=					; readonly false False
@@ -300,8 +300,8 @@ label_drive() {
 	set_FS_label___from_mount_dir $mount_dir
 
 	case $FS_type in
-	   ( ext? ) $RunIf sudo e2label $device $FS_label ;;
-	   ( xfs  ) $RunIf sudo xfs_admin -L $FS_label $device ;;
+	   ( ext? ) $IfRUn sudo e2label $device $FS_label ;;
+	   ( xfs  ) $IfRUn sudo xfs_admin -L $FS_label $device ;;
 	   (  *   ) abort "rewrite $FUNCNAME for $FS_type, email ${coder-}" ;;
 	esac || abort "$FUNCNAME $device $mount_dir -> $? ($FS_type)"
 }
@@ -554,7 +554,7 @@ cd_() {
 
 	cd "$_dir" || abort "cd $_dir"
 	# -n and -z needed here for buggy 2.04 version of bash (in RHL 7.1)
-	if [[ ( -n $RunIf || -n ${do_show_cd-} ) && -z ${Trace-} ]]
+	if [[ ( -n $IfRUn || -n ${do_show_cd-} ) && -z ${Trace-} ]]
 	   then local _msg="cd $PWD"
 		[[ $_dir == */.* && $_dir != /* ]] && _msg="$_msg # $_dir"
 		echo "$_msg"
