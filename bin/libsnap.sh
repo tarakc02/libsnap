@@ -394,6 +394,8 @@ abort() {
 
 	if [[ $is_recursion ]]
 	   then echo "$@" ; declare -i stack_skip=2
+	elif [[ ${Usage-} && "$*" == "$Usage" ]]
+	   then echo "$@" >&2 ; exit 1
 	   else	warn "$@" ; declare -i stack_skip=1
 	fi
 
