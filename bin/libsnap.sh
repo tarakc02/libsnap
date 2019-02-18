@@ -394,7 +394,7 @@ set_mount_dir___from_FS_device() {
 set_mount_dir___from_FS_label() {
 	local label=$1
 
-	mount_dir=/${FS_label//_/\/}
+	mount_dir=/${label//_/\/}
 }
 
 # -------------------------------
