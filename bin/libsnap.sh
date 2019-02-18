@@ -368,7 +368,7 @@ set_FS_device___from_FS_label() {
 # -----------------------------------------------------------------------
 
 set_FS_device___from_path() {
-	local  path=$path
+	local  path=$1
 	[[ -e $path ]] || abort "$path doesn't exist"
 
 	FS_device=$(set -- $(df $path | tail -n1); echo $1)
