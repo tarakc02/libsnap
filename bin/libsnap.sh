@@ -242,17 +242,39 @@ abort "bash version >= 4.2 must appear earlier in the PATH than an older bash"
 
 FS_type=
 
-set_FS_type___from_FS_device() {
-	local dev=$1
+set_FS_type___from_path() {
+	local  path=$1
+	[[ -e $path ]] || abort "$path doesn't exist"
 
-	have_cmd lsblk ||
-	  abort "you need to rewrite $FUNCNAME and email it to ${coder-Scott}"
+	FS_type=$(df --output=fstype $path | tail -n1)
 
-	cmd="lsblk --noheadings --output=fstype $dev"
-	FS_type=$($cmd)		; [[ $FS_type ]] ||
-	FS_type=$(sudo $cmd)
+	[[ $FS_type ]] || abort "$FUNCNAME $path; email fix to ${coder-Scott}"
+}
 
-	[[ $FS_type ]] || abort "$FUNCNAME $dev"
+# ----------------------------------------------------------------------------
+
+set_FS_block_size___from_path() {
+	local  path=$1
+	[[ -e $path ]] || abort "$path doesn't exist"
+
+	local FS_type
+	set_FS_type___from_path $path
+
+	case $FS_type in
+	   ( ext? )
+		local FS_device
+		set_FS_device___from_path $path
+		FS_block_size=$(sudo tune2fs -l $FS_device |&
+				sed -n 's/^Block size: *//p')
+		;;
+	   ( xfs  )
+		FS_block_size=$(xfs_growfs -n $path |
+				sed -n -r 's/^data .* bsize=([0-9]+) .*/\1/p')
+		;;
+	   (  *   )
+		abort "rewrite $FUNCNAME for $FS_type, email ${coder-}"
+		;;
+	esac || abort "$FUNCNAME $device $mount_dir -> $? ($FS_type)"
 }
 
 # ----------------------------------------------------------------------------
@@ -261,12 +283,13 @@ FS_label=
 
 # snapback or snapcrypt users can write a replacement in configure.sh
 set_FS_label___from_FS_device() {
-	local dev=$1
+	local  dev=$1
+	[[ -b $dev ]] || abort "$dev is not a device"
 
 	have_cmd blkid ||
 	  abort "you need to rewrite $FUNCNAME and email it to ${coder-Scott}"
 
-	cmd="blkid $dev | sed -n -r 's@.* LABEL=\"?([^ \"]*)\"? .*@\1@p'"
+	local cmd="blkid $dev | sed -n -r 's@.* LABEL=\"?([^ \"]*)\"? .*@\1@p'"
 	eval "FS_label=\$($cmd)"	; [[ $FS_label ]] ||
 	eval "FS_label=\$(sudo $cmd)"
 
@@ -283,7 +306,7 @@ set_FS_label___from_FS_device___unreliable_version() {
 	have_cmd lsblk ||
 	  abort "you need to rewrite $FUNCNAME and email it to ${coder-Scott}"
 
-	cmd="lsblk --noheadings --output=label $dev"
+	local cmd="lsblk --noheadings --output=label $dev"
 	FS_label=$($cmd)		; [[ $FS_label ]] ||
 	FS_label=$(sudo $cmd)
 
@@ -293,9 +316,11 @@ set_FS_label___from_FS_device___unreliable_version() {
 # ----------------------------------------------------------------------------
 
 label_drive() {
-	local device=$1 mount_dir=$2
+	local  device=$1 mount_dir=$2
+	[[ -b $device ]] || abort "$device is not a device"
 
-	set_FS_type___from_FS_device $device
+	local FS_type FS_label
+	set_FS_type___from_path $device
 
 	set_FS_label___from_mount_dir $mount_dir
 
@@ -314,7 +339,7 @@ set_FS_device___from_FS_label() {
 	local FS_label=$1
 
 	if [[ -d /Volumes ]]		# Darwin, use FS_label for basename
-	   then set_FS_device_from_mount_dir /Volumes/$FS_label
+	   then set_FS_device___from_path /Volumes/$FS_label
 		return
 	fi
 
@@ -343,12 +368,13 @@ set_FS_device___from_FS_label() {
 # snapback or snapcrypt users can write replacements in configure.sh .	#
 # -----------------------------------------------------------------------
 
-set_FS_device___from_mount_dir() {
-	local dir=$dir
+set_FS_device___from_path() {
+	local  path=$path
+	[[ -e $path ]] || abort "$path doesn't exist"
 
-	FS_device=$(set -- $(df $dir | tail -n1); echo $1)
+	FS_device=$(set -- $(df $path | tail -n1); echo $1)
 
-	[[ $FS_device ]] || abort "$FUNCNAME $dir"
+	[[ $FS_device ]] || abort "$FUNCNAME $path"
 }
 
 # ----------------------------
@@ -356,7 +382,8 @@ set_FS_device___from_mount_dir() {
 mount_dir=
 
 set_mount_dir___from_FS_device() {
-	local dev=$1
+	local  dev=$1
+	[[ -b $dev ]] || abort "$dev is not a device"
 
 	mount_dir=$(set -- $(df $dev | tail -n1); echo ${!#})
 
@@ -387,6 +414,21 @@ set_FS_label___from_mount_dir() {
 #   a login shell might source it and be terminated by abort's exit. 
 # ----------------------------------------------------------------------------
 
+print_call_stack() {
+	declare -i stack_skip=1
+	[[ ${1-} ==   -s  ]] && { stack_skip=$2+1; shift 2; }
+	[[ ${1-} == [0-9] ]] && { (( Trace_level >= $1 )) || return; shift; }
+
+	header -E "call stack"
+	for i in ${!FUNCNAME[*]}
+	   do	(( i < stack_skip )) && continue # skip ourself
+		echo "line ${BASH_LINENO[i-1]} in ${FUNCNAME[i]}()"
+	done
+	echo >&2
+}
+
+# --------------------------------------------
+
  warn() { echo -e "\n$our_name: $*\n" >&2; return 1; }
 abort() {
 	set +x
@@ -399,12 +441,7 @@ abort() {
 	   else	warn "$@" ; declare -i stack_skip=1
 	fi
 
-	header -E "call stack"
-	for i in ${!FUNCNAME[*]}
-	   do	(( i < stack_skip )) && continue # skip ourself
-		echo "line ${BASH_LINENO[i-1]} in ${FUNCNAME[i]}()"
-	done
-	echo >&2
+	print_call_stack -s $stack_skip
 
 	[[ ! $is_recursion ]] && log "$(abort -r $* 2>&1)" > /dev/null
 
@@ -414,6 +451,7 @@ abort() {
 # ----------------------------------------------------------------------------
 
 echoE () {				 # echo to stdError
+	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
 	[[ $1 == -n ]] && { local show_name=$true; shift; } || local show_name=
 	declare -i stack_frame_to_show=1 # default to our caller's stack frame
 	[[ $1 == -[0-9]* ]] && { stack_frame_to_show=${1#-}+1; shift; }
@@ -424,16 +462,19 @@ echoE () {				 # echo to stdError
 
 	[[ $show_name ]] && local name="$our_name:" || local name=
 	echo -e $name $func_name "$@" >&2
+	$xtrace
 }
 
 echoEV() {
+	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
 	declare -i stack_frame_to_show=1 # default to our caller's stack frame
 	[[ $1 == -[0-9]* ]] && { stack_frame_to_show=${1#-}+1; shift; }
 
 	local var
 	for var
-	   do	echoE -$stack_frame_to_show "$var=${!var}"
+	   do	echoE -$stack_frame_to_show "$var=${!var-}"
 	done >&2
+	$xtrace
 }
 
 declare -i Trace_level=0		# default to none (probably)
