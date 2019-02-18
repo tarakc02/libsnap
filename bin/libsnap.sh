@@ -246,7 +246,16 @@ set_FS_type___from_path() {
 	local  path=$1
 	[[ -e $path ]] || abort "$path doesn't exist"
 
-	FS_type=$(df --output=fstype $path | tail -n1)
+	if [[ ! -b $path || $(df | fgrep -w  $path) ]]
+	   then FS_type=$(df --output=fstype $path | tail -n1)
+	   else have_cmd lsblk ||
+		   abort "rewrite $FUNCNAME and email it to ${coder-Scott}"
+		[[ ! -b $path ]] && local FS_device &&
+		   set_FS_device___from_path $path  && path=$FS_device
+		local cmd="lsblk --noheadings --output=fstype $path"
+		FS_type=$($cmd)		; [[ $FS_type ]] ||
+		FS_type=$(sudo $cmd)
+	fi
 
 	[[ $FS_type ]] || abort "$FUNCNAME $path; email fix to ${coder-Scott}"
 }
