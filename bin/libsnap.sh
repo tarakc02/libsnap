@@ -298,7 +298,7 @@ set_FS_label___from_FS_device() {
 	local mount_dir
 	set_mount_dir___from_FS_device $dev
 	set -- $(grep "[[:space:]]$mount_dir[[:space:]]" /etc/fstab)
-	[[ $1 == LABEL=* ]] && FS_label=${1#*=} || FS_label=
+	[[ ${1-} == LABEL=* ]] && FS_label=${1#*=} || FS_label=
 
 	# don't use lsblk, it sometimes returns very old labels
 	if [[ ! $FS_label ]] && have_cmd blkid
