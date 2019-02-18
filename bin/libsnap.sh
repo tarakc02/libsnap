@@ -295,31 +295,21 @@ set_FS_label___from_FS_device() {
 	local  dev=$1
 	[[ -b $dev ]] || abort "$dev is not a device"
 
-	have_cmd blkid ||
-	  abort "you need to rewrite $FUNCNAME and email it to ${coder-Scott}"
+	local mount_dir
+	set_mount_dir___from_FS_device $dev
+	set -- $(grep "[[:space:]]$mount_dir[[:space:]]" /etc/fstab)
+	[[ $1 == LABEL=* ]] && FS_label=${1#*=} || FS_label=
 
-	local cmd="blkid $dev | sed -n -r 's@.* LABEL=\"?([^ \"]*)\"? .*@\1@p'"
-	eval "FS_label=\$($cmd)"	; [[ $FS_label ]] ||
-	eval "FS_label=\$(sudo $cmd)"
+	# don't use lsblk, it sometimes returns very old labels
+	if [[ ! $FS_label ]] && have_cmd blkid
+	   then local cmd="blkid $dev |
+			   sed -n -r 's@.* LABEL=\"?([^ \"]*)\"? .*@\1@p'"
+		eval "FS_label=\$($cmd)"	; [[ $FS_label ]] ||
+		eval "FS_label=\$(sudo $cmd)"
+	fi
 
-	[[ $FS_label ]] || abort "$FUNCNAME $dev"
-}
-
-# ---
-
-# lsblk often returns a very-old label
-# snapback or snapcrypt users can write a replacement in configure.sh
-set_FS_label___from_FS_device___unreliable_version() {
-	local dev=$1
-
-	have_cmd lsblk ||
-	  abort "you need to rewrite $FUNCNAME and email it to ${coder-Scott}"
-
-	local cmd="lsblk --noheadings --output=label $dev"
-	FS_label=$($cmd)		; [[ $FS_label ]] ||
-	FS_label=$(sudo $cmd)
-
-	[[ $FS_label ]] || abort "$FUNCNAME $dev"
+	[[ $FS_label ]] ||
+	   abort "you need to rewrite $FUNCNAME and email it to ${coder-Scott}"
 }
 
 # ----------------------------------------------------------------------------
