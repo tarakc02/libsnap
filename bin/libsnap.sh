@@ -262,7 +262,7 @@ set_FS_type___from_path() {
 
 # ----------------------------------------------------------------------------
 
-set_FS_block_size___from_path() {
+set__inode_size__data_block_size__dir_block_size___from_path() {
 	local  path=$1
 	[[ -e $path ]] || abort "'$path' doesn't exist"
 
@@ -273,17 +273,22 @@ set_FS_block_size___from_path() {
 	   ( ext? )
 		local FS_device
 		set_FS_device___from_path $path
-		FS_block_size=$(sudo tune2fs -l $FS_device |&
-				sed -n 's/^Block size: *//p' ;
+		set -- $(sudo tune2fs -l $FS_device |&
+				sed -n  -e 's/^Block size://p' \
+					-e 's/^Inode size://p'
 				exit ${PIPESTATUS[0]})
 		local status=$?
+		inode_size=${2-} data_block_size=${1-} dir_block_size=${1-}
 		[[ $status == 0 ]]
 		;;
 	   ( xfs  )
-		FS_block_size=$(xfs_growfs -n $path |
-				sed -n -r 's/^data .* bsize=([0-9]+) .*/\1/p' ;
+		set -- $(xfs_growfs -n $path |
+			 sed -n -r -e 's/.* isize=([0-9]+) .*/\1/p'	    \
+				   -e '  s/^data .* bsize=([0-9]+) .*/\1/p' \
+				   -e 's/^naming .* bsize=([0-9]+) .*/\1/p'
 				exit ${PIPESTATUS[0]})
 		local status=$?
+		inode_size=${1-} data_block_size=${2-} dir_block_size=${3-}
 		[[ $status == 0 ]]
 		;;
 	   (  *   )
@@ -438,12 +443,14 @@ print_call_stack() {
 abort() {
 	set +x
 	[[ $1 == -r ]] && { shift; is_recursion=$true; } || is_recursion=$false
+	declare -i stack_skip=1
+	[[ $1 =~ ^-[0-9]+$ ]] && { stack_skip=${1#-}+1; shift; }
 
 	if [[ $is_recursion ]]
-	   then echo "$@" ; declare -i stack_skip=2
+	   then echo "$@" ; stack_skip+=1
 	elif [[ ${Usage-} && "$*" == "$Usage" ]]
 	   then echo "$@" >&2 ; exit 1
-	   else	warn "$@" ; declare -i stack_skip=1
+	   else	warn "$@"
 	fi
 
 	print_call_stack -s $stack_skip
@@ -459,7 +466,7 @@ echoE () {				 # echo to stdError
 	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
 	[[ $1 == -n ]] && { local show_name=$true; shift; } || local show_name=
 	declare -i stack_frame_to_show=1 # default to our caller's stack frame
-	[[ $1 == -[0-9]* ]] && { stack_frame_to_show=${1#-}+1; shift; }
+	[[ $1 =~ ^-[0-9]+$ ]] && { stack_frame_to_show=${1#-}+1; shift; }
 
 	local   line_no=${BASH_LINENO[stack_frame_to_show-1]}
 	local func_name=${FUNCNAME[stack_frame_to_show]}
@@ -473,7 +480,7 @@ echoE () {				 # echo to stdError
 echoEV() {
 	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
 	declare -i stack_frame_to_show=1 # default to our caller's stack frame
-	[[ $1 == -[0-9]* ]] && { stack_frame_to_show=${1#-}+1; shift; }
+	[[ $1 =~ ^-[0-9]+$ ]] && { stack_frame_to_show=${1#-}+1; shift; }
 
 	local var
 	for var
@@ -484,8 +491,9 @@ echoEV() {
 
 declare -i Trace_level=0		# default to none (probably)
 
-Trace () { (( $1 <= Trace_level )) || return 1; shift; echoE  -1 "$@"; }
-TraceV() { (( $1 <= Trace_level )) || return 1; shift; echoEV -1 "$@"; }
+is_num() { [[ $1 =~ ^[0-9]+$ ]] || abort -2 "Trace* first arg is a level"; }
+Trace () { is_num $1; (($1 <= Trace_level)) ||return 1;shift; echoE  -1 "$@"; }
+TraceV() { is_num $1; (($1 <= Trace_level)) ||return 1;shift; echoEV -1 "$@"; }
 
 # ----------------------------------------------------------------------------
 
@@ -519,6 +527,16 @@ print_or_egrep_Usage_then_exit() {
 
 	echo "$Usage" | grep -i "$@"
 	exit 0
+}
+
+# ---------------------------------
+
+abort_with_action_Usage() {
+	local action=$1
+
+	echo -e "\nBad arguments; here's the usage for this action:"
+	echo "$Usage" | grep "$@"; echo
+	exit 1
 }
 
 # ----------------------------------------------------------------------------
