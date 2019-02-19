@@ -245,45 +245,51 @@ FS_type=
 set_FS_type___from_path() {
 	local  path=$1
 	[[ -e $path ]] || abort "$path doesn't exist"
-
+set -x
 	if [[ ! -b $path || $(df | fgrep -w  $path) ]]
 	   then FS_type=$(df --output=fstype $path | tail -n1)
 	   else have_cmd lsblk ||
-		   abort "rewrite $FUNCNAME and email it to ${coder-Scott}"
+		   abort "rewrite $FUNCNAME for $path, email to ${coder-Scott}"
 		[[ ! -b $path ]] && local FS_device &&
 		   set_FS_device___from_path $path  && path=$FS_device
-		local cmd="lsblk --noheadings --output=fstype $path"
+		local cmd="lsblk --noheadings --nodeps --output=fstype $path"
 		FS_type=$($cmd)		; [[ $FS_type ]] ||
 		FS_type=$(sudo $cmd)
 	fi
 
-	[[ $FS_type ]] || abort "$FUNCNAME $path; email fix to ${coder-Scott}"
+	[[ $FS_type ]] || warn "$FUNCNAME: $path has no discernible filesystem"
 }
 
 # ----------------------------------------------------------------------------
 
 set_FS_block_size___from_path() {
 	local  path=$1
-	[[ -e $path ]] || abort "$path doesn't exist"
+	[[ -e $path ]] || abort "'$path' doesn't exist"
 
 	local FS_type
-	set_FS_type___from_path $path
+	set_FS_type___from_path $path || return $?
 
 	case $FS_type in
 	   ( ext? )
 		local FS_device
 		set_FS_device___from_path $path
 		FS_block_size=$(sudo tune2fs -l $FS_device |&
-				sed -n 's/^Block size: *//p')
+				sed -n 's/^Block size: *//p' ;
+				exit ${PIPESTATUS[0]})
+		local status=$?
+		[[ $status == 0 ]]
 		;;
 	   ( xfs  )
 		FS_block_size=$(xfs_growfs -n $path |
-				sed -n -r 's/^data .* bsize=([0-9]+) .*/\1/p')
+				sed -n -r 's/^data .* bsize=([0-9]+) .*/\1/p' ;
+				exit ${PIPESTATUS[0]})
+		local status=$?
+		[[ $status == 0 ]]
 		;;
 	   (  *   )
 		abort "rewrite $FUNCNAME for $FS_type, email ${coder-}"
 		;;
-	esac || abort "$FUNCNAME $device $mount_dir -> $? ($FS_type)"
+	esac || abort "$FUNCNAME $path (FS_type $FS_type) returned $status"
 }
 
 # ----------------------------------------------------------------------------
