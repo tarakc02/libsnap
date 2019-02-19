@@ -245,7 +245,7 @@ FS_type=
 set_FS_type___from_path() {
 	local  path=$1
 	[[ -e $path ]] || abort "$path doesn't exist"
-set -x
+
 	if [[ ! -b $path || $(df | fgrep -w  $path) ]]
 	   then FS_type=$(df --output=fstype $path | tail -n1)
 	   else have_cmd lsblk ||
