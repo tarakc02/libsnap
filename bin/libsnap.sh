@@ -535,7 +535,7 @@ abort_with_action_Usage() {
 	local action=$1
 
 	echo -e "\nBad arguments; here's the usage for this action:"
-	echo "$Usage" | grep "$@"; echo
+	echo "$Usage" | grep "$@" >&2; echo
 	exit 1
 }
 
