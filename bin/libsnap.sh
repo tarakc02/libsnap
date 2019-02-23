@@ -306,13 +306,13 @@ set_FS_label___from_FS_device() {
 	local  dev=$1
 	[[ -b $dev ]] || abort "$dev is not a device"
 
-	local mount_dir
-	set_mount_dir___from_FS_device $dev
+	[[ set_mount_dir___from_FS_device != ${FUNCNAME[1]} ]] && {
+	   set_mount_dir___from_FS_device $dev
 	set -- $(grep "[[:space:]]$mount_dir[[:space:]]" /etc/fstab)
-	[[ ${1-} == LABEL=* ]] && FS_label=${1#*=} || FS_label=
+	[[ ${1-} == LABEL=* ]] && FS_label=${1#*=} || FS_label=	; }
 
 	# don't use lsblk, it sometimes returns very old labels
-	if [[ ! $FS_label ]] && have_cmd blkid
+	if [[ ! ${FS_label-} ]] && have_cmd blkid
 	   then local cmd="blkid $dev |
 			   sed -n -r 's@.* LABEL=\"?([^ \"]*)\"? .*@\1@p'"
 		eval "FS_label=\$($cmd)"	; [[ $FS_label ]] ||
@@ -396,8 +396,19 @@ set_mount_dir___from_FS_device() {
 	[[ -b $dev ]] || abort "$dev is not a device"
 
 	mount_dir=$(set -- $(df $dev | tail -n1); echo ${!#})
+	[[ ! $mount_dir || $mount_dir == / || $mount_dir == /dev ]] ||
+	   return 0
 
-	[[ $mount_dir ]] || abort "$FUNCNAME $dir"
+	set -- $(grep "^[[:space:]]*$dev[[:space:]]" /etc/fstab)
+	mount_dir=${2-}
+	[[ $mount_dir ]] && return 0
+
+	local FS_label
+	set_FS_label___from_FS_device $dev
+	set -- $(grep "^[[:space:]]*LABEL=$FS_label[[:space:]]" /etc/fstab)
+	mount_dir=${2-}
+
+	[[ $mount_dir ]] || abort "$FUNCNAME $dev"
 }
 
 # ----------------------------
