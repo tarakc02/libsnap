@@ -361,7 +361,7 @@ set_FS_device___from_FS_label() {
 	FS_device=$($cmd)		; [[ $FS_device ]] ||
 	FS_device=$(sudo $cmd)
 
-	[[ $(e2label $FS_device) == $FS_label ]] ||
+	[[ $(sudo e2label $FS_device) == $FS_label ]] ||
 	  abort "'blkid' lies: pass device to '$our_name' by-hand"
 
 	[[ $FS_device ]] || abort "$FUNCNAME $FS_label"
