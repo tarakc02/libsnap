@@ -235,10 +235,10 @@ abort "bash version >= 4.2 must appear earlier in the PATH than an older bash"
 # define functions that abstract OS/kernel-specific operations or queries #
 ###########################################################################
 
-# -------------------------------------------------------------------------
-# Linux functions for querying hardware; email ${coder-Scott} if rewrite. #
-# snapback or snapcrypt users can write a replacement in configure.sh .   #
-# -------------------------------------------------------------------------
+# -----------------------------------------------------------------------
+# Linux functions for querying hardware; email ${coder-Scott} if fix.   #
+# snapback or snapcrypt users can write a replacement in configure.sh . #
+# -----------------------------------------------------------------------
 
 FS_type=
 
@@ -249,7 +249,7 @@ set_FS_type___from_path() {
 	if [[ ! -b $path || $(df | fgrep -w  $path) ]]
 	   then FS_type=$(df --output=fstype $path | tail -n1)
 	   else have_cmd lsblk ||
-		   abort "rewrite $FUNCNAME for $path, email to ${coder-Scott}"
+		   abort "fix $FUNCNAME for $path, email to ${coder-Scott}"
 		[[ ! -b $path ]] && local FS_device &&
 		   set_FS_device___from_path $path  && path=$FS_device
 		local cmd="lsblk --noheadings --nodeps --output=fstype $path"
@@ -292,7 +292,7 @@ set__inode_size__data_block_size__dir_block_size___from_path() {
 		[[ $status == 0 ]]
 		;;
 	   (  *   )
-		abort "rewrite $FUNCNAME for $FS_type, email ${coder-}"
+		abort "fix $FUNCNAME for $FS_type, email ${coder-}"
 		;;
 	esac || abort "$FUNCNAME $path (FS_type $FS_type) returned $status"
 }
@@ -320,7 +320,7 @@ set_FS_label___from_FS_device() {
 	fi
 
 	[[ $FS_label ]] ||
-	   abort "you need to rewrite $FUNCNAME and email it to ${coder-Scott}"
+	   abort "you need to fix $FUNCNAME and email it to ${coder-Scott}"
 }
 
 # ----------------------------------------------------------------------------
@@ -337,8 +337,8 @@ label_drive() {
 	case $FS_type in
 	   ( ext? ) $IfRun sudo e2label $device $FS_label ;;
 	   ( xfs  ) $IfRun sudo xfs_admin -L $FS_label $device ;;
-	   (  *   ) abort "rewrite $FUNCNAME for $FS_type, email ${coder-}" ;;
-	esac || abort "$FUNCNAME $device $mount_dir -> $? ($FS_type)"
+	   (  *   ) abort "fix $FUNCNAME for $FS_type, email ${coder-}" ;;
+	esac || abort "$FUNCNAME $device $mount_dir returned $? ($FS_type)"
 }
 
 # ----------------------------------------------------------------------------
@@ -354,7 +354,7 @@ set_FS_device___from_FS_label() {
 	fi
 
 	have_cmd blkid ||
-	  abort "you need to rewrite $FUNCNAME and email it to ${coder-Scott}"
+	  abort "you need to fix $FUNCNAME and email it to ${coder-Scott}"
 
 	# -L has a different meaning in older versions, so use old method
 	local cmd="blkid -l -o device -t LABEL=$FS_label"
@@ -364,7 +364,29 @@ set_FS_device___from_FS_label() {
 	[[ $(sudo e2label $FS_device) == $FS_label ]] ||
 	  abort "'blkid' lies: pass device to '$our_name' by-hand"
 
-	[[ $FS_device ]] || abort "$FUNCNAME $FS_label"
+	[[ $FS_device ]] || abort "couldn't find device for $FS_label"
+}
+
+# -----------------------------------------------------------------------------
+
+set__OS_release_file__OS_release() {
+
+	set -- /usr/lib/*-release /etc/*-release
+	[[ -s $1 ]] || shift
+	while (( $# > 1 ))
+	   do	[[ -s $1 ]] || { shift; continue; }
+		case $(basename $1) in
+		   ( lsb-release ) [[ $# != 0 ]] && shift; continue ;;
+		esac
+		break
+	done
+	[[ -s $1 ]] || abort "fix $FUNCNAME and email it to ${coder-Scott}"
+	OS_release_file=$1
+
+	case $(basename  $OS_release_file) in
+	   ( os-release ) OS_release=$(sed -n 's/^PRETTY_NAME=//p' $1) ;;
+	   ( * )	  OS_release=$(< $1) ;;
+	esac
 }
 
 ##############################################################################
@@ -384,7 +406,7 @@ set_FS_device___from_path() {
 
 	FS_device=$(set -- $(df $path | tail -n1); echo $1)
 
-	[[ $FS_device ]] || abort "$FUNCNAME $path"
+	[[ $FS_device ]] || abort "couldn't find device for $path"
 }
 
 # ----------------------------
@@ -408,7 +430,7 @@ set_mount_dir___from_FS_device() {
 	set -- $(grep "^[[:space:]]*LABEL=$FS_label[[:space:]]" /etc/fstab)
 	mount_dir=${2-}
 
-	[[ $mount_dir ]] || abort "$FUNCNAME $dev"
+	[[ $mount_dir ]] || abort "couldn't find mount dir for $dev"
 }
 
 # ----------------------------
@@ -473,7 +495,8 @@ abort() {
 
 # ----------------------------------------------------------------------------
 
-echoE () {				 # echo to stdError
+# echo to stdError, include the line and function from which we're called
+echoE () {
 	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
 	[[ $1 == -n ]] && { local show_name=$true; shift; } || local show_name=
 	declare -i stack_frame_to_show=1 # default to our caller's stack frame
@@ -488,6 +511,9 @@ echoE () {				 # echo to stdError
 	$xtrace
 }
 
+# ----------------------
+
+# like echoE, but also show the values of the variable names passed to us
 echoEV() {
 	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
 	declare -i stack_frame_to_show=1 # default to our caller's stack frame
@@ -508,20 +534,24 @@ TraceV() { is_num $1; (($1 <= Trace_level)) ||return 1;shift; echoEV -1 "$@"; }
 
 # ----------------------------------------------------------------------------
 
-_was_tracing=				# global for next two functions
+declare -A funcname2was_tracing		# global for next two functions
 
 function suspend_tracing {
 
 	if [[ -o xtrace ]]
 	   then set +x
-		_was_tracing=$true
-	   else _was_tracing=$false
+		local was_tracing=$true
+	   else local was_tracing=$false
 	fi
+	funcname2was_tracing[ ${FUNCNAME[1]} ]=$was_tracing
 }
 
+# ----------------------
+
+# show the values of the variable names passed to us, then restore traing state
 restore_tracing() {
 
-	[[ $_was_tracing ]] || return 0
+	[[ ${funcname2was_tracing[ ${FUNCNAME[1]} ]} ]] || return 0
 
 	for variable
 	    do	echo "+ $variable=${!variable}"
