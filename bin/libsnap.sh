@@ -486,7 +486,7 @@ abort() {
 	   else	warn "$@"
 	fi
 
-	print_call_stack -s $stack_skip
+	print_call_stack -s $stack_skip >&2
 
 	[[ ! $is_recursion ]] && log "$(abort -r $* 2>&1)" > /dev/null
 
