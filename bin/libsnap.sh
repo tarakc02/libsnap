@@ -343,6 +343,21 @@ set_FS_label___from_FS_device() {
 
 # ----------------------------------------------------------------------------
 
+declare -i device_KB=0
+
+# snapback users can write a replacement in configure.sh
+set_device_KB___from_block_device() {
+	local  dev=$1
+	[[ -b $dev ]] || abort "$dev is not a device"
+
+	device_KB=0
+	have_cmd lsblk || return 1
+
+	device_KB=$(( $(lsblk --noheadings --bytes --output=SIZE $dev)/1024 ))
+}
+
+# ----------------------------------------------------------------------------
+
 label_drive() {
 	local  device=$1 mount_dir=$2
 	[[ -b $device ]] || abort "$device is not a device"
