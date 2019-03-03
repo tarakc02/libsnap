@@ -588,6 +588,7 @@ restore_tracing() {
 
 	[[ ${funcname2was_tracing[ ${FUNCNAME[1]} ]} ]] || return 0
 
+	local variable
 	for variable
 	    do	echo "+ $variable=${!variable}"
 	done
@@ -777,7 +778,7 @@ function add_words() {
 	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
 	local variable_name=$1; shift
 
-	[[ $# == 0 ]] && $xtrace && return 0 # maybe no words to add
+	[[ $# == 0 ]] && { $xtrace; return 0; } # maybe no words to add
 
 	# it's too hard to detect "unbound variable" in this case
 	local unbound_variable_msg="
@@ -807,17 +808,17 @@ function confirm() {
 	   *     ) y_n="y/n" status=  ;;
 	esac
 
-	[[ -t 0 ]] || return $status
+	[[ -t 0 ]] || { $xtrace; return $status; }
 
 	add_words _prompt "($y_n)? "
 
 	local key
 	while read -n 1 -p "$_prompt" key
-	   do	$xtrace
+	   do	# $xtrace
 		case $key in
 		   [yY]* ) status=0 && break ;;
 		   [nN]* ) status=1 && break ;;
-		   *     ) [[ $status ]] && return $status ;;
+		   *     ) [[ $status ]] && { $xtrace; return $status; } ;;
 		esac
 		set +x
 		echo
@@ -835,7 +836,7 @@ function confirm() {
 function is_arg1_in_arg2() {
 	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
 	local arg1=$1; shift; local arg2=$*
-	[[ $arg1 && $arg2 ]] || return 1
+	[[ $arg1 && $arg2 ]] || { $xtrace; return 1; }
 
 	[[ " $arg2 " == *" $arg1 "* ]]
 	local status=$?
