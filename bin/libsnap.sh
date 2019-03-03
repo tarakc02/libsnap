@@ -317,6 +317,23 @@ set__inode_size__data_block_size__dir_block_size___from_path() {
 
 # ----------------------------------------------------------------------------
 
+declare -i device_KB=0
+
+# snapback users can write a replacement in configure.sh
+set_device_KB___from_block_device() {
+	local  dev=$1
+	[[ -b $dev ]] || abort "$dev is not a device"
+
+	device_KB=0
+	have_cmd lsblk || return 1
+
+	set -- $(lsblk --noheadings --bytes --output=SIZE $dev)
+	[[ $# == 1 ]] || abort "need to specify a partition not whole drive"
+	device_KB=$(( $1/1024 ))
+}
+
+# ----------------------------------------------------------------------------
+
 FS_label=
 
 # snapback or snapcrypt users can write a replacement in configure.sh
@@ -339,23 +356,6 @@ set_FS_label___from_FS_device() {
 
 	[[ $FS_label ]] ||
 	   abort "you need to fix $FUNCNAME and email it to ${coder-Scott}"
-}
-
-# ----------------------------------------------------------------------------
-
-declare -i device_KB=0
-
-# snapback users can write a replacement in configure.sh
-set_device_KB___from_block_device() {
-	local  dev=$1
-	[[ -b $dev ]] || abort "$dev is not a device"
-
-	device_KB=0
-	have_cmd lsblk || return 1
-
-	set -- $(lsblk --noheadings --bytes --output=SIZE $dev)
-	[[ $# == 1 ]] || abort "need to specify a partition not whole drive"
-	device_KB=$(( $1/1024 ))
 }
 
 # ----------------------------------------------------------------------------
