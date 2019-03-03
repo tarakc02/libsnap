@@ -353,7 +353,9 @@ set_device_KB___from_block_device() {
 	device_KB=0
 	have_cmd lsblk || return 1
 
-	device_KB=$(( $(lsblk --noheadings --bytes --output=SIZE $dev)/1024 ))
+	set -- $(lsblk --noheadings --bytes --output=SIZE $dev)
+	[[ $# == 1 ]] || abort "need to specify a partition not whole drive"
+	device_KB=$(( $1/1024 ))
 }
 
 # ----------------------------------------------------------------------------
