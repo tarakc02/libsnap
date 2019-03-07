@@ -574,14 +574,13 @@ TraceV() { is_num $1; (($1 <= Trace_level)) ||return 1;shift; echoEV -1 "$@"; }
 declare -A funcname2was_tracing		# global for next two functions
 
 function remember_tracing {
+	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
 
-	if [[ -o xtrace ]]
-	   then local was_tracing=$true
-	   else local was_tracing=$false
-	fi
-	funcname2was_tracing[ ${FUNCNAME[1]} ]=$was_tracing
+	funcname2was_tracing[ ${FUNCNAME[1]} ]=$xtrace
+
+	$xtrace
 }
-# above and below functions are almost identical
+
 function suspend_tracing {
 
 	if [[ -o xtrace ]]
@@ -589,6 +588,7 @@ function suspend_tracing {
 		local was_tracing=$true
 	   else local was_tracing=$false
 	fi
+	is_arg1_in_arg2 ${FUNCNAME[1]} ${!funcname2was_tracing[*]} ||
 	funcname2was_tracing[ ${FUNCNAME[1]} ]=$was_tracing
 }
 
