@@ -561,6 +561,8 @@ echoEV() {
 	$xtrace
 }
 
+# ----------------------
+
 declare -i Trace_level=0		# default to none (probably)
 
 is_num() { [[ $1 =~ ^[0-9]+$ ]] || abort -2 "Trace* first arg is a level"; }
