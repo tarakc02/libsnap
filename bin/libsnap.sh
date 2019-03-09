@@ -381,10 +381,10 @@ label_drive() {
 FS_device=
 
 set_FS_device___from_FS_label() {
-	local FS_label=$1
+	local label=$1
 
-	if [[ -d /Volumes ]]		# Darwin, use FS_label for basename
-	   then set_FS_device___from_path /Volumes/$FS_label
+	if [[ -d /Volumes ]]		# Darwin?
+	   then set_FS_device___from_path /Volumes/$label
 		return
 	fi
 
@@ -392,14 +392,15 @@ set_FS_device___from_FS_label() {
 	  abort "you need to fix $FUNCNAME and email it to ${coder-Scott}"
 
 	# -L has a different meaning in older versions, so use old method
-	local cmd="blkid -l -o device -t LABEL=$FS_label"
+	local cmd="blkid -l -o device -t LABEL=$label"
 	FS_device=$($cmd)		; [[ $FS_device ]] ||
 	FS_device=$(sudo $cmd)
 
-	[[ $(sudo e2label $FS_device) == $FS_label ]] ||
+	set_FS_label___from_FS_device $FS_device
+	[[ $FS_label == $label ]] ||
 	  abort "'blkid' lies: pass device to '$our_name' by-hand"
 
-	[[ $FS_device ]] || abort "couldn't find device for $FS_label"
+	[[ $FS_device ]] || abort "couldn't find device for $label"
 }
 
 # -----------------------------------------------------------------------------
