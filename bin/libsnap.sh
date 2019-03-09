@@ -663,9 +663,10 @@ log() {
 # show head-style header
 header() {
 	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
-	[[ $1 == -E ]] && shift || echo
+	[[ $1 == -e ]] && { shift; local nl="\n"; } || local nl=
+	[[ $1 == -E ]] &&   shift || echo
 
-	echo -e "==> $* <=="
+	echo -e "==> $* <==$nl"
 	$xtrace
 }
 
