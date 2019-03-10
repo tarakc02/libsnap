@@ -647,8 +647,10 @@ log() {
 
 	(( $level <= $log_level )) || return 1
 
-	[[ ! -e $file_for_logging || -w $file_for_logging ]] &&
-	   local sudo= || local sudo=sudo
+	[[ ( ! -e $file_for_logging && -w ${file_for_logging%/*} ) ||
+	       -w $file_for_logging ]] && local sudo= || local sudo=sudo
+	[[ -e $file_for_logging ]] || $sudo mkdir -p ${file_for_logging%/*}
+
 	local  _date_time=$(date "$log_date_format")
 	local _log_msg_prefix=$log_msg_prefix
 	eval "_log_msg_prefix=\"$_log_msg_prefix\""
