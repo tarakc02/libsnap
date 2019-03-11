@@ -651,12 +651,16 @@ log() {
 	       -w $file_for_logging ]] && local sudo= || local sudo=sudo
 	[[ -e $file_for_logging ]] || $sudo mkdir -p ${file_for_logging%/*}
 
+	if [[ $IfRun ]]
+	   then local _file_for_logging=/dev/null
+	   else local _file_for_logging=$file_for_logging
+	fi
 	local  _date_time=$(date "$log_date_format")
 	local _log_msg_prefix=$log_msg_prefix
 	eval "_log_msg_prefix=\"$_log_msg_prefix\""
 	_log_msg_prefix=$(echo "$_log_msg_prefix" | sed 's/ *$//')
 	echo "$_date_time$_log_msg_prefix: $_msg" |
-	   $sudo tee -a $file_for_logging
+	   $sudo tee -a $_file_for_logging
 	$xtrace
 	return 0
 }
