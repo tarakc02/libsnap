@@ -792,21 +792,28 @@ function is_process_alive() {
 
 # ----------------------------------------------------------------------------
 
-# in variable named $1, append the subsequent args (with white space)
+# in variable named $1, append the subsequent args (with white space); if -k
+#    is passed, the variable is an array, with key/index/subscript following -k
 function add_words() {
 	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
+	[[ $1 == -k ]] && { local key=$2; shift 2; } || local key=
 	local variable_name=$1; shift
 
 	[[ $# == 0 ]] && { $xtrace; return 0; } # maybe no words to add
 
-	# it's too hard to detect "unbound variable" in this case
 	local unbound_variable_msg="
 	  $FUNCNAME $variable_name $*: $variable_name is unset"
-	local value=${!variable_name?"$unbound_variable_msg"}
+	if [[ $key ]]
+	   then eval "local value=\${$variable_name[\$key]-}"
+	   else       local value=${!variable_name?"$unbound_variable_msg"}
+	fi
 
-	if [[ $value ]]
-	   then eval "$variable_name=\"\$value \$*\""
-	   else eval "$variable_name=\$*"
+	value="$value $*"
+	value=${value# }
+
+	if [[ $key ]]
+	   then eval "$variable_name[\$key]=\$value"
+	   else eval "$variable_name=\$value"
 	fi
 
 	$xtrace
