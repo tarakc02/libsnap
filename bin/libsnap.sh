@@ -238,15 +238,18 @@ umask 022				# caller can change it
 abort "bash version >= 4.2 must appear earlier in the PATH than an older bash"
 
 ##############################################################################
-## there are three kinds of syntax for routines (not always followed):
+## There are three kinds of syntax (not always followed) for routines:
 ##    function func()	# returns status, takes arguments
 ##    function func	# returns status, doesn't take arguments
 ##    procedure()	# doesn't return status (exits on fatal error)
 ##
-## there are two kinds of routines that set global variables:
-##    set_foo		# set variable foo
-##    set_foo___from_xx	# set variable foo ... using method xx on args
-##    set__foo__bar	# set variable foo and variable bar
+## There are three kinds of naming for routines that set global variables:
+##    set_foo		# sets variable foo
+##    set_foo___from_xx	# sets variable foo ... using method xx on args
+##    set__foo__bar	# sets variable foo and also sets variable bar
+##
+## An array (indexed or associative) that maps a_key to a_value is named:
+##    a_key2a_value
 ##############################################################################
 
 ###########################################################################
@@ -943,32 +946,22 @@ assert_sha1sum()
 
 # ----------------------------------------------------------------------------
 
-# to test (top-level) functions by passing names as _args_ to $our_name script
-# TODO: add getopts, then support -a: Abort if any function returns non-0
-run_functions()
+# Test an internal function by passing its name + options + args to our script;
+# to show values of global variables it alters, pass: -v "varname(s)"
+run_function()
 {
-	local is_procedure=$false	# assume 'warn' if function "fails"
+	local is_procedure=$false	# abort if function "fails"
 	[[ $1 == -p ]] && { is_procedure=$true; shift; }
-	local functions=$*
+	[[ $1 == -v ]] && { local var_names=$2; shift 2; } || local var_names=
 
-	local status=0
+	have_cmd $1 || abort "function '$1' doesn't exist"
 
-	local function
-	for   function in $functions
-	    do	have_cmd  $function ||
-		    abort "function '$function' doesn't exist"
-		$function && continue
-		status=$?
-		[[ $is_procedure ]] ||
-		   warn "function '$function' returned $status"
-	done
-
+	"$@"
+	local status=$?
+	[[ $var_names ]] && echoEV -1 $var_names
+	[[ $status == 0 || $is_procedure ]] || abort -1 "'$*' returned $status"
 	return $status
 }
-
-# ----------------------
-
-run_procedures() { run_functions -p "$@"; }
 
 # ----------------------------------------------------------------------------
 
