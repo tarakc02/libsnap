@@ -636,10 +636,10 @@ abort_with_action_Usage() {
 
 # RunCmd's args are a command (plus args) that _should_ return 0, else we abort
 RunCmd() {
-	[[ $1 == -d ]] && { local _IfRun=echo; shift ; } || local _IfRun=
+	[[ $1 == -d ]] && { local IfAbort=$IfRun; shift; } || local IfAbort=
 	[[ $1 == -m ]] && { local msg="; $2"; shift 2; } || local msg=
 
-	$IfRun "$@" || $_IfRun abort -1 "'$*' returned $?$msg"
+	$IfRun "$@" || $IfAbort abort -1 "'$*' returned $?$msg"
 }
 
 # ----------------------------------------------------------------------------
