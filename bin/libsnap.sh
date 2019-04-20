@@ -478,6 +478,7 @@ set_mount_dir___from_FS_label() {
 	local label=$1
 
 	mount_dir=/${label//_/\/}
+	[[ -d $mount_dir ]]
 }
 
 # -------------------------------
@@ -630,6 +631,11 @@ abort_with_action_Usage() {
 	echo "$Usage" | grep "$@" >&2; echo
 	exit 1
 }
+
+# ---------------------------------
+
+# RunCmd's args are a command (plus args) that _should_ return 0, else we abort
+RunCmd() { $IfRun "$@" || abort "'$*' returned $?"; }
 
 # ----------------------------------------------------------------------------
 # Generic logging function, with customization globals that caller can set.
