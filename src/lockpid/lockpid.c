@@ -52,8 +52,7 @@ static const int   unknown_exit_status = 127;
 static const int     usage_exit_status = 126;
 
 typedef int bool;
-static const bool False = 0;
-static const bool True  = 1;
+enum { False = 0, True = 1 };
 
 // ===========================================================================
 // globals that are set once at startup
@@ -71,11 +70,13 @@ void
 show_usage_and_exit(void)
 {
     fprintf(stderr, "\n\
-Usage: %s [-r] file [pid]\n\
+Usage: %s [-r] [-q] [-v] file [pid]\n\
    cd %s, put 'pid' (else parent's PID) into 'file', and exit with 0;\n\
       but, if 'file' already holds PID of another active process, exit with %d;\n\
       if there's any (other) kind of error, exit with > %d (typically errno).\n\
    To release the lock, use the -r option (or just delete 'file').\n\
+   To not announce when the lock is busy, use the -q option.\n\
+   To announce when acquire the lock, use the -v option.\n\
 \n\
    NOTE: This command is only suitable for local locks, not networked locks.\n\
 \n\
@@ -114,7 +115,9 @@ show_errno_and_exit(const char *system_call)
 
 // ---------------------------------------------------------------------------
 
-bool do_release;
+bool do_release = False;
+bool is_quiet	= False;
+bool is_verbose = False;
 
 void
 parse_argv_setup_globals(int argc, char * const argv[])
@@ -127,11 +130,14 @@ parse_argv_setup_globals(int argc, char * const argv[])
     else
 	argv0 = argv[0];
 
-    if (argc > 1 && strcmp(argv[1], "-r") == 0) {
-	argv++;
-	do_release = True;
-    } else
-	do_release = False;
+    if (argc > 1 && strcmp(argv[1], "-r") == 0)
+	argc--, argv++, do_release = True;
+
+    if (argc > 1 && strcmp(argv[1], "-q") == 0)
+	argc--, argv++, is_quiet = True;
+
+    if (argc > 1 && strcmp(argv[1], "-v") == 0)
+	argc--, argv++, is_verbose = True;
 
     if (argc < 2 || argc > 3 || argv[1][0] == '-')
 	show_usage_and_exit();
@@ -159,9 +165,6 @@ create_file_for_lock(void)
 {
     int fd;
 
-    if (chdir(lock_dir) < 0)
-	show_errno_and_exit("chdir");
-
     // let umask control who can reclaim a stale lock
     fd = open(lock_file, O_RDWR | O_CREAT | O_NOFOLLOW, 0666);
 
@@ -180,7 +183,8 @@ lock_file_or_exit(const int fd)
 	return;
 	    
     if (errno == EWOULDBLOCK) {
-	printf("lock '%s' is busy\n", lock_file);
+	if (! is_quiet)
+	    printf("lock '%s' is busy\n", lock_file);
 	exit(lock_busy_exit_status);
     }
 
@@ -216,7 +220,8 @@ exit_if_file_holds_active_pid(const int fd)
 	exit(0);
     } 
 
-    printf("Process %d holds lock '%s'\n", lock_pid, lock_file);
+    if (! is_quiet)
+	printf("process %d holds lock '%s'\n", lock_pid, lock_file);
 
     exit(lock_busy_exit_status);
 }
@@ -270,6 +275,9 @@ main(int argc, char *argv[])
 
     parse_argv_setup_globals(argc, (char * const *)argv);
 
+    if (chdir(lock_dir) < 0)
+	show_errno_and_exit("chdir");
+
     if (do_release)
 	release_file_and_exit();
 
@@ -282,6 +290,9 @@ main(int argc, char *argv[])
     write_pid_to_file(fd);
 
     close_file(fd);
+
+    if (is_verbose)
+	printf("caller successfully acquired lock '%s'\n", lock_file);
 
     return(0);
 }
