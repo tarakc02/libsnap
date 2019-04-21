@@ -593,7 +593,6 @@ function suspend_tracing {
 		local was_tracing=$true
 	   else local was_tracing=$false
 	fi
-	is_arg1_in_arg2 ${FUNCNAME[1]} ${!funcname2was_tracing[*]} ||
 	funcname2was_tracing[ ${FUNCNAME[1]} ]=$was_tracing
 }
 
