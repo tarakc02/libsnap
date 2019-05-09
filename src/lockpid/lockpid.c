@@ -33,6 +33,7 @@ Boston, MA 02111-1307, USA.
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>		/* <asm-generic/errno-base.h> on Linux */
+#include <getopt.h>
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -44,7 +45,7 @@ Boston, MA 02111-1307, USA.
 // miscellaneous typedefs/constants/defines/etc
 // ===========================================================================
 
-const char lock_dir[] = "/var/lock";
+char *lock_dir = "/var/lock";
 
 // exit status is one byte wide; bash exit is >= 128 when died from signal
 static const int lock_busy_exit_status =   1;
@@ -52,7 +53,7 @@ static const int   unknown_exit_status = 127;
 static const int     usage_exit_status = 126;
 
 typedef int bool;
-enum { False = 0, True = 1 };
+enum bool { False = 0, True = 1 };
 
 // ===========================================================================
 // globals that are set once at startup
@@ -70,8 +71,9 @@ void
 show_usage_and_exit(void)
 {
     fprintf(stderr, "\n\
-Usage: %s [-r] [-q] [-v] file [pid]\n\
-   cd %s, put 'pid' (else parent's PID) into 'file', and exit with 0;\n\
+Usage: %s [-d dir] [-p pid] [-w] [-r]  [-q] [-v] file(s)\n\
+   cd dir (default '%s'), put 'pid' (default caller PID) into 'file',\n\
+         then exit with 0;\n\
       but, if 'file' already holds PID of another active process, exit with %d;\n\
       if there's any (other) kind of error, exit with > %d (typically errno).\n\
    To release the lock, use the -r option (or just delete 'file').\n\
@@ -115,9 +117,23 @@ show_errno_and_exit(const char *system_call)
 
 // ---------------------------------------------------------------------------
 
-bool do_release = False;
+static const struct option
+Long_opts[] =
+{
+    { "directory",	1, NULL, 'd' },
+    { "pid",		1, NULL, 'p' },
+    { "wait",		0, NULL, 'w' },
+    { "quiet",		0, NULL, 'q' },
+    { "verbose",	0, NULL, 'v' },
+    { "release",	0, NULL, 'r' },
+    { NULL,		0, NULL,  0  },
+};
+
+bool do_wait	= False;
 bool is_quiet	= False;
 bool is_verbose = False;
+bool do_release = False;
+char **lock_fileV;
 
 void
 parse_argv_setup_globals(int argc, char * const argv[])
@@ -130,21 +146,41 @@ parse_argv_setup_globals(int argc, char * const argv[])
     else
 	argv0 = argv[0];
 
-    if (argc > 1 && strcmp(argv[1], "-r") == 0)
-	argc--, argv++, do_release = True;
+    // see getopt(3) for semantics of getopt_long and its arguments
+    static const char Opt_string[] = "d:p:wqvr";
+    while (True)
+    {
+	int option = getopt_long(argc, argv, Opt_string, Long_opts, NULL);
 
-    if (argc > 1 && strcmp(argv[1], "-q") == 0)
-	argc--, argv++, is_quiet = True;
+	if (option < 0)
+	    break;
 
-    if (argc > 1 && strcmp(argv[1], "-v") == 0)
-	argc--, argv++, is_verbose = True;
+	switch (option)
+	{
+	case 'd': lock_dir   = optarg;	break;
+	case 'p': lock_pid   = optarg;	break;
+	case 'w': do_wait    = True;	break;
+	case 'q': is_quiet   = True;	break;
+	case 'v': is_verbose = True;	break;
+	case 'r': do_release = True;	break;
+	case 'h': // fall through to default
+	default : show_usage_and_exit();
+	}
+    }
 
-    if (argc < 2 || argc > 3 || argv[1][0] == '-')
+    lock_fileV = (char **)argv;
+    lock_fileV += optind;
+
+    if (! lock_fileV[0])
 	show_usage_and_exit();
 
-    lock_file = argv[1];
+    return;
 
-    lock_pid  = argv[2];
+    printf("dir = %s\n", lock_dir);
+    printf("pid = %s\n", lock_pid);
+    int i;
+    for (i = 0; lock_fileV[i];  i++)
+	printf("lock_fileV[%d] = %s\n", i, lock_fileV[i]);
 }
 
 // ---------------------------------------------------------------------------
@@ -199,8 +235,11 @@ exit_if_file_holds_active_pid(const int fd)
     char line[16];
     pid_t lock_pid;
 
-    if (read(fd, line, sizeof(line)) < 0)
+    int n = read(fd, line, sizeof(line));
+    if (n < 0)
 	show_errno_and_exit("read");
+    if (n == 0)
+	return;
 
     if (sscanf(line, "%d", &lock_pid) != 1)
 	return;
@@ -274,6 +313,7 @@ main(int argc, char *argv[])
     int fd;
 
     parse_argv_setup_globals(argc, (char * const *)argv);
+    lock_file = lock_fileV[0];
 
     if (chdir(lock_dir) < 0)
 	show_errno_and_exit("chdir");
