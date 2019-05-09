@@ -49,7 +49,7 @@ Boston, MA 02111-1307, USA.
 char *lock_dir = "/var/lock";
 
 // exit status is one byte wide; bash exit is >= 128 when died from signal
-static const int lock_busy_exit_status =   1;
+static const int lock_busy_exit_status = 125;
 static const int   unknown_exit_status = 127;
 static const int     usage_exit_status = 126;
 
@@ -61,8 +61,8 @@ enum bool { False = 0, True = 1 };
 // ===========================================================================
 
 const char *argv0;		/* our command name with path stripped */
-const char *lock_file;
-const char *lock_pid;
+const char *lock_file = NULL;
+const char *lock_pid  = NULL;
 
 // ===========================================================================
 // our user interface
@@ -74,9 +74,9 @@ show_usage_and_exit(void)
     fprintf(stderr, "\n\
 Usage: %s [-d dir] [-p pid] [-w] [-r]  [-q] [-v] file(s)\n\
    cd dir (default '%s'), put 'pid' (default caller PID) into 'file',\n\
-         then exit with 0;\n\
-      but, if 'file' already holds PID of another active process, exit with %d;\n\
-      if there's any (other) kind of error, exit with > %d (typically errno).\n\
+         then exit with 0; but,\n\
+      if 'file' already holds PID of another active process, exit with %d;\n\
+      if there's any (other) kind of error, exit with errno (typically).\n\
    To release the lock, use the -r option (or just delete 'file').\n\
    To not announce when the lock is busy, use the -q option.\n\
    To announce when acquire the lock, use the -v option.\n\
@@ -86,7 +86,7 @@ Usage: %s [-d dir] [-p pid] [-w] [-r]  [-q] [-v] file(s)\n\
    'file' is locked with flock before checking/writing 'pid', to avoid races.\n\
    To avoid security risks, this command will bomb if 'file' is a symlink.\n\
 \n\
-", argv0, lock_dir, lock_busy_exit_status, lock_busy_exit_status);
+", argv0, lock_dir, lock_busy_exit_status);
 
     exit(usage_exit_status);
 }
@@ -314,10 +314,11 @@ main(int argc, char *argv[])
     int fd;
 
     parse_argv_setup_globals(argc, (char * const *)argv);
-    lock_file = lock_fileV[0];
 
     if (chdir(lock_dir) < 0)
 	show_errno_and_exit("chdir");
+
+    lock_file = lock_fileV[0];
 
     if (do_release)
 	release_file_and_exit();
