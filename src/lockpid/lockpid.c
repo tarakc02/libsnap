@@ -35,6 +35,7 @@ Boston, MA 02111-1307, USA.
 #include <errno.h>		/* <asm-generic/errno-base.h> on Linux */
 #include <getopt.h>
 #include <unistd.h>
+#include <ctype.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/file.h>
@@ -171,7 +172,7 @@ parse_argv_setup_globals(int argc, char * const argv[])
     lock_fileV = (char **)argv;
     lock_fileV += optind;
 
-    if (! lock_fileV[0])
+    if ( ! lock_fileV[0] || ( lock_fileV[1] && isdigit(lock_fileV[1][0]) ) )
 	show_usage_and_exit();
 
     return;
