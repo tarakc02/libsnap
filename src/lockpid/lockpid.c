@@ -49,9 +49,9 @@ Boston, MA 02111-1307, USA.
 char *lock_dir = "/var/lock";
 
 // exit status is one byte wide; bash exit is >= 128 when died from signal
-static const int lock_busy_exit_status = 125;
 static const int   unknown_exit_status = 127;
 static const int     usage_exit_status = 126;
+static const int lock_busy_exit_status = 125; /* copied into libsnap.sh */
 
 typedef int bool;
 enum bool { False = 0, True = 1 };

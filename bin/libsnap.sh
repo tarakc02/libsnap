@@ -58,14 +58,16 @@ our_name=${our_name:-${0##*/}}		# user can change
 # put $IfRun in front of key commands, so -d means: debug only, simulate
 : ${IfRun=}
 
-true=t True=t					; readonly true  True
-false= False=					; readonly false False
+readonly true=t True=t
+readonly false= False=
 
 case ${0#-} in
     ( bash | csh | ksh | scsh | sh | tcsh | zsh )
 	  is_sourced_by_interactive_shell=$true  ;;
     ( * ) is_sourced_by_interactive_shell=$false ;;
 esac
+
+readonly lockpid_busy_exit_status=125
 
 _chr_='[a-zA-Z0-9]'
 rsync_temp_file_suffix="$_chr_$_chr_$_chr_$_chr_$_chr_$_chr_"; unset _chr_
