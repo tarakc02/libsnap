@@ -543,6 +543,7 @@ echoE () {
 	[[ $1 == -n ]] && { local show_name=$true; shift; } || local show_name=
 	declare -i stack_frame_to_show=1 # default to our caller's stack frame
 	[[ $1 =~ ^-[0-9]+$ ]] && { stack_frame_to_show=${1#-}+1; shift; }
+	[[ $1 != -*  ]] || abort "$FUNCNAME: unknown option $1 (order matters)"
 
 	local   line_no=${BASH_LINENO[stack_frame_to_show-1]}
 	local func_name=${FUNCNAME[stack_frame_to_show]}
@@ -560,6 +561,7 @@ echoEV() {
 	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
 	declare -i stack_frame_to_show=1 # default to our caller's stack frame
 	[[ $1 =~ ^-[0-9]+$ ]] && { stack_frame_to_show=${1#-}+1; shift; }
+	[[ $1 != -*  ]] || abort "$FUNCNAME: unknown option $1"
 
 	local var
 	for var
@@ -639,6 +641,7 @@ abort_with_action_Usage() {
 RunCmd() {
 	[[ $1 == -d ]] && { local IfAbort=$IfRun; shift; } || local IfAbort=
 	[[ $1 == -m ]] && { local msg="; $2"; shift 2; } || local msg=
+	[[ $1 != -*  ]] || abort "$FUNCNAME: unknown option $1 (order matters)"
 
 	$IfRun "$@" || $IfAbort abort -1 "'$*' returned $?$msg"
 }
@@ -687,6 +690,7 @@ header() {
 	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
 	[[ $1 == -e ]] && { shift; local nl="\n"; } || local nl=
 	[[ $1 == -E ]] &&   shift || echo
+	[[ $1 != -*  ]] || abort "$FUNCNAME: unknown option $1 (order matters)"
 
 	echo -e "==> $* <==$nl"
 	$xtrace
@@ -812,6 +816,7 @@ function is_process_alive() {
 function add_words() {
 	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
 	[[ $1 == -k ]] && { local key=$2; shift 2; } || local key=
+	[[ $1 != -*  ]] || abort "$FUNCNAME: unknown option $1"
 	local variable_name=$1; shift
 
 	[[ $# == 0 ]] && { $xtrace; return 0; } # maybe no words to add
@@ -840,6 +845,7 @@ function add_words() {
 function confirm() {
 	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
 	[[ $1 == -n  ]] && { echo; shift; }
+	[[ $1 != -*  ]] || abort "$FUNCNAME: unknown option $1"
 	local _prompt=$1 default=${2-}
 
 	local y_n status
@@ -922,7 +928,8 @@ modify_file() {
 	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
 	local backup_ext=
 	[[ $1 == -b* ]] && { backup_ext=$1; shift; }
-	[[ $# -ge 2 ]] || abort "Usage: modify_file [-b[ext]] file command"
+	[[ $1 != -*  ]] || abort "$FUNCNAME: unknown option $1"
+	(( $# >= 2   )) || abort "Usage: modify_file [-b[ext]] file command"
 	local file=$1; shift
 
 	local dir
@@ -965,6 +972,7 @@ run_function()
 	local is_procedure=$false	# abort if function "fails"
 	[[ $1 == -p ]] && { is_procedure=$true; shift; }
 	[[ $1 == -v ]] && { local var_names=$2; shift 2; } || local var_names=
+	[[ $1 != -*  ]] || abort "$FUNCNAME: unknown option $1 (order matters)"
 
 	have_cmd $1 || abort "function '$1' doesn't exist"
 
