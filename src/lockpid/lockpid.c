@@ -63,6 +63,7 @@ enum bool { False = 0, True = 1 };
 const char *argv0;		/* our command name with path stripped */
 const char *lock_file = NULL;
 const char *lock_pid  = NULL;
+const char *lock_pid_new = NULL;
 
 // ===========================================================================
 // our user interface
@@ -72,14 +73,15 @@ void
 show_usage_and_exit(void)
 {
     fprintf(stderr, "\n\
-Usage: %s [-d dir] [-p pid] [-w] [-r]  [-q] [-v] file(s)\n\
-   cd dir (default '%s'), put 'pid' (default caller PID) into 'file',\n\
-         then exit with 0; but,\n\
+Usage: %s [-d dir] [-p pid] [-P npid] [-w] [-r]  [-q] [-v] file(s)\n\
+   cd dir (default '%s'), put 'pid' (default npid else caller PID)\n\
+	 into 'file', then exit with 0; but,\n\
       if 'file' already holds PID of another active process, exit with %d;\n\
       if there's any (other) kind of error, exit with errno (typically).\n\
-   To release the lock, use the -r option (or just delete 'file').\n\
-   To not announce when the lock is busy, use the -q option.\n\
-   To announce when acquire the lock, use the -v option.\n\
+   To change the PID in a lock, use -P (--new-pid).\n\
+   To --release the lock, use the -r option (or just delete 'file').\n\
+   To not announce when the lock is busy, use the -q (--quiet) option.\n\
+   To announce when acquire the lock, use the -v (--verbose) option.\n\
 \n\
    NOTE: This command is only suitable for local locks, not networked locks.\n\
 \n\
@@ -123,6 +125,7 @@ Long_opts[] =
 {
     { "directory",	1, NULL, 'd' },
     { "pid",		1, NULL, 'p' },
+    { "new-pid",	1, NULL, 'P' },
     { "wait",		0, NULL, 'w' },
     { "quiet",		0, NULL, 'q' },
     { "verbose",	0, NULL, 'v' },
@@ -148,7 +151,7 @@ parse_argv_setup_globals(int argc, char * const argv[])
 	argv0 = argv[0];
 
     // see getopt(3) for semantics of getopt_long and its arguments
-    static const char Opt_string[] = "d:p:wqvr";
+    static const char Opt_string[] = "d:p:P:wqvr";
     while (True)
     {
 	int option = getopt_long(argc, argv, Opt_string, Long_opts, NULL);
@@ -160,6 +163,7 @@ parse_argv_setup_globals(int argc, char * const argv[])
 	{
 	case 'd': lock_dir   = optarg;	break;
 	case 'p': lock_pid   = optarg;	break;
+	case 'P': lock_pid_new = optarg; break;
 	case 'w': do_wait    = True;	break;
 	case 'q': is_quiet   = True;	break;
 	case 'v': is_verbose = True;	break;
@@ -255,6 +259,8 @@ exit_if_file_holds_active_pid(const int fd)
     }
 
     if (getppid() == lock_pid) {
+	if (lock_pid_new)		// want to replace PID?
+	    return;
 	// don't send this to stderr, so easy to ignore
 	printf("%s %s: already hold lock\n", argv0, lock_file);
 	exit(0);
@@ -273,6 +279,7 @@ write_pid_to_file(const int fd)
 {
     char line[16];
     pid_t pid = (lock_pid) ? atoi(lock_pid) : getppid();
+    pid  =  (lock_pid_new) ? atoi(lock_pid_new) : pid;
 
     if (lseek(fd, 0, SEEK_SET) < 0)
 	show_errno_and_exit("lseek");
