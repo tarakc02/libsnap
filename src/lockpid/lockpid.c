@@ -62,8 +62,8 @@ enum bool { False = 0, True = 1 };
 
 const char *argv0;		/* our command name with path stripped */
 const char *lock_file = NULL;
-const char *lock_pid  = NULL;
-const char *lock_pid_new = NULL;
+const char *PID_string  = NULL;
+const char *PID_string_new = NULL;
 
 int wait_millisecs = 50;
 
@@ -165,8 +165,8 @@ parse_argv_setup_globals(int argc, char * const argv[])
 	switch (option)
 	{
 	case 'd': lock_dir	= optarg; break;
-	case 'p': lock_pid	= optarg; break;
-	case 'P': lock_pid_new	= optarg; break;
+	case 'p': PID_string	= optarg; break;
+	case 'P': PID_string_new= optarg; break;
 	case 'w': do_wait	= True;   break;
 	case 'q': is_quiet	= True;   break;
 	case 'v': is_verbose	= True;   break;
@@ -190,7 +190,7 @@ parse_argv_setup_globals(int argc, char * const argv[])
     return;
 
     printf("dir = %s\n", lock_dir);
-    printf("pid = %s\n", lock_pid);
+    printf("pid = %s\n", PID_string);
     int i;
     for (i = 0; lock_fileV[i];  i++)
 	printf("lock_fileV[%d] = %s\n", i, lock_fileV[i]);
@@ -287,8 +287,8 @@ void
 write_pid_to_file(const int fd)
 {
     char line[16];
-    pid_t pid = (lock_pid) ? atoi(lock_pid) : getppid();
-    pid  =  (lock_pid_new) ? atoi(lock_pid_new) : pid;
+    pid_t pid = (PID_string) ? atoi(PID_string) : getppid();
+    pid  =  (PID_string_new) ? atoi(PID_string_new) : pid;
 
     if (lseek(fd, 0, SEEK_SET) < 0)
 	show_errno_and_exit("lseek");
