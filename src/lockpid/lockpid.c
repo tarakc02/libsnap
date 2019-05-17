@@ -161,13 +161,13 @@ parse_argv_setup_globals(int argc, char * const argv[])
 
 	switch (option)
 	{
-	case 'd': lock_dir   = optarg;	break;
-	case 'p': lock_pid   = optarg;	break;
-	case 'P': lock_pid_new = optarg; break;
-	case 'w': do_wait    = True;	break;
-	case 'q': is_quiet   = True;	break;
-	case 'v': is_verbose = True;	break;
-	case 'r': do_release = True;	break;
+	case 'd': lock_dir	= optarg; break;
+	case 'p': lock_pid	= optarg; break;
+	case 'P': lock_pid_new	= optarg; break;
+	case 'w': do_wait	= True;   break;
+	case 'q': is_quiet	= True;   break;
+	case 'v': is_verbose	= True;   break;
+	case 'r': do_release	= True;   break;
 	case 'h': // fall through to default
 	default : show_usage_and_exit();
 	}
