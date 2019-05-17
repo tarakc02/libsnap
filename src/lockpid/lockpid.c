@@ -47,6 +47,7 @@ Boston, MA 02111-1307, USA.
 // ===========================================================================
 
 char *lock_dir = "/var/lock";
+pid_t pid, new_pid;
 
 // exit status is one byte wide; bash exit is >= 128 when died from signal
 static const int   unknown_exit_status = 127;
@@ -62,8 +63,6 @@ enum bool { False = 0, True = 1 };
 
 const char *argv0;		/* our command name with path stripped */
 const char *lock_file = NULL;
-const char *PID_string  = NULL;
-const char *PID_string_new = NULL;
 
 int wait_millisecs = 50;
 
@@ -153,6 +152,8 @@ parse_argv_setup_globals(int argc, char * const argv[])
     else
 	argv0 = argv[0];
 
+    const char *PID_string     = NULL;
+    const char *PID_string_new = NULL;
     // see getopt(3) for semantics of getopt_long and its arguments
     static const char Opt_string[] = "d:p:P:wqvr";
     while (True)
@@ -186,6 +187,9 @@ parse_argv_setup_globals(int argc, char * const argv[])
 	fprintf(stderr, "%s: multiple locks aren't supported yet\n", argv0);
 	exit(usage_exit_status);
     }
+
+    pid = (PID_string) ? atoi(PID_string) : getppid();
+    new_pid = (PID_string_new) ? atoi(PID_string_new) : 0;
 
     return;
 
@@ -267,8 +271,8 @@ does_file_hold_active_pid(const int fd)
 	    show_errno_and_exit("kill");
     }
 
-    if (getppid() == lock_pid) {
-	if (lock_pid_new)		// want to replace PID?
+    if (pid == lock_pid) {
+	if (new_pid)			// want to replace PID?
 	    return(False);
 	// don't send this to stderr, so easy to ignore
 	printf("%s %s: already hold lock\n", argv0, lock_file);
@@ -287,8 +291,6 @@ void
 write_pid_to_file(const int fd)
 {
     char line[16];
-    pid_t pid = (PID_string) ? atoi(PID_string) : getppid();
-    pid  =  (PID_string_new) ? atoi(PID_string_new) : pid;
 
     if (lseek(fd, 0, SEEK_SET) < 0)
 	show_errno_and_exit("lseek");
@@ -297,7 +299,7 @@ write_pid_to_file(const int fd)
 	show_errno_and_exit("ftruncate");
     
     // format per http://www.pathname.com/fhs/2.2/fhs-5.9.html
-    sprintf(line, "%10d\n", pid);
+    sprintf(line, "%10d\n", (new_pid) ? new_pid : pid);
 
     if ( write(fd, line, strlen(line)) != strlen(line) ) {
 	int write_errno = errno;
