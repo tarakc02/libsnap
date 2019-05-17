@@ -179,12 +179,13 @@ parse_argv_setup_globals(int argc, char * const argv[])
     lock_fileV = (char **)argv;
     lock_fileV += optind;
 
+    if ( ! lock_fileV[0] || ( lock_fileV[1] && isdigit(lock_fileV[1][0]) ) )
+	show_usage_and_exit();
+
     if (lock_fileV[1]) {
 	fprintf(stderr, "%s: multiple locks aren't supported yet\n", argv0);
 	exit(usage_exit_status);
     }
-    if ( ! lock_fileV[0] || ( lock_fileV[1] && isdigit(lock_fileV[1][0]) ) )
-	show_usage_and_exit();
 
     return;
 
