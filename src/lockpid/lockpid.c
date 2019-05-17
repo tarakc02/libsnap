@@ -65,6 +65,8 @@ const char *lock_file = NULL;
 const char *lock_pid  = NULL;
 const char *lock_pid_new = NULL;
 
+int wait_millisecs = 50;
+
 // ===========================================================================
 // our user interface
 // ===========================================================================
@@ -79,6 +81,7 @@ Usage: %s [-d dir] [-p pid] [-P npid] [-w] [-r]  [-q] [-v] file\n\
       if 'file' already holds PID of another active process, exit with %d;\n\
       if there's any (other) kind of error, exit with errno (typically).\n\
    To change the PID in a lock, use -P (--new-pid).\n\
+   To wait for the lock to become available, use -w (--wait).\n\
    To --release the lock, use the -r option (or just delete 'file').\n\
    To not announce when the lock is busy, use the -q (--quiet) option.\n\
    To announce when acquire the lock, use the -v (--verbose) option.\n\
@@ -221,25 +224,26 @@ create_file_for_lock(void)
 
 // ---------------------------------------------------------------------------
 
-void
-lock_file_or_exit(const int fd)
+bool
+did_lock_file(const int fd)
 {
     if (flock(fd, LOCK_EX | LOCK_NB) == 0)
-	return;
+	return(True);
 	    
     if (errno == EWOULDBLOCK) {
-	if (! is_quiet)
+	if (! is_quiet && ! do_wait)
 	    printf("lock '%s' is busy\n", lock_file);
-	exit(lock_busy_exit_status);
+	return(False);
     }
 
     show_errno_and_exit("flock");
+    exit(1);				// make gcc happy
 }
 
 // ---------------------------------------------------------------------------
 
-void
-exit_if_file_holds_active_pid(const int fd)
+bool
+does_file_hold_active_pid(const int fd)
 {
     char line[16];
     pid_t lock_pid;
@@ -248,14 +252,14 @@ exit_if_file_holds_active_pid(const int fd)
     if (n < 0)
 	show_errno_and_exit("read");
     if (n == 0)
-	return;
+	return(False);
 
     if (sscanf(line, "%d", &lock_pid) != 1)
-	return;
+	return(False);
 
     if (kill(lock_pid, 0) < 0) {
 	if (errno == ESRCH)
-	    return;
+	    return(False);
 
 	// if EPERM, process exists (but isn't owned by us) so fall through
 	if (errno != EPERM)
@@ -264,16 +268,16 @@ exit_if_file_holds_active_pid(const int fd)
 
     if (getppid() == lock_pid) {
 	if (lock_pid_new)		// want to replace PID?
-	    return;
+	    return(False);
 	// don't send this to stderr, so easy to ignore
 	printf("%s %s: already hold lock\n", argv0, lock_file);
 	exit(0);
     } 
 
-    if (! is_quiet)
+    if (! is_quiet && ! do_wait)
 	printf("process %d holds lock '%s'\n", lock_pid, lock_file);
 
-    exit(lock_busy_exit_status);
+    return(True);
 }
 
 // ---------------------------------------------------------------------------
@@ -334,15 +338,22 @@ main(int argc, char *argv[])
     if (do_release)
 	release_file_and_exit();
 
-    fd = create_file_for_lock();
+    while (True) {
+	fd = create_file_for_lock();
 
-    lock_file_or_exit(fd);
+	if ( ! did_lock_file(fd) || does_file_hold_active_pid(fd) ) {
+	    if (do_wait) {
+		close_file(fd);
+		usleep(wait_millisecs * 1024);
+		continue;
+	    } else
+		exit(lock_busy_exit_status);
+	}
 
-    exit_if_file_holds_active_pid(fd);
-
-    write_pid_to_file(fd);
-
-    close_file(fd);
+	write_pid_to_file(fd);
+	close_file(fd);
+	break;
+    }
 
     if (is_verbose)
 	printf("caller successfully acquired lock '%s'\n", lock_file);
