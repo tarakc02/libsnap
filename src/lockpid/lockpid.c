@@ -114,7 +114,7 @@ show_errno_and_exit(const char *system_call)
 	fprintf(stderr, "\n%s %s: %s: %s\n\n",
 		argv0, lock_file, system_call, errno_msg);
 
-    if (errno <= 1)		/* 1 means "lock is busy" */
+    if (errno <= 0)			// not sure this can happen
 	errno  = unknown_exit_status;
 
     exit(errno);
