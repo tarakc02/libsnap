@@ -124,6 +124,32 @@ show_errno_and_exit(const char *system_call)
 
 // ---------------------------------------------------------------------------
 
+bool
+is_integer(const char *string) {
+    if (! string)
+	return False;
+
+    char *endp;
+    (void)strtod(string, &endp);
+    return(endp[0] ? False : True);
+}
+
+// --------------------------------------------
+
+float
+string_to_float(const char *string) {
+    char *endp;
+    float number = strtof(string, &endp);
+    if (endp[0]) {			// didn't parse whole string?
+	fprintf(stderr, "%s: '%s' is an invalid floating point number\n",
+		argv0, string);
+	exit(usage_exit_status);
+    }
+    return number;
+}
+
+// ---------------------------------------------------------------------------
+
 static const struct option
 Long_opts[] =
 {
@@ -185,8 +211,16 @@ parse_argv_setup_globals(int argc, char * const argv[])
     lock_fileV = (char **)argv;
     lock_fileV += optind;
 
-    if ( ! lock_fileV[0] || ( lock_fileV[1] && isdigit(lock_fileV[1][0]) ) )
+    if (! lock_fileV[0])
 	show_usage_and_exit();
+
+    if ( is_integer(lock_fileV[0]) ) {
+	fprintf(stderr, "%s: lock filename can't be an integer\n", argv0);
+	exit(usage_exit_status);
+    }
+
+    if ( is_integer(lock_fileV[1]) )	// does 2nd arg look like a PID?
+	show_usage_and_exit();		// that was the old syntax
 
     if (lock_fileV[1]) {
 	fprintf(stderr, "%s: multiple locks aren't supported yet\n", argv0);
@@ -200,15 +234,8 @@ parse_argv_setup_globals(int argc, char * const argv[])
 	do_wait = True;
     else
 	wait_ms_string = default_wait_ms_string;
-    if (do_wait) {
-	char *endp;
-	wait_microsecs = (int) (strtof(wait_ms_string, &endp) * 1000.0);
-	if (endp[0]) {			// didn't parse whole string?
-	    fprintf(stderr, "%s: '%s' is an invalid floating point number\n",
-		    argv0, wait_ms_string);
-	    exit(usage_exit_status);
-	}
-    }
+    if (do_wait)
+	wait_microsecs = (useconds_t) (string_to_float(wait_ms_string) * 1000);
 
     return;
 
