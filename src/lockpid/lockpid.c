@@ -99,6 +99,8 @@ Usage: %s [-d dir] [-p pid] [-P npid] [-w] [-r]  [-q] [-v] file\n\
 
 // ===========================================================================
 
+bool do_release = False;
+
 void
 show_errno_and_exit(const char *system_call)
 {
@@ -113,8 +115,9 @@ show_errno_and_exit(const char *system_call)
 	lock_file = "";
 
     if (system_call)
-	fprintf(stderr, "\n%s %s: %s: %s\n\n",
-		argv0, lock_file, system_call, errno_msg);
+	fprintf(stderr, "\n%s%s %s: %s: %s\n\n",
+		argv0, (do_release) ? " -r" : "", lock_file,
+		system_call, errno_msg);
 
     if (errno <= 0)			// not sure this can happen
 	errno  = unknown_exit_status;
@@ -167,7 +170,6 @@ Long_opts[] =
 bool do_wait	= False;
 bool is_quiet	= False;
 bool is_verbose = False;
-bool do_release = False;
 char **lock_fileV;
 
 void
@@ -260,12 +262,16 @@ release_file_and_exit(void)
 // ---------------------------------------------------------------------------
 
 int
-create_file_for_lock(void)
+open_lock_file(void)
 {
     int fd;
 
+    int flags = O_RDWR | O_NOFOLLOW;
+    if (! do_release)
+	flags |= O_CREAT;
+
     // let umask control who can reclaim a stale lock
-    fd = open(lock_file, O_RDWR | O_CREAT | O_NOFOLLOW, 0666);
+    fd = open(lock_file, flags, 0666);
 
     if (fd < 0)
 	show_errno_and_exit("open");
@@ -278,10 +284,15 @@ create_file_for_lock(void)
 bool
 did_lock_file(const int fd)
 {
+flock:
     if (flock(fd, LOCK_EX | LOCK_NB) == 0)
 	return(True);
 	    
     if (errno == EWOULDBLOCK) {
+	if (do_release) {
+	    usleep(wait_microsecs);
+	    goto flock;
+	}
 	if (! is_quiet && ! do_wait)
 	    printf("lock '%s' is busy\n", lock_file);
 	return(False);
@@ -293,11 +304,12 @@ did_lock_file(const int fd)
 
 // ---------------------------------------------------------------------------
 
+pid_t lock_pid = -1;
+
 bool
 does_file_hold_active_pid(const int fd)
 {
     char line[16];
-    pid_t lock_pid;
 
     int n = read(fd, line, sizeof(line));
     if (n < 0)
@@ -318,6 +330,8 @@ does_file_hold_active_pid(const int fd)
     }
 
     if (pid == lock_pid) {
+	if (do_release)
+	    release_file_and_exit();
 	if (new_pid)			// want to replace PID?
 	    return(False);
 	// don't send this to stderr, so easy to ignore
@@ -384,11 +398,8 @@ main(int argc, char *argv[])
 
     lock_file = lock_fileV[0];
 
-    if (do_release)
-	release_file_and_exit();
-
     while (True) {
-	fd = create_file_for_lock();
+	fd = open_lock_file();
 
 	if ( ! did_lock_file(fd) || does_file_hold_active_pid(fd) ) {
 	    if (do_wait) {
@@ -397,6 +408,12 @@ main(int argc, char *argv[])
 		continue;
 	    } else
 		exit(lock_busy_exit_status);
+	}
+
+	if (do_release) {
+	    fprintf(stderr, "%s -r %s: file contains pid %d, not ours\n", 
+		    argv0, lock_file, lock_pid);
+	    exit(lock_busy_exit_status);
 	}
 
 	write_pid_to_file(fd);
