@@ -72,7 +72,7 @@ char *default_wait_ms_string = "50.0";
 // ===========================================================================
 
 void
-show_usage_and_exit(void)
+show_usage_and_exit(int option)
 {
     fprintf(stderr, "\n\
 Usage: %s [-d dir] [-p pid] [-P npid] [-w] [-r]  [-q] [-v] file\n\
@@ -94,7 +94,7 @@ Usage: %s [-d dir] [-p pid] [-P npid] [-w] [-r]  [-q] [-v] file\n\
 \n\
 ", argv0, lock_dir, lock_busy_exit_status, default_wait_ms_string);
 
-    exit(usage_exit_status);
+    exit( (option == 'h') ? 0 : usage_exit_status );
 }
 
 // ===========================================================================
@@ -187,7 +187,7 @@ parse_argv_setup_globals(int argc, char * const argv[])
     const char *PID_string_new = NULL;
     const char *wait_ms_string = NULL;
     // see getopt(3) for semantics of getopt_long and its arguments
-    static const char Opt_string[] = "d:p:P:W:wqvr";
+    static const char Opt_string[] = "d:p:P:W:wqvrh";
     while (True)
     {
 	int option = getopt_long(argc, argv, Opt_string, Long_opts, NULL);
@@ -206,7 +206,7 @@ parse_argv_setup_globals(int argc, char * const argv[])
 	case 'v': is_verbose	= True;   break;
 	case 'r': do_release	= True;   break;
 	case 'h': // fall through to default
-	default : show_usage_and_exit();
+	default : show_usage_and_exit(option);
 	}
     }
 
@@ -214,7 +214,7 @@ parse_argv_setup_globals(int argc, char * const argv[])
     lock_fileV += optind;
 
     if (! lock_fileV[0])
-	show_usage_and_exit();
+	show_usage_and_exit(0);
 
     if ( is_integer(lock_fileV[0]) ) {
 	fprintf(stderr, "%s: lock filename can't be an integer\n", argv0);
@@ -222,7 +222,7 @@ parse_argv_setup_globals(int argc, char * const argv[])
     }
 
     if ( is_integer(lock_fileV[1]) )	// does 2nd arg look like a PID?
-	show_usage_and_exit();		// that was the old syntax
+	show_usage_and_exit(0);		// that was the old syntax
 
     if (lock_fileV[1]) {
 	fprintf(stderr, "%s: multiple locks aren't supported yet\n", argv0);

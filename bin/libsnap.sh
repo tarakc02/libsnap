@@ -631,7 +631,7 @@ abort_with_action_Usage() {
 	local action=$1
 
 	echo -e "\nBad arguments; here's the usage for this action:"
-	echo "$Usage" | grep "$@" >&2; echo
+	echo "$Usage" | grep "^ *$@" >&2; echo
 	exit 1
 }
 
@@ -706,7 +706,7 @@ set_absolute_dir() {
 	local name=$1
 
 	[[ -d "$name" ]] || name=$(dirname "$name")
-	absolute_dir=$(cd "$name" && /bin/pwd)
+	absolute_dir=$(cd "$name" && /bin/pwd) # simpler than readlink(s)
 	$xtrace
 }
 
