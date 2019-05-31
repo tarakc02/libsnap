@@ -65,7 +65,7 @@ const char *argv0;		/* our command name with path stripped */
 const char *lock_file = NULL;
 
 useconds_t wait_microsecs;
-char *default_wait_ms_string = "50.0";
+char *default_sleep_ms_string = "20.0";
 
 // ===========================================================================
 // our user interface
@@ -82,7 +82,7 @@ Usage: %s [-d dir] [-p pid] [-P npid] [-w] [-r]  [-q] [-v] file\n\
       if there's any (other) kind of error, exit with errno (typically).\n\
    To change the PID in a lock, use -P (--new-pid).\n\
    To wait for the lock to become available, use -w (--wait);\n\
-      we check every %s millisecs (change it with -W (--wait-msecs).\n\
+      we check every %s millisecs (change it with -s (--sleep-msecs).\n\
    To --release the lock, use the -r option (or just delete 'file').\n\
    To not announce when the lock is busy, use the -q (--quiet) option.\n\
    To announce when acquire the lock, use the -v (--verbose) option.\n\
@@ -92,7 +92,7 @@ Usage: %s [-d dir] [-p pid] [-P npid] [-w] [-r]  [-q] [-v] file\n\
    'file' is locked with flock before checking/writing 'pid', to avoid races.\n\
    To avoid security risks, this command will bomb if 'file' is a symlink.\n\
 \n\
-", argv0, lock_dir, lock_busy_exit_status, default_wait_ms_string);
+", argv0, lock_dir, lock_busy_exit_status, default_sleep_ms_string);
 
     exit( (option == 'h') ? 0 : usage_exit_status );
 }
@@ -159,7 +159,7 @@ Long_opts[] =
     { "directory",	1, NULL, 'd' },
     { "pid",		1, NULL, 'p' },
     { "new-pid",	1, NULL, 'P' },
-    { "wait-msecs",	1, NULL, 'W' },
+    { "sleep-msecs",	1, NULL, 's' },
     { "wait",		0, NULL, 'w' },
     { "quiet",		0, NULL, 'q' },
     { "verbose",	0, NULL, 'v' },
@@ -183,11 +183,11 @@ parse_argv_setup_globals(int argc, char * const argv[])
     else
 	argv0 = argv[0];
 
-    const char *PID_string     = NULL;
-    const char *PID_string_new = NULL;
-    const char *wait_ms_string = NULL;
+    const char *PID_string	= NULL;
+    const char *PID_string_new	= NULL;
+    const char *sleep_ms_string = NULL;
     // see getopt(3) for semantics of getopt_long and its arguments
-    static const char Opt_string[] = "d:p:P:W:wqvrh";
+    static const char Opt_string[] = "d:p:P:s:wqvrh";
     while (True)
     {
 	int option = getopt_long(argc, argv, Opt_string, Long_opts, NULL);
@@ -197,14 +197,14 @@ parse_argv_setup_globals(int argc, char * const argv[])
 
 	switch (option)
 	{
-	case 'd': lock_dir	= optarg; break;
-	case 'p': PID_string	= optarg; break;
-	case 'P': PID_string_new= optarg; break;
-	case 'W': wait_ms_string= optarg; break;
-	case 'w': do_wait	= True;   break;
-	case 'q': is_quiet	= True;   break;
-	case 'v': is_verbose	= True;   break;
-	case 'r': do_release	= True;   break;
+	case 'd': lock_dir		= optarg; break;
+	case 'p': PID_string		= optarg; break;
+	case 'P': PID_string_new	= optarg; break;
+	case 's': sleep_ms_string	= optarg; break;
+	case 'w': do_wait		= True;   break;
+	case 'q': is_quiet		= True;   break;
+	case 'v': is_verbose		= True;   break;
+	case 'r': do_release		= True;   break;
 	case 'h': // fall through to default
 	default : show_usage_and_exit(option);
 	}
@@ -232,12 +232,12 @@ parse_argv_setup_globals(int argc, char * const argv[])
     pid = (PID_string) ? atoi(PID_string) : getppid();
     new_pid = (PID_string_new) ? atoi(PID_string_new) : 0;
 
-    if (wait_ms_string)
+    if (sleep_ms_string)
 	do_wait = True;
     else
-	wait_ms_string = default_wait_ms_string;
+	sleep_ms_string = default_sleep_ms_string;
     if (do_wait)
-	wait_microsecs = (useconds_t) (string_to_float(wait_ms_string) * 1000);
+	wait_microsecs = (useconds_t) (string_to_float(sleep_ms_string) * 1000);
 
     return;
 
