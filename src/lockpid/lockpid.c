@@ -266,13 +266,13 @@ parse_argv_setup_globals(int argc, char * const argv[])
 	do_wait = True;
     else
 	sleep_ms_string = default_sleep_ms_string;
-    if (do_wait)
-	sleep_microsecs = (useconds_t) (string_to_float(sleep_ms_string)*1000);
     if (wait_expiration_string) {
 	do_wait  = True;
 	int secs = time_string_to_secs(wait_expiration_string);
 	end_wait_time = time(NULL) + secs;
     }
+    if (do_wait)
+	sleep_microsecs = (useconds_t) (string_to_float(sleep_ms_string)*1000);
 
     return;
 
