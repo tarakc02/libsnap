@@ -63,47 +63,22 @@ enum bool { False = 0, True = 1 };
 // ===========================================================================
 
 const char *argv0;		/* our command name with path stripped */
-const char *lock_file = NULL;
-
-useconds_t sleep_microsecs;
-char *default_sleep_ms_string = "20.0";
-
-// ===========================================================================
-// our user interface
-// ===========================================================================
-
-void
-show_usage_and_exit(int option)
-{
-    fprintf(stderr, "\n\
-Usage: %s [-d dir] [-p pid] [-P npid] [-w] [-r]  [-q] [-v] file\n\
-   cd dir (default '%s'), put 'pid' (default npid else caller PID)\n\
-	 into 'file', then exit with 0; but,\n\
-      if 'file' already holds PID of another active process, exit with %d;\n\
-      if there's any (other) kind of error, exit with errno (typically).\n\
-   To change the PID in a lock, use -P (--new-pid).\n\
-   To wait for the lock to become available, use -w (--wait);\n\
-      this checks every %s millisecs, change it with -s (--sleep-msecs);\n\
-      if this waits longer than -W (--wait-expiration) seconds (optionally\n\
-      followed by s, m, h, d [for secs, mins, hours, days]), exit with %d.\n\
-   To release a lock only if you own it, use -r (--release).\n\
-   To not announce when the lock is busy, use the -q (--quiet) option.\n\
-   To announce when acquire the lock, use the -v (--verbose) option.\n\
-\n\
-   NOTE: This command is only suitable for local locks, not networked locks.\n\
-\n\
-   'file' is locked with flock before checking/writing 'pid', to avoid races.\n\
-   To avoid security risks, this command will bomb if 'file' is a symlink.\n\
-\n\
-", argv0, lock_dir, lock_busy_exit_status,
-   default_sleep_ms_string, lock_busy_exit_status);
-
-    exit( (option == 'h') ? 0 : usage_exit_status );
-}
-
-// ===========================================================================
 
 bool do_release = False;
+bool do_wait	= False;
+bool is_quiet	= False;
+bool is_verbose = False;
+
+char *default_sleep_ms_string = "20.0";
+useconds_t sleep_microsecs;
+time_t end_wait_time = 0;
+
+// ===========================================================================
+// support functions for option/argument parsing
+// ===========================================================================
+
+char * const *lock_fileV;
+const  char  *lock_file = NULL;
 
 void
 show_errno_and_exit(const char *system_call)
@@ -177,6 +152,39 @@ time_string_to_secs(const char *string) {
     return (time_t) num;
 }
 
+// ===========================================================================
+// our user interface
+// ===========================================================================
+
+void
+show_usage_and_exit(int option)
+{
+    fprintf(stderr, "\n\
+Usage: %s [-d dir] [-p pid] [-P npid] [-w] [-r]  [-q] [-v] file\n\
+   cd dir (default '%s'), put 'pid' (default npid else caller PID)\n\
+	 into 'file', then exit with 0; but,\n\
+      if 'file' already holds PID of another active process, exit with %d;\n\
+      if there's any (other) kind of error, exit with errno (typically).\n\
+   To change the PID in a lock, use -P (--new-pid).\n\
+   To wait for the lock to become available, use -w (--wait);\n\
+      this checks every %s millisecs, change it with -s (--sleep-msecs);\n\
+      if this waits longer than -W (--wait-expiration) seconds (optionally\n\
+      followed by s, m, h, d [for secs, mins, hours, days]), exit with %d.\n\
+   To release a lock only if you own it, use -r (--release).\n\
+   To not announce when the lock is busy, use the -q (--quiet) option.\n\
+   To announce when acquire the lock, use the -v (--verbose) option.\n\
+\n\
+   NOTE: This command is only suitable for local locks, not networked locks.\n\
+\n\
+   'file' is locked with flock before checking/writing 'pid', to avoid races.\n\
+   To avoid security risks, this command will bomb if 'file' is a symlink.\n\
+\n\
+", argv0, lock_dir, lock_busy_exit_status,
+   default_sleep_ms_string, lock_busy_exit_status);
+
+    exit( (option == 'h') ? 0 : usage_exit_status );
+}
+
 // ---------------------------------------------------------------------------
 
 static const struct option
@@ -194,11 +202,7 @@ Long_opts[] =
     { NULL,		0, NULL,  0  },
 };
 
-bool do_wait	= False;
-bool is_quiet	= False;
-bool is_verbose = False;
-time_t end_wait_time = 0;
-char **lock_fileV;
+// ===========================================================================
 
 void
 parse_argv_setup_globals(int argc, char * const argv[])
@@ -283,7 +287,9 @@ parse_argv_setup_globals(int argc, char * const argv[])
 	printf("lock_fileV[%d] = %s\n", i, lock_fileV[i]);
 }
 
-// ---------------------------------------------------------------------------
+// ===========================================================================
+// the functions to implement lock-file management
+// ===========================================================================
 
 void
 release_file_and_exit(void)
