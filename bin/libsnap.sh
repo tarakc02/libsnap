@@ -859,6 +859,21 @@ function add_words() {
 
 # ----------------------------------------------------------------------------
 
+# pop word off left side of named list; return non-0 if list was empty
+function set_popped_word___from_list() {
+	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
+	[[ $# == 1 ]] && is_set $1 || abort "$FUNCNAME: pass name of list"
+
+	local list_name=$1
+	set -f; set -- ${!list_name}; set +f
+	popped_word=${1-}; shift	# grab left-most word
+	eval "$list_name=\$*"		# retain the rest of the words
+	$xtrace
+	[[ $popped_word ]]
+}
+
+# ----------------------------------------------------------------------------
+
 # does 1st argument match any of the space-separated words in rest of arguments
 function is_arg1_in_arg2() {
 	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
