@@ -32,10 +32,10 @@
 # not the calling script.
 ##############################################################################
 
-# to announce errors in this script (these functions will be replaced later)
- warn() { echo -e "\n$0: source libsnap.sh: $*\n" >&2; return 1; }
-abort() {
-	warn "$*"
+# to announce errors in this script
+ _warn() { echo -e "\n$0: source libsnap.sh: $*\n" >&2; return 1; }
+_abort() {
+	_warn "$*"
 	[[ $is_sourced_by_interactive_shell ]] && return 1
 	exit 1
 }
@@ -195,7 +195,7 @@ readonly homebrew_install_dir=/usr/local/opt
 readonly homebrew_coreutils_bin=$homebrew_install_dir/coreutils/libexec/gnubin
 
 [[ -d $homebrew_coreutils_bin ]] ||
-   abort "you need to install a fairly complete set of GNU utilities with Homebrew; if they're already installed, symlink your Homebrew install directory to $homebrew_install_dir"
+   _abort "you need to install a fairly complete set of GNU utilities with Homebrew; if they're already installed, symlink your Homebrew install directory to $homebrew_install_dir"
 
 prepend_to_PATH_var PATH $homebrew_install_dir/*/libexec/*bin
 
@@ -218,7 +218,7 @@ tmp_dir=${tmp_dir:-/tmp/$(id -nu)}	# caller is allowed to change tmp_dir
 # the root filesystem is read-only while booting, don't get into infinite loop!
 # GNU mkdir will fail if $tmp_dir is a symlink
 until [[ ! -w /tmp ]] || mkdir -m 0700 -p $tmp_dir
-   do	warn "deleting $(ls -ld $tmp_dir)"
+   do	_warn "deleting $(ls -ld $tmp_dir)"
 	rm -f $tmp_dir
 done
 
@@ -236,8 +236,8 @@ umask 022				# caller can change it
 # ----------------------------------------------------------------------------
 
 [[ ! $is_sourced_by_interactive_shell ]] &&
-[[    $BASH_VERSION <  4.2 ]] &&
-abort "bash version >= 4.2 must appear earlier in the PATH than an older bash"
+[[     $BASH_VERSION <  4.2 ]] &&
+_abort "bash version >= 4.2 must appear earlier in the PATH than an older bash"
 
 ##############################################################################
 ## There are three kinds of syntax (not always followed) for routines:
