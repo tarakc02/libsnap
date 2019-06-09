@@ -899,6 +899,17 @@ function is_arg1_in_arg2() {
 
 # ----------------------------------------------------------------------------
 
+# return non-0 if any of the passed variable names have not been set
+function is_set() {
+
+	local variable_name
+	for variable_name
+	    do	[[ ${!variable_name+x} ]] || return 1
+	done
+}
+
+# ----------------------------------------------------------------------------
+
 assert_accessible() {
 	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
 	local tests=
