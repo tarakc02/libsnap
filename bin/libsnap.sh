@@ -69,8 +69,8 @@ esac
 
 readonly lockpid_busy_exit_status=125
 
-_chr_='[a-zA-Z0-9]'
-rsync_temp_file_suffix="$_chr_$_chr_$_chr_$_chr_$_chr_$_chr_"; unset _chr_
+_chr='[a-zA-Z0-9]'
+rsync_temp_file_suffix="$_chr$_chr$_chr$_chr$_chr$_chr"; unset _chr
 					  readonly rsync_temp_file_suffix
 
 #############################################################################
@@ -245,13 +245,19 @@ abort "bash version >= 4.2 must appear earlier in the PATH than an older bash"
 ##    function func	# returns status, doesn't take arguments
 ##    procedure()	# doesn't return status (exits on fatal error)
 ##
-## There are three kinds of naming for routines that set global variables:
+## There are four kinds of naming for routines that set global variables:
 ##    set_foo		# sets variable foo
 ##    set_foo___from_xx	# sets variable foo ... using method xx on args
 ##    set__foo__bar	# sets variable foo and also sets variable bar
+##    setup_foo_vars	# sets numerous variables
 ##
 ## An array (indexed or associative) that maps a_key to a_value is named:
 ##    a_key2a_value
+##
+## A global variable/function that's only used by the following
+##   variable/function has a name prefixed by '_' (e.g. _chr, defined above).
+## A global variable/function that replaces an external version
+##   has a name that ends in '_' (e.g. cd_, defined below).
 ##############################################################################
 
 ###########################################################################
