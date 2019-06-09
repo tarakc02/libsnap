@@ -817,6 +817,17 @@ function is_process_alive() {
 
 # ----------------------------------------------------------------------------
 
+# return non-0 if any of the passed variable names have not been set
+function is_set() {
+
+	local variable_name
+	for variable_name
+	    do	[[ ${!variable_name+x} ]] || return 1
+	done
+}
+
+# ----------------------------------------------------------------------------
+
 # in variable named $1, append the subsequent args (with white space); if -k
 #    is passed, the variable is an array, with key/index/subscript following -k
 function add_words() {
@@ -844,6 +855,20 @@ function add_words() {
 
 	$xtrace
 	return 0
+}
+
+# ----------------------------------------------------------------------------
+
+# does 1st argument match any of the space-separated words in rest of arguments
+function is_arg1_in_arg2() {
+	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
+	local arg1=$1; shift; local arg2=$*
+	[[ $arg1 && $arg2 ]] || { $xtrace; return 1; }
+
+	[[ " $arg2 " == *" $arg1 "* ]]
+	local status=$?
+	$xtrace
+	return $status
 }
 
 # ----------------------------------------------------------------------------
@@ -881,31 +906,6 @@ function confirm() {
 	[[ $status ]] || abort "confirm $*: read failure"
 	$xtrace
 	return $status
-}
-
-# ----------------------------------------------------------------------------
-
-# does 1st argument match any of the space-separated words in rest of arguments
-function is_arg1_in_arg2() {
-	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
-	local arg1=$1; shift; local arg2=$*
-	[[ $arg1 && $arg2 ]] || { $xtrace; return 1; }
-
-	[[ " $arg2 " == *" $arg1 "* ]]
-	local status=$?
-	$xtrace
-	return $status
-}
-
-# ----------------------------------------------------------------------------
-
-# return non-0 if any of the passed variable names have not been set
-function is_set() {
-
-	local variable_name
-	for variable_name
-	    do	[[ ${!variable_name+x} ]] || return 1
-	done
 }
 
 # ----------------------------------------------------------------------------
