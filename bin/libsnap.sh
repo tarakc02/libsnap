@@ -27,6 +27,31 @@
 #############################################################################
 #############################################################################
 
+# -----------------------------------------------------------------------------
+
+##############################################################################
+## There are three kinds of syntax (not always followed) for routines:
+##    function func()	# returns status, takes arguments
+##    function func	# returns status, doesn't take arguments
+##    procedure()	# doesn't return status (exits on fatal error)
+##
+## There are four kinds of naming for routines that set global variables:
+##    set_foo		# sets variable foo
+##    set_foo___from_xx	# sets variable foo ... using method xx on args
+##    set__foo__bar	# sets variable foo and also sets variable bar
+##    setup_foo_vars	# sets numerous variables
+##
+## An array (indexed or associative) that maps a_key to a_value is named:
+##    a_key2a_value
+##
+## A global variable/function that's only used by the following
+##   variable/function has a name prefixed by '_' (e.g. _chr, defined above).
+## A global variable/function that replaces an external version
+##   has a name that ends in '_' (e.g. cd_, defined below).
+##############################################################################
+
+# -----------------------------------------------------------------------------
+
 ##############################################################################
 # As setup the environment, errors are problems with libsnap.sh,
 # not the calling script.
@@ -238,27 +263,6 @@ umask 022				# caller can change it
 [[ ! $is_sourced_by_interactive_shell ]] &&
 [[     $BASH_VERSION <  4.2 ]] &&
 _abort "bash version >= 4.2 must appear earlier in the PATH than an older bash"
-
-##############################################################################
-## There are three kinds of syntax (not always followed) for routines:
-##    function func()	# returns status, takes arguments
-##    function func	# returns status, doesn't take arguments
-##    procedure()	# doesn't return status (exits on fatal error)
-##
-## There are four kinds of naming for routines that set global variables:
-##    set_foo		# sets variable foo
-##    set_foo___from_xx	# sets variable foo ... using method xx on args
-##    set__foo__bar	# sets variable foo and also sets variable bar
-##    setup_foo_vars	# sets numerous variables
-##
-## An array (indexed or associative) that maps a_key to a_value is named:
-##    a_key2a_value
-##
-## A global variable/function that's only used by the following
-##   variable/function has a name prefixed by '_' (e.g. _chr, defined above).
-## A global variable/function that replaces an external version
-##   has a name that ends in '_' (e.g. cd_, defined below).
-##############################################################################
 
 ###########################################################################
 # define functions that abstract OS/kernel-specific operations or queries #
