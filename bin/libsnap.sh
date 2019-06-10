@@ -299,7 +299,7 @@ set_FS_type___from_path() {
 
 set__inode_size__data_block_size__dir_block_size___from_path() {
 	local  path=$1
-	[[ -e $path ]] || abort "'$path' doesn't exist"
+	[[ -e $path ]] || abort "$FUNCNAME: '$path' doesn't exist"
 
 	local FS_type
 	set_FS_type___from_path $path || return $?
@@ -345,7 +345,7 @@ set_device_KB___from_block_device() {
 	have_cmd lsblk || return 1
 
 	set -- $(lsblk --noheadings --bytes --output=SIZE $dev)
-	[[ $# == 1 ]] || abort "need to specify a partition not whole drive"
+	[[ $# == 1 ]] || abort "$FUNCNAME: specify a partition not whole drive"
 	device_KB=$(( $1/1024 ))
 }
 
@@ -668,7 +668,8 @@ RunCmd() {
 }
 
 RunCmd true &&
-RunCmd -d -m "expected (non fatal)" false |& fgrep -q 'non fatal' || _abort "RunCmd error"
+RunCmd -d -m "expected (non fatal)" false |& fgrep -q 'non fatal' ||
+   _abort "RunCmd error"
 
 # ----------------------------------------------------------------------------
 # Generic logging function, with customization globals that caller can set.
@@ -754,7 +755,7 @@ set_absolute_path() {
 
 cd_() {
 	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
-	(( $# <= 1 )) || abort "wrong number args: cd_ $*"
+	(( $# <= 1 )) || abort "wrong number args: $FUNCNAME $*"
 	local _dir=${1-$HOME}
 
 	cd "$_dir" || abort "cd $_dir"
@@ -800,40 +801,63 @@ set_file_KB() {
 
 # ----------------------------------------------------------------------------
 
-# sometimes test reports false when process _is_ alive, so try a few times
+# return 0 if all processes alive, else 1; unlike 'kill -0', works without sudo
 function is_process_alive() {
 
 	local PID
 	for PID
-	    do	local did_find_process=$false
-		local try
-		for try in 1 2 3 4 5
-		    do	if kill -0 $PID
-			   then did_find_process=$true
-				break
-			   else [[ $UID == 0 ]] || # 'kill' works if we're root
-				case $(kill -0 $PID 2>&1) in
-				   ( *"Operation not permitted"* )
-					did_find_process=$true
-					break ;;
-				   ( *"No such process"* )
-					;;
-				   ( * )
-					if [[ -d /proc/$PID ]]
-					   then did_find_process=$true
-						break
-					fi ;;
-				esac
-			fi &> /dev/null
-			[[ $is_xen_domU ]] && break # domU can't do usleep
-			usleep 123123
-		done
-		[[ $did_find_process ]] || return 1
+	    do	if [[ -d /proc ]]
+		   then [[ -d /proc/$PID ]] || return 1
+		   else case $(kill -0 $PID 2>&1) in
+			   ( *"Operation not permitted"* )
+				sudo kill -h > /dev/null ||
+				   abort "$FUNCNAME: need 'sudo kill' perms"
+				local sudo=sudo
+				;;
+			   ( * )
+				local sudo=
+				;;
+			esac
+			$sudo kill -0 $PID >& /dev/null || return 1
+		fi
 	done
 	return 0
 }
 
-# ----------------------------------------------------------------------------
+is_process_alive $$ $BASHPID || _abort "is_process_alive failure"
+
+# -----------------------------------------------------------------------------
+
+function is_readonly() {
+
+	local variable_name
+	for variable_name
+	    do	eval "$variable_name+=" 2> /dev/null && return 1
+	done
+	return 0
+}
+
+_readonly_vars="our_path true false"
+_writable_vars="our_name IfRun"
+is_readonly $_readonly_vars || _abort "is_readonly $_readonly_vars"
+is_readonly $_readonly_vars $_writable_vars && _abort "is_readonly all-vars"
+
+# ---------------------------------
+
+function is_writable() {
+
+	local variable_name
+	for variable_name
+	    do	eval "$variable_name+=" 2> /dev/null || return 1
+	done
+	return 0
+}
+
+is_writable $_writable_vars || _abort "is_writable $_writable_vars"
+is_writable $_writable_vars $_readonly_vars && _abort "is_readonly all-vars"
+unset _readonly_vars _writable_vars
+
+# -----------------------------------------------------------------------------
 
 # return non-0 if any of the passed variable names have not been set
 function is_set() {
@@ -952,7 +976,7 @@ function confirm() {
 	done
 	echo
 
-	[[ $status ]] || abort "confirm $*: read failure"
+	[[ $status ]] || abort "$FUNCNAME $*: read failure"
 	$xtrace
 	return $status
 }
@@ -995,7 +1019,7 @@ modify_file() {
 	local backup_ext=
 	[[ $1 == -b* ]] && { backup_ext=$1; shift; }
 	[[ $1 != -*  ]] || abort "$FUNCNAME: unknown option $1"
-	(( $# >= 2   )) || abort "Usage: modify_file [-b[ext]] file command"
+	(( $# >= 2   )) || abort "Usage: $FUNCNAME [-b[ext]] file command"
 	local file=$1; shift
 
 	local dir
@@ -1007,14 +1031,15 @@ modify_file() {
 	if [[ $backup_ext ]]
 	   then backup_ext=${backup_ext#-b}
 		local backup=$file${backup_ext:-'~'}
-		ln -f "$file" "$backup" || abort "can't backup '$file'"
+		ln -f "$file" "$backup" ||
+		    abort "$FUNCNAME can't backup '$file'"
 	fi
 
 	# we use cp -p just to copy the file metadata (uid, gid, mode)
 	cp -p "$file"   "$file+" &&
 	 "$@" "$file" > "$file+" &&
 	  mv  "$file+"  "$file"  ||
-	   abort "modify_file $file $* => $?"
+	   abort "$FUNCNAME $file $* => $?"
 	$xtrace
 }
 
