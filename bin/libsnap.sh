@@ -77,6 +77,8 @@ our_path=${0#-}
 # we might have been run as a script to create $tmp_dir (see above)
 [[ $our_path == */libsnap.sh ]] && exit 0
 
+[[ $our_path == */libsnap    ]] && set -u # for unit tests
+
 # basename of calling script; if already non-blank, we don't change it
 our_name=${our_name:-${0##*/}}		# user can change
 
@@ -625,6 +627,15 @@ restore_tracing() {
 	set -x
 }
 
+wont_trace() {         foo=2
+	       suspend_tracing; echo untraced; restore_tracing foo; }
+will_trace() { set -x; foo=1
+	       suspend_tracing; echo untraced; restore_tracing foo
+	       wont_trace; echo traced; set +x; }
+will_trace |& fgrep    '+ echo untraced' && _abort "suspend_tracing failed"
+will_trace |& fgrep -q '+ echo traced'   || _abort "restore_tracing failed"
+unset -f wont_trace will_trace
+
 # ----------------------------------------------------------------------------
 
 print_or_egrep_Usage_then_exit() {
@@ -655,6 +666,9 @@ RunCmd() {
 
 	$IfRun "$@" || $IfAbort abort -1 "'$*' returned $?$msg"
 }
+
+RunCmd true &&
+RunCmd -d -m "expected (non fatal)" false |& fgrep -q 'non fatal' || _abort "RunCmd error"
 
 # ----------------------------------------------------------------------------
 # Generic logging function, with customization globals that caller can set.
@@ -830,6 +844,12 @@ function is_set() {
 	done
 }
 
+_foo=
+is_set _foo || _abort "is_set _foo"
+is_set  bar && _abort "is_set  bar"
+is_set _foo bar && _abort "is_set _foo bar"
+unset _foo
+
 # ----------------------------------------------------------------------------
 
 # in variable named $1, append the subsequent args (with white space); if -k
@@ -840,7 +860,7 @@ function add_words() {
 	[[ $1 != -*  ]] || abort "$FUNCNAME: unknown option $1"
 	local variable_name=$1; shift
 
-	[[ $# == 0 ]] && { $xtrace; return 0; } # maybe no words to add
+	[[ $# == 0 ]] && { $xtrace; return 1; } # maybe no words to add
 
 	local unbound_variable_msg="
 	  $FUNCNAME $variable_name $*: $variable_name is unset"
@@ -875,6 +895,16 @@ function set_popped_word___from_list() {
 	$xtrace
 	[[ $popped_word ]]
 }
+
+_numbers="1 2 3"
+  _input=$_numbers
+ _output=
+while set_popped_word___from_list _input
+   do	add_words _output $popped_word
+done
+[[ ! $_input && $_output == "$_numbers" ]] ||
+    _abort "set_popped_word___from_list failure: _input='$_input' _output='$_output'"
+unset _numbers _input _output popped_word
 
 # ----------------------------------------------------------------------------
 
