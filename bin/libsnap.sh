@@ -893,6 +893,7 @@ function add_words() {
 	   else       local value=${!variable_name?"$unbound_variable_msg"}
 	fi
 
+	set -- $*			# turn tabs into spaces
 	value="$value $*"
 	value=${value# }
 
@@ -913,7 +914,7 @@ function set_popped_word___from_list() {
 	[[ $# == 1 ]] && is_set $1 || abort "$FUNCNAME: pass name of list"
 
 	local list_name=$1
-	set -f; set -- ${!list_name}; set +f
+	set -f; set -- ${!list_name}; set -- $*; set +f
 	popped_word=${1-}; shift	# grab left-most word
 	eval "$list_name=\$*"		# retain the rest of the words
 	$xtrace
@@ -932,10 +933,11 @@ unset _numbers _input _output popped_word
 
 # ----------------------------------------------------------------------------
 
-# does 1st argument match any of the space-separated words in rest of arguments
+# does 1st argument match any of the whitespace-separated words in rest of args
 function is_arg1_in_arg2() {
 	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
-	local arg1=$1; shift; local arg2=$*
+	local arg1=$1; shift
+	set -- $*; local arg2=$*	# turn tabs into spaces
 	[[ $arg1 && $arg2 ]] || { $xtrace; return 1; }
 
 	[[ " $arg2 " == *" $arg1 "* ]]
