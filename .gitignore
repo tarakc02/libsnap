@@ -1,3 +1,7 @@
+# files specific to this package
+
+src/lockpid/lockpid
+
 # for HRDAG.resource-utils, with snapper
 # PB, 2014.05.03
 
@@ -18,4 +22,3 @@ __pycache__/
 \~*
 *~
 */#*
-
