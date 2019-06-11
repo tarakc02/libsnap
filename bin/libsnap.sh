@@ -956,8 +956,9 @@ _numbers="1 2 3"
   _input=$_numbers
  _output=
 while set_popped_word___from_list _input
-   do	add_words _output $popped_word
+   do	_output+=" $popped_word"
 done
+_output=${_output# }
 [[ ! $_input && $_output == "$_numbers" ]] ||
     _abort "set_popped_word___from_list failure: _input='$_input' _output='$_output'"
 unset _numbers _input _output popped_word
@@ -979,7 +980,7 @@ function confirm() {
 
 	[[ -t 0 ]] || { $xtrace; return $status; }
 
-	add_words _prompt "($y_n)? "
+	_prompt+=" ($y_n)? "
 
 	local key
 	while read -n 1 -p "$_prompt" key
