@@ -110,11 +110,29 @@ rsync_temp_file_suffix="$_chr$_chr$_chr$_chr$_chr$_chr"; unset _chr
 # routines to augment path-style variables
 # ----------------------------------------------------------------------------
 
+# return non-0 if any of the passed variable names have not been set
+function is_set() {
+
+	local variable_name
+	for variable_name
+	    do	[[ ${!variable_name+x} ]] || return 1
+	done
+}
+
+_foo=
+is_set _foo || _abort "is_set _foo"
+is_set _bar && _abort "is_set _bar"
+is_set _foo _bar && _abort "is_set _foo _bar"
+unset _foo
+
+# -----------------------------------------------------------------------------
+
 # $1 is path variable name, other args are dirs; append dirs one by one
 append_to_PATH_var() {
 	local do_reverse_dirs=
 	[[ $1 == -r ]] && { do_reverse_dirs=1; shift; }
-	local pathname=$1; shift
+	local   pathname=$1; shift
+	is_set $pathname || abort "$FUNCNAME $1 ... : '$1' is not set"
 	local path=${!pathname}
 
 	local dirs=$* dir
@@ -143,7 +161,8 @@ append_to_PATH_var() {
 prepend_to_PATH_var() {
 	local do_reverse_dirs=
 	[[ $1 == -r ]] && { do_reverse_dirs=1; shift; }
-	local pathname=$1; shift
+	local   pathname=$1; shift
+	is_set $pathname || abort "$FUNCNAME $1 ... : '$1' is not set"
 	local path=${!pathname}
 
 	local dirs=$* dir
@@ -621,7 +640,10 @@ restore_tracing() {
 
 	local variable
 	for variable
-	    do	echo "+ $variable=${!variable}"
+	    do	if is_set $variable
+		   then echo "+ $variable=${!variable}"
+		   else echo "+ $variable is not set"
+		fi
 	done
 
 	set -x
@@ -857,23 +879,6 @@ is_writable $_writable_vars || _abort "is_writable $_writable_vars"
 is_writable $_writable_vars $_readonly_vars && _abort "is_readonly all-vars"
 unset _readonly_vars _writable_vars
 
-# -----------------------------------------------------------------------------
-
-# return non-0 if any of the passed variable names have not been set
-function is_set() {
-
-	local variable_name
-	for variable_name
-	    do	[[ ${!variable_name+x} ]] || return 1
-	done
-}
-
-_foo=
-is_set _foo || _abort "is_set _foo"
-is_set  bar && _abort "is_set  bar"
-is_set _foo bar && _abort "is_set _foo bar"
-unset _foo
-
 # ----------------------------------------------------------------------------
 
 # in variable named $1, append the subsequent args (with white space); if -k
@@ -882,7 +887,8 @@ function add_words() {
 	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
 	[[ $1 == -k ]] && { local key=$2; shift 2; } || local key=
 	[[ $1 != -*  ]] || abort "$FUNCNAME: unknown option $1"
-	local variable_name=$1; shift
+	local   variable_name=$1; shift
+	is_set $variable_name || abort "$FUNCNAME $1 ... : '$1' is not set"
 
 	[[ $# == 0 ]] && { $xtrace; return 1; } # maybe no words to add
 
@@ -890,7 +896,7 @@ function add_words() {
 	  $FUNCNAME $variable_name $*: $variable_name is unset"
 	if [[ $key ]]
 	   then eval "local value=\${$variable_name[\$key]-}"
-	   else       local value=${!variable_name?"$unbound_variable_msg"}
+	   else       local value=${!variable_name}
 	fi
 
 	set -- $*			# turn tabs into spaces
@@ -913,7 +919,8 @@ function set_popped_word___from_list() {
 	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
 	[[ $# == 1 ]] && is_set $1 || abort "$FUNCNAME: pass name of list"
 
-	local list_name=$1
+	local   list_name=$1
+	is_set $list_name || abort "$FUNCNAME $1: '$1' is not set"
 	set -f; set -- ${!list_name}; set -- $*; set +f
 	popped_word=${1-}; shift	# grab left-most word
 	eval "$list_name=\$*"		# retain the rest of the words
