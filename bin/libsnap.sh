@@ -656,6 +656,8 @@ function suspend_tracing {
 # show the values of the variable names passed to us, then restore traing state
 restore_tracing() {
 
+	is_arg1_in_arg2 ${FUNCNAME[1]} ${!funcname2was_tracing[*]} ||
+	   abort "$FUNCNAME was called without a suspend_tracing"
 	[[ ${funcname2was_tracing[ ${FUNCNAME[1]} ]} ]] || return 0
 
 	local variable
