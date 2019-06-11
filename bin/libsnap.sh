@@ -909,16 +909,16 @@ unset _readonly_vars _writable_vars
 #    is passed, the variable is an array, with key/index/subscript following -k
 function add_words() {
 	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
-	[[ $1 == -k ]] && { local key=$2; shift 2; } || local key=
+	[[ $1 == -k ]] && { local key=$2; shift 2; } || local key
 	[[ $1 != -*  ]] || abort "$FUNCNAME: unknown option $1"
 
 	local variable_name=$1; shift
-	[[ $key ]] || is_set $variable_name ||
+	is_set key || is_set $variable_name ||
 	    abort "$FUNCNAME $variable_name ... : '$variable_name' is not set"
 
 	[[ $# == 0 ]] && { $xtrace; return 1; } # maybe no words to add
 
-	if [[ $key ]]
+	if is_set key
 	   then eval "local value=\${$variable_name[\$key]-}"
 	   else       local value=${!variable_name}
 	fi
@@ -927,7 +927,7 @@ function add_words() {
 	value="$value $*"
 	value=${value# }
 
-	if [[ $key ]]
+	if is_set key
 	   then eval "$variable_name[\$key]=\$value"
 	   else eval "$variable_name=\$value"
 	fi
