@@ -788,9 +788,11 @@ set_absolute_path() {
 
 	local absolute_dir
 	set_absolute_dir "$name"
-	if [[ -d "$name" ]]
+	  if [[ -d "$name" ]]
 	   then absolute_path=$absolute_dir
-	   else absolute_path=$absolute_dir/$(basename "$name")
+	elif [[ -L "$name" ]]
+	   then set_absolute_path $absolute_dir/$(readlink "$name")
+	   else     absolute_path=$absolute_dir/$(basename "$name")
 	fi
 	$xtrace
 }
