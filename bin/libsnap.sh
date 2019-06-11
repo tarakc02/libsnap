@@ -525,6 +525,23 @@ set_FS_label___from_mount_dir() {
 
 
 # ----------------------------------------------------------------------------
+# miscellaneous function(s) needed by next section
+# ----------------------------------------------------------------------------
+
+# does 1st argument match any of the whitespace-separated words in rest of args
+function is_arg1_in_arg2() {
+	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
+	local arg1=$1; shift
+	set -- $*; local arg2=$*	# turn tabs into spaces
+	[[ $arg1 && $arg2 ]] || { $xtrace; return 1; }
+
+	[[ " $arg2 " == *" $arg1 "* ]]
+	local status=$?
+	$xtrace
+	return $status
+}
+
+# ----------------------------------------------------------------------------
 # simple error and warning and trace functions.
 # don't assign these until all the environment setup is finished, otherwise
 #   a login shell might source it and be terminated by abort's exit. 
@@ -940,21 +957,6 @@ done
 [[ ! $_input && $_output == "$_numbers" ]] ||
     _abort "set_popped_word___from_list failure: _input='$_input' _output='$_output'"
 unset _numbers _input _output popped_word
-
-# ----------------------------------------------------------------------------
-
-# does 1st argument match any of the whitespace-separated words in rest of args
-function is_arg1_in_arg2() {
-	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
-	local arg1=$1; shift
-	set -- $*; local arg2=$*	# turn tabs into spaces
-	[[ $arg1 && $arg2 ]] || { $xtrace; return 1; }
-
-	[[ " $arg2 " == *" $arg1 "* ]]
-	local status=$?
-	$xtrace
-	return $status
-}
 
 # ----------------------------------------------------------------------------
 
