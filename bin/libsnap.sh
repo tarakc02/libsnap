@@ -911,13 +911,13 @@ function add_words() {
 	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
 	[[ $1 == -k ]] && { local key=$2; shift 2; } || local key=
 	[[ $1 != -*  ]] || abort "$FUNCNAME: unknown option $1"
-	local   variable_name=$1; shift
-	is_set $variable_name || abort "$FUNCNAME $1 ... : '$1' is not set"
+
+	local variable_name=$1; shift
+	[[ $key ]] || is_set $variable_name ||
+	    abort "$FUNCNAME $variable_name ... : '$variable_name' is not set"
 
 	[[ $# == 0 ]] && { $xtrace; return 1; } # maybe no words to add
 
-	local unbound_variable_msg="
-	  $FUNCNAME $variable_name $*: $variable_name is unset"
 	if [[ $key ]]
 	   then eval "local value=\${$variable_name[\$key]-}"
 	   else       local value=${!variable_name}
