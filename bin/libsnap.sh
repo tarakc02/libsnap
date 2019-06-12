@@ -44,6 +44,8 @@
 ## An array (indexed or associative) that maps a_key to a_value is named:
 ##    a_key2a_value
 ##
+## A foo_regex var holds an extended regular expression for bash or egrep.
+##
 ## A global variable/function that's only used by the following
 ##   variable/function has a name prefixed by '_' (e.g. _chr, defined above).
 ## A global variable/function that replaces an external version
@@ -902,39 +904,6 @@ function is_writable() {
 is_writable $_writable_vars || _abort "is_writable $_writable_vars"
 is_writable $_writable_vars $_readonly_vars && _abort "is_readonly all-vars"
 unset _readonly_vars _writable_vars
-
-# ----------------------------------------------------------------------------
-
-# in variable named $1, append the subsequent args (with white space); if -k
-#    is passed, the variable is an array, with key/index/subscript following -k
-function add_words() {
-	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
-	[[ $1 == -k ]] && { local key=$2; shift 2; } || local key
-	[[ $1 != -*  ]] || abort "$FUNCNAME: unknown option $1"
-
-	local variable_name=$1; shift
-	is_set key || is_set $variable_name ||
-	    abort "$FUNCNAME $variable_name ... : '$variable_name' is not set"
-
-	[[ $# == 0 ]] && { $xtrace; return 1; } # maybe no words to add
-
-	if is_set key
-	   then eval "local value=\${$variable_name[\$key]-}"
-	   else       local value=${!variable_name}
-	fi
-
-	set -- $*			# turn tabs into spaces
-	value="$value $*"
-	value=${value# }
-
-	if is_set key
-	   then eval "$variable_name[\$key]=\$value"
-	   else eval "$variable_name=\$value"
-	fi
-
-	$xtrace
-	return 0
-}
 
 # ----------------------------------------------------------------------------
 
