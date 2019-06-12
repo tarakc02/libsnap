@@ -695,10 +695,10 @@ print_or_egrep_Usage_then_exit() {
 # ---------------------------------
 
 abort_with_action_Usage() {
-	local action=${*:-$action}
+	local _action=${*:-$action}
 
 	echo -e "\nBad arguments; here's the usage for this action:"
-	echo "$Usage" | grep "^ *$action" >&2; echo
+	echo "$Usage" | grep "^ *$_action" >&2; echo
 	exit 1
 }
 
