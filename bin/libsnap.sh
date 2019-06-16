@@ -44,10 +44,12 @@
 ## An array (indexed or associative) that maps a_key to a_value is named:
 ##    a_key2a_value
 ##
-## A foo_regex var holds an extended regular expression for bash or egrep.
+## A foo_regex var holds an extended regular expression for =~ or egrep.
 ##
 ## A global variable/function that's only used by the following
-##   variable/function has a name prefixed by '_' (e.g. _chr, defined above).
+##   variable/function has a name prefixed by '_' (e.g. _chr, defined above);
+## an exception is _set_foo, which can be a lightweight version of set_foo
+##   (typically with fewer side-effects).
 ## A global variable/function that replaces an external version
 ##   has a name that ends in '_' (e.g. cd_, defined below).
 ##############################################################################
@@ -81,11 +83,20 @@ our_path=${0#-}
 
 [[ $our_path == */libsnap    ]] && set -u # for unit tests
 
-# basename of calling script; if already non-blank, we don't change it
-our_name=${our_name:-${0##*/}}		# user can change
+# basename of calling script, we won't change caller's value
+: ${our_name:=${0##*/}}		# user can change before or after source us
 
-# put $IfRun in front of key commands, so -d means: debug only, simulate
+set -o functrace
+shopt -s extdebug
+# by default, show line number and function name with each command that's
+# echoed by "set -x"
+[[ $PS4 == "+ " ]] && export PS4='+ line $LINENO, in $FUNCNAME(): '
+
+# put $IfRun in front of cmds w/side-effects, so -d means: debug only, simulate
 : ${IfRun=}
+
+# support: echo $flakey_disk_dir/* | read -t 0.1 matches || warn "slow disk"
+shopt -s lastpipe
 
 readonly true=t True=t
 readonly false= False=
@@ -585,7 +596,7 @@ abort() {
 	exit 1
 }
 
-# ----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 # echo to stdError, include the line and function from which we're called
 echoE () {
@@ -597,7 +608,7 @@ echoE () {
 
 	local   line_no=${BASH_LINENO[stack_frame_to_show-1]}
 	local func_name=${FUNCNAME[stack_frame_to_show]}
-	[[   $func_name ]] && func_name="line $line_no in $func_name():"
+	[[   $func_name ]] && func_name="line $line_no, in $func_name():"
 
 	[[ $show_name ]] && local name="$our_name:" || local name=
 	echo -e $name $func_name "$@" >&2
@@ -678,8 +689,8 @@ wont_trace() {         foo=2
 will_trace() { set -x; foo=1
 	       suspend_tracing; echo untraced; restore_tracing foo
 	       wont_trace; echo traced; set +x; }
-will_trace |& fgrep    '+ echo untraced' && _abort "suspend_tracing failed"
-will_trace |& fgrep -q '+ echo traced'   || _abort "restore_tracing failed"
+will_trace |& fgrep    ' echo untraced' && _abort "suspend_tracing failed"
+will_trace |& fgrep -q ' echo traced'   || _abort "restore_tracing failed"
 unset -f wont_trace will_trace
 
 # ----------------------------------------------------------------------------
