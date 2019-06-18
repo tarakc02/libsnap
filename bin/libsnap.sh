@@ -36,7 +36,7 @@
 ##    procedure()	# doesn't return status (exits on fatal error)
 ##
 ## There are four kinds of naming for routines that set global variables:
-##    set_foo		# sets variable foo, 30x faster than value=$(foo)
+##    set_foo		# sets foo; 30x faster than foo=$(func), & side-effects
 ##    set_foo___from_xx	# sets variable foo ... using method xx on args
 ##    set__foo__bar	# sets variable foo and also sets variable bar
 ##    setup_foo_vars	# sets numerous variables related to foo
