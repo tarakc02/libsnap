@@ -90,7 +90,7 @@ set -o functrace
 shopt -s extdebug
 # by default, show line number and function name with each command that's
 # echoed by "set -x"
-[[ $PS4 == "+ " ]] && export PS4='+ line $LINENO, in $FUNCNAME(): '
+[[ $PS4 == "+ " ]] && export PS4='+ line ${LINENO-}, in ${FUNCNAME-}(): '
 
 # put $IfRun in front of cmds w/side-effects, so -d means: debug only, simulate
 : ${IfRun=}
@@ -147,7 +147,7 @@ append_to_PATH_var() {
 	local do_reverse_dirs=
 	[[ $1 == -r ]] && { do_reverse_dirs=1; shift; }
 	local   pathname=$1; shift
-	is_set $pathname || abort "$FUNCNAME $1 ... : '$1' is not set"
+	is_set $pathname || abort_function "$1 ... : '$1' is not set"
 	local path=${!pathname}
 
 	local dirs=$* dir
@@ -177,7 +177,7 @@ prepend_to_PATH_var() {
 	local do_reverse_dirs=
 	[[ $1 == -r ]] && { do_reverse_dirs=1; shift; }
 	local   pathname=$1; shift
-	is_set $pathname || abort "$FUNCNAME $1 ... : '$1' is not set"
+	is_set $pathname || abort_function "$1 ... : '$1' is not set"
 	local path=${!pathname}
 
 	local dirs=$* dir
@@ -204,15 +204,37 @@ prepend_to_PATH_var() {
 # functions to make sure needed utilities are in the PATH
 # ----------------------------------------------------------------------------
 
+# return true if have any of the passed variables, else silently return false
+function have_var() {
+	local _var
+
+	for _var
+	   do	declare -p $_var &> /dev/null && return 0
+	done
+	return 1
+}
+
+function have_variable() { have_var "$@"; }
+
+have_var our_path || _abort "have our_path"
+have_var NoTeXiSt && _abort "don't have NoTeXiSt"
+
+# --------------------------------------------
+
 # return true if have any of the passed commands, else silently return false
 function have_cmd() {
 	local _cmd
 
 	for _cmd
-	   do	type -t $_cmd && return 0
-	done &> /dev/null
+	   do	type -t $_cmd &> /dev/null && return 0
+	done
 	return 1
 }
+
+function have_command() { have_cmd "$@"; }
+
+have_cmd have_var || _abort "have have_var"
+have_cmd our_path && _abort "don't have func our_path"
 
 # --------------------------------------------
 
@@ -232,6 +254,8 @@ need_cmds() {
 	[[ $is_cmd_missing ]] && exit 2
 	$xtrace
 }
+
+need_commands() { need_cmds "$@"; }
 
 # -----------------------------------------------------------------------------
 
@@ -313,12 +337,12 @@ FS_type=
 
 set_FS_type___from_path() {
 	local  path=$1
-	[[ -e $path ]] || abort "$path doesn't exist"
+	[[ -e $path ]] || abort "path='$path' doesn't exist"
 
 	if [[ ! -b $path || $(df | fgrep -w  $path) ]]
 	   then FS_type=$(df --output=fstype $path | tail -n1)
 	   else have_cmd lsblk ||
-		   abort "fix $FUNCNAME for $path, email to ${coder-Scott}"
+		   abort "fix $FUNCNAME for '$path', email to ${coder-Scott}"
 		[[ ! -b $path ]] && local FS_device &&
 		   set_FS_device___from_path $path  && path=$FS_device
 		local cmd="lsblk --noheadings --nodeps --output=fstype $path"
@@ -333,7 +357,7 @@ set_FS_type___from_path() {
 
 set__inode_size__data_block_size__dir_block_size___from_path() {
 	local  path=$1
-	[[ -e $path ]] || abort "$FUNCNAME: '$path' doesn't exist"
+	[[ -e $path ]] || abort_function "$path: path doesn't exist"
 
 	local FS_type
 	set_FS_type___from_path $path || return $?
@@ -361,9 +385,9 @@ set__inode_size__data_block_size__dir_block_size___from_path() {
 		[[ $status == 0 ]]
 		;;
 	   (  *   )
-		abort "fix $FUNCNAME for $FS_type, email ${coder-}"
+		abort "fix $FUNCNAME for '$FS_type', email ${coder-}"
 		;;
-	esac || abort "$FUNCNAME $path (FS_type $FS_type) returned $status"
+	esac || abort_function "$path (FS_type=$FS_type) returned $status"
 }
 
 # ----------------------------------------------------------------------------
@@ -423,8 +447,8 @@ label_drive() {
 	case $FS_type in
 	   ( ext? ) $IfRun sudo e2label $device $FS_label ;;
 	   ( xfs  ) $IfRun sudo xfs_admin -L $FS_label $device ;;
-	   (  *   ) abort "fix $FUNCNAME for $FS_type, email ${coder-}" ;;
-	esac || abort "$FUNCNAME $device $mount_dir returned $? ($FS_type)"
+	   (  *   ) abort "fix $FUNCNAME for '$FS_type', email ${coder-}" ;;
+	esac || abort_function "$device $mount_dir: returned $? ($FS_type)"
 }
 
 # ----------------------------------------------------------------------------
@@ -489,11 +513,11 @@ set__OS_release_file__OS_release() {
 
 set_FS_device___from_path() {
 	local  path=$1
-	[[ -e $path ]] || abort "$path doesn't exist"
+	[[ -e $path ]] || abort "path=$path doesn't exist"
 
 	FS_device=$(set -- $(df $path | tail -n1); echo $1)
 
-	[[ $FS_device ]] || abort "couldn't find device for $path"
+	[[ $FS_device ]] || abort "couldn't find device for path=$path"
 }
 
 # ----------------------------
@@ -517,7 +541,7 @@ set_mount_dir___from_FS_device() {
 	set -- $(grep "^[[:space:]]*LABEL=$FS_label[[:space:]]" /etc/fstab)
 	mount_dir=${2-}
 
-	[[ $mount_dir ]] || abort "couldn't find mount dir for $dev"
+	[[ $mount_dir ]] || abort "couldn't find mount dir for dev=$dev"
 }
 
 # ----------------------------
@@ -598,6 +622,20 @@ abort() {
 	exit 1
 }
 
+abort_function() {
+	local opts= ; while [[ ${1-} == -* ]] ; do opts+=" $1"; shift; done
+
+	abort -1 $opts ${FUNCNAME[1]} $*
+}
+
+assert_not_option() {
+	[[ ${1-} == -o ]] && { local order_opt=$1; shift; } || local order_opt=
+	[[ ${1-} != -* ]] && return
+
+	[[ $order_opt ]] && msg=" (order matters)" || msg=
+	abort -1 "${FUNCNAME[1]}: unknown option $1$msg"
+}
+
 # -----------------------------------------------------------------------------
 
 # echo to stdError, include the line and function from which we're called
@@ -606,7 +644,7 @@ echoE () {
 	[[ $1 == -n ]] && { local show_name=$true; shift; } || local show_name=
 	declare -i stack_frame_to_show=1 # default to our caller's stack frame
 	[[ $1 =~ ^-[0-9]+$ ]] && { stack_frame_to_show=${1#-}+1; shift; }
-	[[ $1 != -*  ]] || abort "$FUNCNAME: unknown option $1 (order matters)"
+	assert_not_option -o ${1-}
 
 	local   line_no=${BASH_LINENO[stack_frame_to_show-1]}
 	local func_name=${FUNCNAME[stack_frame_to_show]}
@@ -646,34 +684,39 @@ TraceV() { is_num $1; (($1 <= Trace_level)) ||return 1;shift; echoEV -1 "$@"; }
 declare -A funcname2was_tracing		# global for next three functions
 
 function remember_tracing {
+
+	local status=$?			# status from caller's previous command
 	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
 
 	funcname2was_tracing[ ${FUNCNAME[1]} ]=$xtrace
 
 	$xtrace
+	return $status
 }
 
 # ----------------------
 
 function suspend_tracing {
 
+	local status=$?			# status from caller's previous command
 	if [[ -o xtrace ]]
 	   then set +x
 		local was_tracing=$true
 	   else local was_tracing=$false
 	fi
 	funcname2was_tracing[ ${FUNCNAME[1]} ]=$was_tracing
-	[[ $was_tracing ]]
+	return $status
 }
 
 # ----------------------
 
 # show the values of the variable names passed to us, then restore traing state
-restore_tracing() {
+function restore_tracing {
 
+	local status=$?			# status from caller's previous command
 	is_arg1_in_arg2 ${FUNCNAME[1]} ${!funcname2was_tracing[*]} ||
-	   abort "$FUNCNAME was called without a suspend_tracing"
-	[[ ${funcname2was_tracing[ ${FUNCNAME[1]} ]} ]] || return 0
+	   abort_function "was called without a suspend_tracing"
+	[[ ${funcname2was_tracing[ ${FUNCNAME[1]} ]} ]] || return $status
 
 	local variable
 	for variable
@@ -684,6 +727,7 @@ restore_tracing() {
 	done
 
 	set -x
+	return $status
 }
 
 wont_trace() {         foo=2
@@ -721,7 +765,7 @@ abort_with_action_Usage() {
 RunCmd() {
 	[[ $1 == -d ]] && { local IfAbort=$IfRun; shift; } || local IfAbort=
 	[[ $1 == -m ]] && { local msg="; $2"; shift 2; } || local msg=
-	[[ $1 != -*  ]] || abort "$FUNCNAME: unknown option $1 (order matters)"
+	assert_not_option -o ${1-}
 
 	$IfRun "$@" || $IfAbort abort -1 "'$*' returned $?$msg"
 }
@@ -774,7 +818,7 @@ header() {
 	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
 	[[ $1 == -e ]] && { shift; local nl="\n"; } || local nl=
 	[[ $1 == -E ]] &&   shift || echo
-	[[ $1 != -*  ]] || abort "$FUNCNAME: unknown option $1 (order matters)"
+	assert_not_option -o ${1-}
 
 	echo -e "==> $* <==$nl"
 	$xtrace
@@ -923,10 +967,10 @@ unset _readonly_vars _writable_vars
 # pop word off left side of named list; return non-0 if list was empty
 function set_popped_word___from_list() {
 	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
-	[[ $# == 1 ]] && is_set $1 || abort "$FUNCNAME: pass name of list"
+	[[ $# == 1 ]] || abort "$FUNCNAME: pass name of list"
 
 	local   list_name=$1
-	is_set $list_name || abort "$FUNCNAME $1: '$1' is not set"
+	is_set $list_name || abort_function "$1: '$1' is not set"
 	set -f; set -- ${!list_name}; set -- $*; set +f
 	popped_word=${1-}; shift	# grab left-most word
 	eval "$list_name=\$*"		# retain the rest of the words
@@ -944,6 +988,26 @@ _output=${_output# }
 [[ ! $_input && $_output == "$_numbers" ]] ||
     _abort "set_popped_word___from_list failure: _input='$_input' _output='$_output'"
 unset _numbers _input _output popped_word
+
+# -----------------------------------------------------------------------------
+
+set_division() {
+	[[ $# == 3 && $1 =~ ^-?[1-9]$ && $2$3 =~ ^[-0-9]+$ ]] || # -0 is hard
+	    abort_function \
+		   decimal-digits=${1-} numerator=${2-} denominator=${3-} ${4-}
+	declare -i decimal_digits=${1#-} numerator=$2   denominator=$3
+
+	local format="%s.%0${decimal_digits}d"
+	declare -i multiplier=10**$decimal_digits
+	printf -v division "$format" \
+			$(( numerator/denominator )) \
+  $(( ( multiplier*(numerator%denominator) + (denominator/2) ) / denominator ))
+}
+
+# test minutes to hours
+set_division -2 10 60 ; [[ $division == 0.17 ]] || abort "10/60 != $division"
+set_division -1 10 60 ; [[ $division == 0.2  ]] || abort "10/60 != $division"
+unset division
 
 # ----------------------------------------------------------------------------
 
@@ -977,7 +1041,7 @@ function confirm() {
 	done
 	echo
 
-	[[ $status ]] || abort "$FUNCNAME $*: read failure"
+	[[ $status ]] || abort_function "$*: read failure"
 	$xtrace
 	return $status
 }
@@ -991,12 +1055,12 @@ assert_accessible() {
 
 	local file
 	for file
-	   do	[[ -e $file ]] || abort "'$file' doesn't exist"
+	   do	[[ -e $file ]] || abort "file='$file' doesn't exist"
 
 		local test
 		for test in $tests
 		    do	eval "[[ $test '$file' ]]" ||
-			   abort "'$file' fails test $test"
+			   abort "file='$file' fails test='$test'"
 		done
 	done
 	$xtrace
@@ -1033,14 +1097,14 @@ modify_file() {
 	   then backup_ext=${backup_ext#-b}
 		local backup=$file${backup_ext:-'~'}
 		ln -f "$file" "$backup" ||
-		    abort "$FUNCNAME can't backup '$file'"
+		    abort_function "can't backup file='$file'"
 	fi
 
 	# we use cp -p just to copy the file metadata (uid, gid, mode)
 	cp -p "$file"   "$file+" &&
 	 "$@" "$file" > "$file+" &&
 	  mv  "$file+"  "$file"  ||
-	   abort "$FUNCNAME $file $* => $?"
+	   abort_function "$file $* => $?"
 	$xtrace
 }
 
@@ -1064,7 +1128,7 @@ run_function()
 	local is_procedure=$false	# abort if function "fails"
 	[[ $1 == -p ]] && { is_procedure=$true; shift; }
 	[[ $1 == -v ]] && { local var_names=$2; shift 2; } || local var_names=
-	[[ $1 != -*  ]] || abort "$FUNCNAME: unknown option $1 (order matters)"
+	assert_not_option -o ${1-}
 
 	have_cmd $1 || abort "function '$1' doesn't exist"
 
@@ -1095,7 +1159,7 @@ does_file_end_in_newline()
 
 # strip leading tabs (shell script's indent) from $1, and expand remaining tabs
 set_python_script() {
-	[[ $# == 1 ]] || abort "$FUNCNAME takes one arg, got $#" || return 1
+	[[ $# == 1 ]] || abort_function "takes one arg, got $#" || return 1
 	python_script=$1
 
 	local leading_tabs='						'

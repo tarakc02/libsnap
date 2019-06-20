@@ -347,6 +347,16 @@ flock:
 
 pid_t lock_pid = -1;
 
+void
+exit_for_busy_lock(void)
+{
+    if (! is_quiet)
+	printf("process %d holds lock '%s'\n", lock_pid, lock_file);
+    exit(lock_busy_exit_status);
+}
+
+// ---------------------------------------------------------------------------
+
 bool
 does_file_hold_active_pid(const int fd)
 {
@@ -379,9 +389,6 @@ does_file_hold_active_pid(const int fd)
 	printf("%s %s: already hold lock\n", argv0, lock_file);
 	exit(0);
     } 
-
-    if (! is_quiet && ! do_wait)
-	printf("process %d holds lock '%s'\n", lock_pid, lock_file);
 
     return(True);
 }
@@ -447,10 +454,10 @@ main(int argc, char *argv[])
 		close_file(fd);
 		usleep(sleep_microsecs);
 		if (end_wait_time != 0 && time(NULL) > end_wait_time)
-		    exit(lock_busy_exit_status);
+		    exit_for_busy_lock();
 		continue;
 	    } else
-		exit(lock_busy_exit_status);
+		exit_for_busy_lock();
 	}
 
 	if (do_release) {
