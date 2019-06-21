@@ -226,7 +226,7 @@ function have_cmd() {
 	local _cmd
 
 	for _cmd
-	   do	type -t $_cmd &> /dev/null && return 0
+	   do	type -t $_cmd > /dev/null && return 0
 	done
 	return 1
 }
@@ -994,20 +994,64 @@ unset _numbers _input _output popped_word
 set_division() {
 	[[ $# == 3 && $1 =~ ^-?[1-9]$ && $2$3 =~ ^[-0-9]+$ ]] || # -0 is hard
 	    abort_function \
-		   decimal-digits=${1-} numerator=${2-} denominator=${3-} ${4-}
-	declare -i decimal_digits=${1#-} numerator=$2   denominator=$3
+		 decimal-digits=${1-}  numerator=${2-} denominator=${3-} ${4-}
+	local -i decimal_digits=${1#-} numerator=$2    denominator=$3
 
 	local format="%s.%0${decimal_digits}d"
-	declare -i multiplier=10**$decimal_digits
-	printf -v division "$format" \
-			$(( numerator/denominator )) \
-  $(( ( multiplier*(numerator%denominator) + (denominator/2) ) / denominator ))
+
+	local -i multiplier=10**decimal_digits
+	local -i whole_number=$((numerator / denominator))
+	local -i fraction=$(( ( multiplier*(numerator % denominator)
+				+ (denominator / 2) ) / denominator ))
+	if (( fraction >= multiplier ))	# fraction rounded up to whole number?
+	   then whole_number+=1
+		fraction=0
+	fi
+
+	printf -v division "$format" $whole_number $fraction
 }
 
 # test minutes to hours
 set_division -2 10 60 ; [[ $division == 0.17 ]] || abort "10/60 != $division"
 set_division -1 10 60 ; [[ $division == 0.2  ]] || abort "10/60 != $division"
 unset division
+
+# ----------------------------------------------------------------------------
+
+# http://www.tldp.org/HOWTO/Bash-Prompt-HOWTO/x405.html
+print_string_colors() {
+
+	local n
+	header "Coloring from arguments passed to 'tput' command, see man page"
+	for (( n = 1; n <= 8; n++ ))
+	    do	local line=
+		local capname
+		for capname in setab setb setaf setf
+		    do	line+="$(tput $capname $n)$capname $n$(tput sgr0)   "
+		done
+		echo "$line"
+	done
+}
+
+# ---------------------------------
+
+declare -g warning_escape_seq # main script can initialize to over-ride default
+declare -g   error_escape_seq # main script can initialize to over-ride default
+
+declare -g   clear_escape_seq
+
+set_warning_string() {
+	local level=$1; shift; local string=$*
+
+	case $level in
+	   ( warn* ) local escape_seq=${warning_escape_seq=$(tput setaf 3)} ;;
+	   (  err* ) local escape_seq=${error_escape_seq=$(tput setb  4)} ;;
+	   (   *   ) abort_function "$level $string: unknown level" ;;
+	esac
+	[[ ${clear_escape_seq-} ]] ||
+	     clear_escape_seq=$(tput sgr0 | sed 's/\x1B(B//' )
+	warning_string=$escape_seq$string$clear_escape_seq
+}
 
 # ----------------------------------------------------------------------------
 
