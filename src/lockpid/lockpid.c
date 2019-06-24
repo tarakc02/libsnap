@@ -173,6 +173,7 @@ Usage: %s [-d dir] [-p pid] [-P npid] [-w] [-r]  [-q] [-v] file\n\
       if this waits longer than -W (--wait-expiration) seconds (optionally\n\
       followed by s, m, h, d [for secs, mins, hours, days]), exit with %d.\n\
    If -H (--not-hold) and we hold the lock, exit with %d\n\
+   If failed kernel call, exit with errno.\n\
    To release a lock only if you own it, use -r (--release).\n\
    To not announce when the lock is busy, use the -q (--quiet) option.\n\
    To announce when acquire the lock, use the -v (--verbose) option.\n\
