@@ -996,6 +996,8 @@ set_division() {
 	    abort_function \
 		 decimal-digits=${1-}  numerator=${2-} denominator=${3-} ${4-}
 	local -i decimal_digits=${1#-} numerator=$2    denominator=$3
+	[[ $denominator =~ ^[1-9][0-9]*$ ]] ||
+	    abort_function "denominator must be a counting number"
 
 	local format="%s.%0${decimal_digits}d"
 
