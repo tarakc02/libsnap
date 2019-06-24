@@ -54,6 +54,7 @@ pid_t pid, new_pid;
 static const int   unknown_exit_status = 127;
 static const int     usage_exit_status = 126;
 static const int lock_busy_exit_status = 125; /* copied into libsnap.sh */
+static const int hold_lock_exit_status = 124;
 
 typedef int bool;
 enum bool { False = 0, True = 1 };
@@ -68,6 +69,7 @@ bool do_release = False;
 bool do_wait	= False;
 bool is_quiet	= False;
 bool is_verbose = False;
+bool is_error_to_hold_lock = False;
 
 char *default_sleep_ms_string = "20.0";
 useconds_t sleep_microsecs;
@@ -165,11 +167,12 @@ Usage: %s [-d dir] [-p pid] [-P npid] [-w] [-r]  [-q] [-v] file\n\
 	 into 'file', then exit with 0; but,\n\
       if 'file' already holds PID of another active process, exit with %d;\n\
       if there's any (other) kind of error, exit with errno (typically).\n\
-   To change the PID in a lock, use -P (--new-pid).\n\
+   To change the PID in a lock (i.e. borrow lock), use -P (--new-pid).\n\
    To wait for the lock to become available, use -w (--wait);\n\
       this checks every %s millisecs, change it with -s (--sleep-msecs);\n\
       if this waits longer than -W (--wait-expiration) seconds (optionally\n\
       followed by s, m, h, d [for secs, mins, hours, days]), exit with %d.\n\
+   If -H (--not-hold) and we hold the lock, exit with %d\n\
    To release a lock only if you own it, use -r (--release).\n\
    To not announce when the lock is busy, use the -q (--quiet) option.\n\
    To announce when acquire the lock, use the -v (--verbose) option.\n\
@@ -180,7 +183,7 @@ Usage: %s [-d dir] [-p pid] [-P npid] [-w] [-r]  [-q] [-v] file\n\
    To avoid security risks, this command will bomb if 'file' is a symlink.\n\
 \n\
 ", argv0, lock_dir, lock_busy_exit_status,
-   default_sleep_ms_string, lock_busy_exit_status);
+   default_sleep_ms_string, lock_busy_exit_status, hold_lock_exit_status);
 
     exit( (option == 'h') ? 0 : usage_exit_status );
 }
@@ -198,6 +201,7 @@ Long_opts[] =
     { "wait",		0, NULL, 'w' },
     { "quiet",		0, NULL, 'q' },
     { "verbose",	0, NULL, 'v' },
+    { "not-hold",	0, NULL, 'H' },
     { "release",	0, NULL, 'r' },
     { NULL,		0, NULL,  0  },
 };
@@ -220,7 +224,7 @@ parse_argv_setup_globals(int argc, char * const argv[])
     const char *sleep_ms_string = NULL;
     const char *wait_expiration_string = NULL;
     // see getopt(3) for semantics of getopt_long and its arguments
-    static const char Opt_string[] = "d:p:P:s:W:wqvrh";
+    static const char Opt_string[] = "d:p:P:s:W:wqvHrh";
     while (True)
     {
 	int option = getopt_long(argc, argv, Opt_string, Long_opts, NULL);
@@ -238,6 +242,7 @@ parse_argv_setup_globals(int argc, char * const argv[])
 	case 'w': do_wait		= True;   break;
 	case 'q': is_quiet		= True;   break;
 	case 'v': is_verbose		= True;   break;
+	case 'H': is_error_to_hold_lock	= True;   break;
 	case 'r': do_release		= True;   break;
 	case 'h': // fall through to default
 	default : show_usage_and_exit(option);
@@ -387,7 +392,7 @@ does_file_hold_active_pid(const int fd)
 	    return(False);
 	// don't send this to stderr, so easy to ignore
 	printf("%s %s: already hold lock\n", argv0, lock_file);
-	exit(0);
+	exit(is_error_to_hold_lock ? hold_lock_exit_status : 0);
     } 
 
     return(True);

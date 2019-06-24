@@ -1014,6 +1014,7 @@ set_division() {
 # test minutes to hours
 set_division -2 10 60 ; [[ $division == 0.17 ]] || abort "10/60 != $division"
 set_division -1 10 60 ; [[ $division == 0.2  ]] || abort "10/60 != $division"
+set_division -1 59 60 ; [[ $division == 1.0  ]] || abort "59/60 != $division"
 unset division
 
 # ----------------------------------------------------------------------------
@@ -1035,6 +1036,10 @@ print_string_colors() {
 
 # ---------------------------------
 
+:  ${warn_tput_args="setb 1"}	     # main script can initialize to over-ride
+: ${error_tput_args="setb 4"}	     # main script can initialize to over-ride
+: ${clear_tput_args="sgr0"}	     # main script can initialize to over-ride
+
 declare -g warning_escape_seq # main script can initialize to over-ride default
 declare -g   error_escape_seq # main script can initialize to over-ride default
 
@@ -1043,14 +1048,16 @@ declare -g   clear_escape_seq
 set_warning_string() {
 	local level=$1; shift; local string=$*
 
+	[[ -t 1 || ${do_tput-} ]] || { warning_string=$string; return; }
+
 	case $level in
-	   ( warn* ) local escape_seq=${warning_escape_seq=$(tput setaf 3)} ;;
-	   (  err* ) local escape_seq=${error_escape_seq=$(tput setb  4)} ;;
+	   ( warn* ) local esc=${warning_escape_seq=$(tput $warn_tput_args)} ;;
+	   (  err* ) local esc=${error_escape_seq=$(tput  $error_tput_args)} ;;
 	   (   *   ) abort_function "$level $string: unknown level" ;;
 	esac
 	[[ ${clear_escape_seq-} ]] ||
-	     clear_escape_seq=$(tput sgr0 | sed 's/\x1B(B//' )
-	warning_string=$escape_seq$string$clear_escape_seq
+	     clear_escape_seq=$(tput $clear_tput_args | sed 's/\x1B(B//' )
+	warning_string=$esc$string$clear_escape_seq
 }
 
 # ----------------------------------------------------------------------------
