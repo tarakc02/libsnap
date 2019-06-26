@@ -1042,11 +1042,6 @@ print_string_colors() {
 : ${error_tput_args="setb 4"}	     # main script can initialize to over-ride
 : ${clear_tput_args="sgr0"}	     # main script can initialize to over-ride
 
-declare -g warning_escape_seq # main script can initialize to over-ride default
-declare -g   error_escape_seq # main script can initialize to over-ride default
-
-declare -g   clear_escape_seq
-
 set_warning_string() {
 	local level=$1; shift; local string=$*
 
@@ -1057,8 +1052,7 @@ set_warning_string() {
 	   (  err* ) local esc=${error_escape_seq=$(tput  $error_tput_args)} ;;
 	   (   *   ) abort_function "$level $string: unknown level" ;;
 	esac
-	[[ ${clear_escape_seq-} ]] ||
-	     clear_escape_seq=$(tput $clear_tput_args | sed 's/\x1B(B//' )
+	: ${clear_escape_seq=$(tput $clear_tput_args | sed 's/\x1B(B//')}
 	warning_string=$esc$string$clear_escape_seq
 }
 
