@@ -1042,6 +1042,7 @@ print_string_colors() {
 
 :  ${warn_tput_args="setb 1"}	     # main script can initialize to over-ride
 : ${error_tput_args="setb 4"}	     # main script can initialize to over-ride
+: ${stale_tput_args="setb 6"}	     # main script can initialize to over-ride
 : ${clear_tput_args="sgr0"}	     # main script can initialize to over-ride
 
 set_warning_string() {
@@ -1052,6 +1053,7 @@ set_warning_string() {
 	case $level in
 	   ( warn* ) local esc=${warning_escape_seq=$(tput $warn_tput_args)} ;;
 	   (  err* ) local esc=${error_escape_seq=$(tput  $error_tput_args)} ;;
+	   ( stale ) local esc=${stale_escape_seq=$(tput  $stale_tput_args)} ;;
 	   (   *   ) abort_function "$level $string: unknown level" ;;
 	esac
 	: ${clear_escape_seq=$(tput $clear_tput_args | sed 's/\x1B(B//')}
