@@ -1040,9 +1040,9 @@ print_string_colors() {
 
 # ---------------------------------
 
-:  ${warn_tput_args="setb 1"}	     # main script can initialize to over-ride
+:  ${warn_tput_args="setb 6"}	     # main script can initialize to over-ride
 : ${error_tput_args="setb 4"}	     # main script can initialize to over-ride
-: ${stale_tput_args="setb 6"}	     # main script can initialize to over-ride
+: ${stale_tput_args="setb 1"}	     # main script can initialize to over-ride
 : ${clear_tput_args="sgr0"}	     # main script can initialize to over-ride
 
 set_warning_string() {
