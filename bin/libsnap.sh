@@ -1040,23 +1040,34 @@ print_string_colors() {
 
 # ---------------------------------
 
-:  ${warn_tput_args="setb 6"}	     # main script can initialize to over-ride
-: ${error_tput_args="setb 4"}	     # main script can initialize to over-ride
-: ${stale_tput_args="setb 1"}	     # main script can initialize to over-ride
-: ${clear_tput_args="sgr0"}	     # main script can initialize to over-ride
+# main script can over-ride the following global variables after source us
+
+# the setb coloring stands out more, but fails under 'watch' on some OSs
+declare -A warning_level2tput_b_args=(
+    [warning]="setb 6"
+      [error]="setb 4"
+      [stale]="setb 1"
+)
+declare -A warning_level2tput_args=(
+    [warning]="setf 5"
+      [error]="setf 4"
+      [stale]="setf 3"
+)
+clear_tput_args="sgr0"
+
+declare -A warning_level2escape_sequence
 
 set_warning_string() {
 	local level=$1; shift; local string=$*
+	is_arg1_in_arg2 $level ${!warning_level2tput_args[*]} ||
+	   abort_function "$level is unknown level"
 
 	[[ -t 1 || ${do_tput-} ]] || { warning_string=$string; return; }
 
-	case $level in
-	   ( warn* ) local esc=${warning_escape_seq=$(tput $warn_tput_args)} ;;
-	   (  err* ) local esc=${error_escape_seq=$(tput  $error_tput_args)} ;;
-	   ( stale ) local esc=${stale_escape_seq=$(tput  $stale_tput_args)} ;;
-	   (   *   ) abort_function "$level $string: unknown level" ;;
-	esac
-	: ${clear_escape_seq=$(tput $clear_tput_args | sed 's/\x1B(B//')}
+	local esc=${warning_level2escape_sequence[$level]=$(
+		tput ${warning_level2tput_args[$level]})}
+	: ${clear_escape_seq=$(tput $clear_tput_args |
+		sed 's/\x1B(B//')}	# need to toss leading ESC ( B
 	warning_string=$esc$string$clear_escape_seq
 }
 
