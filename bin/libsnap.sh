@@ -205,7 +205,7 @@ prepend_to_PATH_var() {
 # ----------------------------------------------------------------------------
 
 # return true if have any of the passed variables, else silently return false
-function have_var() {
+function have-var() {
 	local _var
 
 	for _var
@@ -214,15 +214,16 @@ function have_var() {
 	return 1
 }
 
-function have_variable() { have_var "$@"; }
+function have_var     () { have-var "$@"; }
+function have-variable() { have-var "$@"; }
 
-have_var our_path || _abort "have our_path"
-have_var NoTeXiSt && _abort "don't have NoTeXiSt"
+have-var our_path || _abort "have our_path"
+have-var NoTeXiSt && _abort "don't have NoTeXiSt"
 
 # --------------------------------------------
 
 # return true if have any of the passed commands, else silently return false
-function have_cmd() {
+function have-cmd() {
 	local _cmd
 
 	for _cmd
@@ -231,10 +232,11 @@ function have_cmd() {
 	return 1
 }
 
-function have_command() { have_cmd "$@"; }
+function have_cmd    () { have-cmd "$@"; }
+function have-command() { have-cmd "$@"; }
 
-have_cmd have_var || _abort "have have_var"
-have_cmd our_path && _abort "don't have func our_path"
+have-cmd have-var || _abort "have have-var"
+have-cmd our_path && _abort "don't have func our_path"
 
 # --------------------------------------------
 
@@ -245,7 +247,7 @@ need_cmds() {
 
 	local _cmd is_cmd_missing=
 	for _cmd
-	    do	have_cmd $_cmd && continue
+	    do	have-cmd $_cmd && continue
 
 		echo "$our_name: command '$_cmd' is not in current path."
 		is_cmd_missing=1
@@ -341,7 +343,7 @@ set_FS_type___from_path() {
 
 	if [[ ! -b $path || $(df | fgrep -w  $path) ]]
 	   then FS_type=$(df --output=fstype $path | tail -n1)
-	   else have_cmd lsblk ||
+	   else have-cmd lsblk ||
 		   abort "fix $FUNCNAME for '$path', email to ${coder-Scott}"
 		[[ ! -b $path ]] && local FS_device &&
 		   set_FS_device___from_path $path  && path=$FS_device
@@ -400,7 +402,7 @@ set_device_KB___from_block_device() {
 	[[ -b $dev ]] || abort "$dev is not a device"
 
 	device_KB=0
-	have_cmd lsblk || return 1
+	have-cmd lsblk || return 1
 
 	set -- $(lsblk --noheadings --bytes --output=SIZE $dev)
 	[[ $# == 1 ]] || abort "$FUNCNAME: specify a partition not whole drive"
@@ -422,7 +424,7 @@ set_FS_label___from_FS_device() {
 	[[ ${1-} == LABEL=* ]] && FS_label=${1#*=} || FS_label=	; }
 
 	# don't use lsblk, it sometimes returns very old labels
-	if [[ ! ${FS_label-} ]] && have_cmd blkid
+	if [[ ! ${FS_label-} ]] && have-cmd blkid
 	   then local cmd="blkid $dev |
 			   sed -n -r 's@.* LABEL=\"?([^ \"]*)\"? .*@\1@p'"
 		eval "FS_label=\$($cmd)"	; [[ $FS_label ]] ||
@@ -463,7 +465,7 @@ set_FS_device___from_FS_label() {
 		return
 	fi
 
-	have_cmd blkid ||
+	have-cmd blkid ||
 	  abort "you need to fix $FUNCNAME and email it to ${coder-Scott}"
 
 	# -L has a different meaning in older versions, so use old method
@@ -1177,7 +1179,7 @@ run_function()
 	[[ $1 == -v ]] && { local var_names=$2; shift 2; } || local var_names=
 	assert_not_option -o ${1-}
 
-	have_cmd $1 || abort "function '$1' doesn't exist"
+	have-cmd $1 || abort "function '$1' doesn't exist"
 
 	"$@"
 	local status=$?
