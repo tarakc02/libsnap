@@ -323,8 +323,8 @@ umask 022				# caller can change it
 # ----------------------------------------------------------------------------
 
 [[ ! $is_sourced_by_interactive_shell ]] &&
-[[     $BASH_VERSION <  4.2 ]] &&
-_abort "bash version >= 4.2 must appear earlier in the PATH than an older bash"
+[[     $BASH_VERSION <  4.2 ]] &&	# 4.2 core dumps when lastpipe set
+_abort "bash version >= 4.3 must appear earlier in the PATH than an older bash"
 
 ###########################################################################
 # define functions that abstract OS/kernel-specific operations or queries #
@@ -908,13 +908,18 @@ set_file_KB() {
 
 # ----------------------------------------------------------------------------
 
+function have-proc { [[ -e /proc/mounts ]] ; }
+
+# ---------------------------------
+
 # return 0 if all processes alive, else 1; unlike 'kill -0', works without sudo
 function is_process_alive() {
 	local PIDs=$*
 
 	local PID
 	for PID in $PIDs
-	    do	if [[ -e /proc/mounts ]]
+	    do	PID=${PID#-}		# in case passed PGID indicator
+		if have-proc
 		   then [[ -d /proc/$PID ]]  || return 1
 		   else ps $PID &> /dev/null || return 1
 		fi
