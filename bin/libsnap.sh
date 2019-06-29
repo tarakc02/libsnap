@@ -910,22 +910,16 @@ set_file_KB() {
 
 # return 0 if all processes alive, else 1; unlike 'kill -0', works without sudo
 function is_process_alive() {
+	local PIDs=$*
+
+	set -- /proc/*			# could have chrooted ...
+	(( $# > 15 )) && local have_proc=$true || have_proc=$false
 
 	local PID
-	for PID
-	    do	if [[ -d /proc ]]
-		   then [[ -d /proc/$PID ]] || return 1
-		   else case $(kill -0 $PID 2>&1) in
-			   ( *"Operation not permitted"* )
-				sudo kill -h > /dev/null ||
-				   abort "$FUNCNAME: need 'sudo kill' perms"
-				local sudo=sudo
-				;;
-			   ( * )
-				local sudo=
-				;;
-			esac
-			$sudo kill -0 $PID >& /dev/null || return 1
+	for PID in $PIDs
+	    do	if [[ $have_proc ]]
+		   then [[ -d /proc/$PID ]]  || return 1
+		   else ps $PID &> /dev/null || return 1
 		fi
 	done
 	return 0
