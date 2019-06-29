@@ -912,12 +912,9 @@ set_file_KB() {
 function is_process_alive() {
 	local PIDs=$*
 
-	set -- /proc/*			# could have chrooted ...
-	(( $# > 15 )) && local have_proc=$true || have_proc=$false
-
 	local PID
 	for PID in $PIDs
-	    do	if [[ $have_proc ]]
+	    do	if [[ -e /proc/mounts ]]
 		   then [[ -d /proc/$PID ]]  || return 1
 		   else ps $PID &> /dev/null || return 1
 		fi
