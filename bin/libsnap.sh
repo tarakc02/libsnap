@@ -603,7 +603,20 @@ print_call_stack() {
 
 # --------------------------------------------
 
- warn() { echo -e "\n$our_name: $*\n" >&2; return 1; }
+warn() {
+
+	local msg="$our_name $*"
+	if [[ ${FUNCNAME[1]-} == abort ]]
+	   then local level=error
+	   else local level=warning
+	fi
+	[[ -t 2 ]] && set_warning_string $level "$msg" && msg=$warning_string
+	echo -e "\n$msg\n" >&2
+	return 1
+}
+
+# ---------------------------------
+
 abort() {
 	set +x
 	[[ $1 == -r ]] && { shift; is_recursion=$true; } || is_recursion=$false
@@ -624,11 +637,15 @@ abort() {
 	exit 1
 }
 
+# ---------------------------------
+
 abort_function() {
 	local opts= ; while [[ ${1-} == -* ]] ; do opts+=" $1"; shift; done
 
 	abort -1 $opts ${FUNCNAME[1]} $*
 }
+
+# --------------------------------------------
 
 assert_not_option() {
 	[[ ${1-} == -o ]] && { local order_opt=$1; shift; } || local order_opt=
