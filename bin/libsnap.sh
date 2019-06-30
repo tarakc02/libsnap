@@ -273,7 +273,7 @@ prepend_to_PATH_var PATH /usr/local/bin /usr/local/sbin
 # Customization for Darwin (MacOS) + Homebrew, precedence over /usr/local/*bin
 # ----------------------------------------------------------------------------
 
-[[ $(uname) == Darwin ]] && readonly is_darwin=$true || readonly is_darwin=
+[[ $OSTYPE == darwin* ]] && readonly is_darwin=$true || readonly is_darwin=
 
 [[ $is_darwin ]] && {
 
@@ -300,6 +300,7 @@ prepend_to_PATH_var PATH $homebrew_install_dir/*/libexec/*bin
 tmp_dir=${tmp_dir:-/tmp/$(id -nu)}	# caller is allowed to change tmp_dir
 [[ -w ${TMP-}     ]] && tmp_dir=$TMP
 [[ -w ${TMP_DIR-} ]] && tmp_dir=$TMP_DIR
+TMPDIR=$tmp_dir				# used by bash
 
 # the root filesystem is read-only while booting, don't get into infinite loop!
 # GNU mkdir will fail if $tmp_dir is a symlink
@@ -322,7 +323,7 @@ umask 022				# caller can change it
 # ----------------------------------------------------------------------------
 
 [[ ! $is_sourced_by_interactive_shell ]] &&
-[[     $BASH_VERSION <  4.3 ]] &&	# 4.2 core dumps when lastpipe set
+[[     $BASH_VERSION <  4.3 ]] &&	# 4.2 can core dump when lastpipe set
 _abort "bash version >= 4.3 must appear earlier in the PATH than an older bash"
 
 ###########################################################################
