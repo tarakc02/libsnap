@@ -1,4 +1,4 @@
-#!/bin/bash
+#! /usr/bin/env bash
 
 #     libsnap.sh is a library used by snap aka snapshot, snapback, & snapcrypt
 #
