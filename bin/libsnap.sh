@@ -128,10 +128,9 @@ function is_set() {
 
 	local variable_name
 	for variable_name
-	    do	{ declare -p $variable_name; } &> /dev/null || return 1
-		[[ ${!variable_name+x} ]] && continue
-		[[ $(declare -p $variable_name) != *"='()'" ]] || return 1
+	    do	[[ -v $variable_name ]] || return 1
 	done
+	return 0
 }
 
 _foo=
@@ -147,7 +146,7 @@ append_to_PATH_var() {
 	local do_reverse_dirs=
 	[[ $1 == -r ]] && { do_reverse_dirs=1; shift; }
 	local   pathname=$1; shift
-	is_set $pathname || abort_function "$1 ... : '$1' is not set"
+	[[ -v $pathname ]] || abort_function "$1 ... : '$1' is not set"
 	local path=${!pathname}
 
 	local dirs=$* dir
@@ -177,7 +176,7 @@ prepend_to_PATH_var() {
 	local do_reverse_dirs=
 	[[ $1 == -r ]] && { do_reverse_dirs=1; shift; }
 	local   pathname=$1; shift
-	is_set $pathname || abort_function "$1 ... : '$1' is not set"
+	[[ -v $pathname ]] || abort_function "$1 ... : '$1' is not set"
 	local path=${!pathname}
 
 	local dirs=$* dir
@@ -722,7 +721,7 @@ function restore_tracing {
 
 	local variable
 	for variable
-	    do	if is_set $variable
+	    do	if [[ -v $variable ]]
 		   then echo "+ $variable=${!variable}"
 		   else echo "+ $variable is not set"
 		fi
@@ -968,7 +967,7 @@ function set_popped_word___from_list() {
 	[[ $# == 1 ]] || abort "$FUNCNAME: pass name of list"
 
 	local   list_name=$1
-	is_set $list_name || abort_function "$1: '$1' is not set"
+	[[ -v $list_name ]] || abort_function "$1: '$1' is not set"
 	set -f; set -- ${!list_name}; set -- $*; set +f
 	popped_word=${1-}; shift	# grab left-most word
 	eval "$list_name=\$*"		# retain the rest of the words
