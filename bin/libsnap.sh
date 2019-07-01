@@ -203,24 +203,6 @@ prepend_to_PATH_var() {
 # functions to make sure needed utilities are in the PATH
 # ----------------------------------------------------------------------------
 
-# return true if have any of the passed variables, else silently return false
-function have-var() {
-	local _var
-
-	for _var
-	   do	declare -p $_var &> /dev/null && return 0
-	done
-	return 1
-}
-
-function have_var     () { have-var "$@"; }
-function have-variable() { have-var "$@"; }
-
-have-var our_path || _abort "have our_path"
-have-var NoTeXiSt && _abort "don't have NoTeXiSt"
-
-# --------------------------------------------
-
 # return true if have any of the passed commands, else silently return false
 function have-cmd() {
 	local _cmd
@@ -234,7 +216,7 @@ function have-cmd() {
 function have_cmd    () { have-cmd "$@"; }
 function have-command() { have-cmd "$@"; }
 
-have-cmd have-var || _abort "have have-var"
+have-cmd is-set   || _abort "have is-set"
 have-cmd our_path && _abort "don't have func our_path"
 
 # --------------------------------------------
