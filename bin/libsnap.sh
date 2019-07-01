@@ -124,7 +124,7 @@ rsync_temp_file_suffix="$_chr$_chr$_chr$_chr$_chr$_chr"; unset _chr
 # ----------------------------------------------------------------------------
 
 # return non-0 if any of the passed variable names have not been set
-function is_set() {
+function is-set() {
 
 	local variable_name
 	for variable_name
@@ -134,9 +134,9 @@ function is_set() {
 }
 
 _foo=
-is_set _foo || _abort "is_set _foo"
-is_set _bar && _abort "is_set _bar"
-is_set _foo _bar && _abort "is_set _foo _bar"
+is-set _foo || _abort "is-set _foo"
+is-set _bar && _abort "is-set _bar"
+is-set _foo _bar && _abort "is-set _foo _bar"
 unset _foo
 
 # -----------------------------------------------------------------------------
