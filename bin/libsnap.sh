@@ -90,7 +90,7 @@ set -o functrace
 shopt -s extdebug
 # by default, show line number and function name with each command that's
 # echoed by "set -x"
-export PS4='+ line ${LINENO-}, in ${FUNCNAME-}(): '
+export PS4='+ ${BASH_SOURCE##*/} line ${LINENO-}, in ${FUNCNAME-}(): '
 
 # put $IfRun in front of cmds w/side-effects, so -d means: debug only, simulate
 : ${IfRun=}
