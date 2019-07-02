@@ -90,7 +90,7 @@ set -o functrace
 shopt -s extdebug
 # by default, show line number and function name with each command that's
 # echoed by "set -x"
-[[ $PS4 == "+ " ]] && export PS4='+ line ${LINENO-}, in ${FUNCNAME-}(): '
+export PS4='+ line ${LINENO-}, in ${FUNCNAME-}(): '
 
 # put $IfRun in front of cmds w/side-effects, so -d means: debug only, simulate
 : ${IfRun=}
@@ -124,19 +124,10 @@ rsync_temp_file_suffix="$_chr$_chr$_chr$_chr$_chr$_chr"; unset _chr
 # ----------------------------------------------------------------------------
 
 # return non-0 if any of the passed variable names have not been set
-function is-set() {
-
-	local variable_name
-	for variable_name
-	    do	[[ -v $variable_name ]] || return 1
-	done
-	return 0
-}
-
+function is-set() { [[ -v $1 ]] ; return; }
 _foo=
 is-set _foo || _abort "is-set _foo"
 is-set _bar && _abort "is-set _bar"
-is-set _foo _bar && _abort "is-set _foo _bar"
 unset _foo
 
 # -----------------------------------------------------------------------------
