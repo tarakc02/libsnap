@@ -297,7 +297,7 @@ umask 022				# caller can change it
 # ----------------------------------------------------------------------------
 
 [[ ! $is_sourced_by_interactive_shell ]] &&
-[[     $BASH_VERSION <  4.3 ]] &&	# 4.2 can core dump when lastpipe set
+[[     $BASH_VERSION <  4.3 ]] &&     # need: [[ -v var ]] ; reliable lastpipe
 _abort "bash version >= 4.3 must appear earlier in the PATH than an older bash"
 
 ###########################################################################
