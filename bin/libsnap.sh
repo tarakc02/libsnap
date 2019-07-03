@@ -92,7 +92,6 @@ shopt -s extdebug
 PS4='+ $(echo $BASH_SOURCE | sed "s@^$HOME/@~/@; s@^/home/@~@; s@/.*/@ @")'
 PS4+=' line ${LINENO-}, in ${FUNCNAME-}(): '
 export PS4
-readonly PS4
 
 # put $IfRun in front of cmds w/side-effects, so -d means: debug only, simulate
 : ${IfRun=}
