@@ -563,26 +563,32 @@ function is_arg1_in_arg2() {
 #   a login shell might source it and be terminated by abort's exit. 
 # ----------------------------------------------------------------------------
 
+declare -i max_call_stack_args=7
+
 print_call_stack() {
 	declare -i stack_skip=1
 	[[ ${1-} ==   -s  ]] && { stack_skip=$2+1; shift 2; }
 	[[ ${1-} == [0-9] ]] && { (( Trace_level >= $1 )) || return; shift; }
 
 	header -E "call stack"
-	local -i depth arg_i argv_i=0
+	local -i depth arg_i argv_i=0 max_args=$max_call_stack_args
 	for depth in ${!FUNCNAME[*]}
 	   do	(( depth < stack_skip )) && continue # skip ourself
 		# this logic is duplicated in PS4
 		local src=$(echo ${BASH_SOURCE[depth]} |
 				sed "s@^$HOME/@~/@; s@^/home/@~@; s@/.*/@ @")
 		local args=
-		local -i argc=${BASH_ARGC[depth]}
+		local -i argc=${BASH_ARGC[depth]} number_args=0
 		for (( arg_i=argv_i+argc-1; arg_i >= argv_i; arg_i-- ))
 		    do	args+="${BASH_ARGV[arg_i]} "
+			(( argc > max_args+1 )) || continue
+			(( ++number_args == max_args-2 )) &&
+			   arg_i=argv_i+2 &&
+			   args+="<$((argc-max_args)) more args> "
 		done
 		argv_i+=argc
 		echo -n "$src line ${BASH_LINENO[depth-1]}: "
-		echo    "${FUNCNAME[depth]} $args"
+		echo    "${FUNCNAME[depth]} ${args% }"
 	done
 	echo >&2
 }
