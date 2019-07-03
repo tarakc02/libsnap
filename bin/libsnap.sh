@@ -88,7 +88,8 @@ our_path=${0#-}
 
 set -o functrace
 shopt -s extdebug
-# if command in /home/, precede by ~ (yourself) else ~other-user
+# if command in /home/, precede by ~ (yourself) else ~other-user .
+# this logic for the first-half of PS4 is duplicated in print_call_stack
 PS4='+ $(echo $BASH_SOURCE | sed "s@^$HOME/@~/@; s@^/home/@~@; s@/.*/@ @")'
 PS4+=' line ${LINENO-}, in ${FUNCNAME-}(): '
 export PS4
@@ -297,7 +298,7 @@ umask 022				# caller can change it
 # ----------------------------------------------------------------------------
 
 [[ ! $is_sourced_by_interactive_shell ]] &&
-[[     $BASH_VERSION <  4.3 ]] &&     # need: [[ -v var ]] ; reliable lastpipe
+[[     $BASH_VERSION <  4.3 ]] &&     # need reliable lastpipe
 _abort "bash version >= 4.3 must appear earlier in the PATH than an older bash"
 
 ###########################################################################
@@ -568,9 +569,20 @@ print_call_stack() {
 	[[ ${1-} == [0-9] ]] && { (( Trace_level >= $1 )) || return; shift; }
 
 	header -E "call stack"
-	for i in ${!FUNCNAME[*]}
-	   do	(( i < stack_skip )) && continue # skip ourself
-		echo "line ${BASH_LINENO[i-1]} in ${FUNCNAME[i]}()"
+	local -i depth arg_i argv_i=0
+	for depth in ${!FUNCNAME[*]}
+	   do	(( depth < stack_skip )) && continue # skip ourself
+		# this logic is duplicated in PS4
+		local src=$(echo ${BASH_SOURCE[depth]} |
+				sed "s@^$HOME/@~/@; s@^/home/@~@; s@/.*/@ @")
+		local args=
+		local -i argc=${BASH_ARGC[depth]}
+		for (( arg_i=argv_i+argc-1; arg_i >= argv_i; arg_i-- ))
+		    do	args+="${BASH_ARGV[arg_i]} "
+		done
+		argv_i+=argc
+		echo -n "$src line ${BASH_LINENO[depth-1]}: "
+		echo    "${FUNCNAME[depth]} $args"
 	done
 	echo >&2
 }
