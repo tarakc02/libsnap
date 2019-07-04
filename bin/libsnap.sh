@@ -131,6 +131,7 @@ rsync_temp_file_suffix="$_chr$_chr$_chr$_chr$_chr$_chr"; unset _chr
 
 # return non-0 if any of the passed variable names have not been set
 function is-set() { [[ -v $1 ]] ; return; }
+
 _foo=
 is-set _foo || _abort "is-set _foo"
 is-set _bar && _abort "is-set _bar"
@@ -282,7 +283,7 @@ TMPDIR=$tmp_dir				# used by bash
 
 # the root filesystem is read-only while booting, don't get into infinite loop!
 # GNU mkdir will fail if $tmp_dir is a symlink
-until [[ ! -w /tmp ]] || mkdir -m 0700 -p $tmp_dir
+until [[ ! -w /tmp || -d $tmp_dir ]] || mkdir -m 0700 -p $tmp_dir
    do	_warn "deleting $(ls -ld $tmp_dir)"
 	rm -f $tmp_dir
 done
@@ -312,8 +313,6 @@ _abort "bash version >= 4.3 must appear earlier in the PATH than an older bash"
 # Linux functions for querying hardware; email ${coder-Scott} if fix.   #
 # snapback or snapcrypt users can write a replacement in configure.sh . #
 # -----------------------------------------------------------------------
-
-FS_type=
 
 set-FS_type-from-path() {
 	local  path=$1
@@ -389,8 +388,6 @@ set-device_KB-from-block-device() {
 
 # ----------------------------------------------------------------------------
 
-FS_label=
-
 # snapback or snapcrypt users can write a replacement in configure.sh
 set-FS_label-from-FS-device() {
 	local  dev=$1
@@ -432,8 +429,6 @@ label-drive() {
 }
 
 # ----------------------------------------------------------------------------
-
-FS_device=
 
 set-FS_device-from-FS-label() {
 	local label=$1
@@ -501,8 +496,6 @@ set-FS_device-from-path() {
 }
 
 # ----------------------------
-
-mount_dir=
 
 set-mount_dir-from-FS-device() {
 	local  dev=$1
@@ -800,7 +793,7 @@ log_date_format="+%a %m/%d %H:%M:%S"	# caller can change
 
 file_for_logging=/dev/null		# append to it; caller can change
 
-declare -i log_level=0			# usually set by getopts
+declare -i log_level=0			# set by getopts or configure.sh
 
 log_msg_prefix=				# can hold variables, it's eval'ed
 
