@@ -415,7 +415,7 @@ set-FS_label-from-FS-device() {
 
 # ----------------------------------------------------------------------------
 
-label_drive() {
+label-drive() {
 	local  device=$1 mount_dir=$2
 	[[ -b $device ]] || abort "$device is not a device"
 
@@ -435,7 +435,7 @@ label_drive() {
 
 FS_device=
 
-set_FS_device___from_FS_label() {
+set-FS_device-from-FS-label() {
 	local label=$1
 
 	if [[ -d /Volumes ]]		# Darwin?
@@ -460,7 +460,7 @@ set_FS_device___from_FS_label() {
 
 # -----------------------------------------------------------------------------
 
-set__OS_release_file__OS_release() {
+set-OS_release_file-OS_release() {
 
 	set -- /usr/lib/*-release /etc/*-release
 	[[ -s $1 ]] || shift
@@ -491,7 +491,7 @@ set__OS_release_file__OS_release() {
 # snapback or snapcrypt users can write replacements in configure.sh .	#
 # -----------------------------------------------------------------------
 
-set_FS_device___from_path() {
+set-FS_device-from-path() {
 	local  path=$1
 	[[ -e $path ]] || abort "path=$path doesn't exist"
 
@@ -504,7 +504,7 @@ set_FS_device___from_path() {
 
 mount_dir=
 
-set_mount_dir___from_FS_device() {
+set-mount_dir-from-FS-device() {
 	local  dev=$1
 	[[ -b $dev ]] || abort "$dev is not a device"
 
