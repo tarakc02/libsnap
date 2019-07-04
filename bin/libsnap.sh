@@ -43,7 +43,6 @@
 ##
 ## An array (indexed or associative) that maps a_key to a_value is named:
 ##    a_key2a_value
-## A function that loads such an array would be named: load-a_key2a_value
 ##
 ## A foo_regex var holds an extended regular expression for =~ or egrep.
 ##
