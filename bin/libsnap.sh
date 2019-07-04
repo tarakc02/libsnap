@@ -607,7 +607,7 @@ warn() {
 	   then local level=error
 	   else local level=warning
 	fi
-	[[ -t 2 ]] && set_warning_string $level "$msg" && msg=$warning_string
+	[[ -t 2 ]] && set-warning_string $level "$msg" && msg=$warning_string
 	echo -e "\n$msg\n" >&2
 	return 1
 }
