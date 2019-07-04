@@ -34,20 +34,24 @@
 ##    function func()	# returns status, takes arguments
 ##    function func	# returns status, doesn't take arguments
 ##    procedure()	# doesn't return status (exits on fatal error)
-##
+## Function names are words separated by '-' (not '_'), to facilitate ...
 ## There are four kinds of naming for routines that set global variables:
-##    set_foo		# sets foo; 30x faster than foo=$(func), & side-effects
-##    set_foo___from_xx	# sets variable foo ... using method xx on args
-##    set__foo__bar	# sets variable foo and also sets variable bar
-##    setup_foo_vars	# sets numerous variables related to foo
+##    set-foo		# sets foo; 30x faster than foo=$(func), & side-effects
+##    set-foo-foo_bar	# sets variable foo and also sets variable foo_bar
+##    set-foo-from-xxx	# sets variable foo ... using method/variable
+##    setup-foo-vars	# sets numerous variables related to foo
 ##
 ## An array (indexed or associative) that maps a_key to a_value is named:
 ##    a_key2a_value
+## A function that loads such an array would be named: load-a_key2a_value
 ##
 ## A foo_regex var holds an extended regular expression for =~ or egrep.
 ##
+## Boolean variables have names that start with an action verb like is_ or do_;
+##   they're set by $true (t) or $false (null string) test with: [[ $is_OK ]]
+##
 ## A global variable/function that's only used by the following
-##   variable/function has a name prefixed by '_' (e.g. _chr, defined above);
+##   variable/function has a name prefixed by '_' (e.g. _chr, defined below);
 ## an exception is _set_foo, which can be a lightweight version of set_foo
 ##   (typically with fewer side-effects).
 ## A global variable/function that replaces an external version
@@ -89,7 +93,7 @@ our_path=${0#-}
 set -o functrace
 shopt -s extdebug
 # if command in /home/, precede by ~ (yourself) else ~other-user .
-# this logic for the first-half of PS4 is duplicated in print_call_stack
+# this logic for the first-half of PS4 is duplicated in print-call-stack
 PS4='+ $(echo $BASH_SOURCE | sed "s@^$HOME/@~/@; s@^/home/@~@; s@/.*/@ @")'
 PS4+=' line ${LINENO-}, in ${FUNCNAME-}(): '
 export PS4
@@ -135,7 +139,7 @@ unset _foo
 # -----------------------------------------------------------------------------
 
 # $1 is path variable name, other args are dirs; append dirs one by one
-append_to_PATH_var() {
+append-to-PATH-var() {
 	local do_reverse_dirs=
 	[[ $1 == -r ]] && { do_reverse_dirs=1; shift; }
 	local   pathname=$1; shift
@@ -165,7 +169,7 @@ append_to_PATH_var() {
 # ----------------------------------------------------------------------------
 
 # $1 is path variable name, other args are dirs; prepend dirs one by one
-prepend_to_PATH_var() {
+prepend-to-PATH-var() {
 	local do_reverse_dirs=
 	[[ $1 == -r ]] && { do_reverse_dirs=1; shift; }
 	local   pathname=$1; shift
@@ -206,7 +210,6 @@ function have-cmd() {
 	return 1
 }
 
-function have_cmd    () { have-cmd "$@"; }
 function have-command() { have-cmd "$@"; }
 
 have-cmd is-set   || _abort "have is-set"
@@ -215,7 +218,7 @@ have-cmd our_path && _abort "don't have func our_path"
 # --------------------------------------------
 
 # exit noisily if missing (e.g. not in PATH) any of the $* commands
-need_cmds() {
+need-cmds() {
 
 	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
 
@@ -231,18 +234,18 @@ need_cmds() {
 	$xtrace
 }
 
-need_commands() { need_cmds "$@"; }
+need-commands() { need-cmds "$@"; }
 
 # -----------------------------------------------------------------------------
 
 # used to precede a command/function that is not yet ready to run
-not_yet() { warn "'$*' not yet available, ignoring"; }
+not-yet() { warn "'$*' not yet available, ignoring"; }
 
 # ----------------------------------------------------------------------------
 # let sysadmin install newer versions of (GNU) commands in /usr/local/*bin
 # ----------------------------------------------------------------------------
 
-prepend_to_PATH_var PATH /usr/local/bin /usr/local/sbin
+prepend-to-PATH-var PATH /usr/local/bin /usr/local/sbin
 
 # ----------------------------------------------------------------------------
 # Customization for Darwin (MacOS) + Homebrew, precedence over /usr/local/*bin
@@ -258,7 +261,7 @@ readonly homebrew_coreutils_bin=$homebrew_install_dir/coreutils/libexec/gnubin
 [[ -d $homebrew_coreutils_bin ]] ||
    _abort "you need to install a fairly complete set of GNU utilities with Homebrew; if they're already installed, symlink your Homebrew install directory to $homebrew_install_dir"
 
-prepend_to_PATH_var PATH $homebrew_install_dir/*/libexec/*bin
+prepend-to-PATH-var PATH $homebrew_install_dir/*/libexec/*bin
 
 }
 
@@ -312,7 +315,7 @@ _abort "bash version >= 4.3 must appear earlier in the PATH than an older bash"
 
 FS_type=
 
-set_FS_type___from_path() {
+set-FS_type-from-path() {
 	local  path=$1
 	[[ -e $path ]] || abort "path='$path' doesn't exist"
 
@@ -332,12 +335,12 @@ set_FS_type___from_path() {
 
 # ----------------------------------------------------------------------------
 
-set__inode_size__data_block_size__dir_block_size___from_path() {
+set-inode_size-data_block_size-dir_block_size-from-path() {
 	local  path=$1
 	[[ -e $path ]] || abort_function "$path: path doesn't exist"
 
 	local FS_type
-	set_FS_type___from_path $path || return $?
+	set-FS_type-from-path $path || return $?
 
 	case $FS_type in
 	   ( ext? )
@@ -372,7 +375,7 @@ set__inode_size__data_block_size__dir_block_size___from_path() {
 declare -i device_KB=0
 
 # snapback users can write a replacement in configure.sh
-set_device_KB___from_block_device() {
+set-device_KB-from-block-device() {
 	local  dev=$1
 	[[ -b $dev ]] || abort "$dev is not a device"
 
@@ -389,7 +392,7 @@ set_device_KB___from_block_device() {
 FS_label=
 
 # snapback or snapcrypt users can write a replacement in configure.sh
-set_FS_label___from_FS_device() {
+set-FS_label-from-FS-device() {
 	local  dev=$1
 	[[ -b $dev ]] || abort "$dev is not a device"
 
@@ -417,9 +420,9 @@ label_drive() {
 	[[ -b $device ]] || abort "$device is not a device"
 
 	local FS_type FS_label
-	set_FS_type___from_path $device
+	set-FS_type-from-path $device
 
-	set_FS_label___from_mount_dir $mount_dir
+	set-FS_label-from-mount_dir $mount_dir
 
 	case $FS_type in
 	   ( ext? ) $IfRun sudo e2label $device $FS_label ;;
@@ -448,7 +451,7 @@ set_FS_device___from_FS_label() {
 	FS_device=$($cmd)		; [[ $FS_device ]] ||
 	FS_device=$(sudo $cmd)
 
-	set_FS_label___from_FS_device $FS_device
+	set-FS_label-from-FS-device $FS_device
 	[[ $FS_label == $label ]] ||
 	  abort "'blkid' lies: pass device to '$our_name' by-hand"
 
@@ -514,7 +517,7 @@ set_mount_dir___from_FS_device() {
 	[[ $mount_dir ]] && return 0
 
 	local FS_label
-	set_FS_label___from_FS_device $dev
+	set-FS_label-from-FS-device $dev
 	set -- $(grep "^[[:space:]]*LABEL=$FS_label[[:space:]]" /etc/fstab)
 	mount_dir=${2-}
 
@@ -523,7 +526,7 @@ set_mount_dir___from_FS_device() {
 
 # ----------------------------
 
-set_mount_dir___from_FS_label() {
+set-mount_dir-from-FS-label() {
 	local label=$1
 
 	mount_dir=/${label//_/\/}
@@ -532,7 +535,7 @@ set_mount_dir___from_FS_label() {
 
 # -------------------------------
 
-set_FS_label___from_mount_dir() {
+set-FS_label-from-mount_dir() {
 	local mount_dir=$1
 
 	FS_label=${mount_dir#/}
@@ -545,7 +548,7 @@ set_FS_label___from_mount_dir() {
 # ----------------------------------------------------------------------------
 
 # does 1st argument match any of the whitespace-separated words in rest of args
-function is_arg1_in_arg2() {
+function is-arg_1-in-arg_2() {
 	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
 	local arg1=$1; shift
 	set -- $*; local arg2=$*	# turn tabs into spaces
@@ -565,7 +568,7 @@ function is_arg1_in_arg2() {
 
 declare -i max_call_stack_args=6
 
-print_call_stack() {
+print-call-stack() {
 	declare -i stack_skip=1
 	[[ ${1-} ==   -s  ]] && { stack_skip=$2+1; shift 2; }
 	[[ ${1-} == [0-9] ]] && { (( Trace_level >= $1 )) || return; shift; }
@@ -624,7 +627,7 @@ abort() {
 	   else	warn "$@"
 	fi
 
-	print_call_stack -s $stack_skip >&2
+	print-call-stack -s $stack_skip >&2
 
 	[[ ! $is_recursion ]] && log "$(abort -r $* 2>&1)" > /dev/null
 
@@ -633,7 +636,7 @@ abort() {
 
 # ---------------------------------
 
-abort_function() {
+abort-function() {
 	local opts= ; while [[ ${1-} == -* ]] ; do opts+=" $1"; shift; done
 
 	abort -1 $opts ${FUNCNAME[1]} $*
@@ -641,7 +644,7 @@ abort_function() {
 
 # --------------------------------------------
 
-assert_not_option() {
+assert-not-option() {
 	[[ ${1-} == -o ]] && { local order_opt=$1; shift; } || local order_opt=
 	[[ ${1-} != -* ]] && return
 
@@ -657,7 +660,7 @@ echoE () {
 	[[ $1 == -n ]] && { local show_name=$true; shift; } || local show_name=
 	declare -i stack_frame_to_show=1 # default to our caller's stack frame
 	[[ $1 =~ ^-[0-9]+$ ]] && { stack_frame_to_show=${1#-}+1; shift; }
-	assert_not_option -o ${1-}
+	assert-not-option -o ${1-}
 
 	local   line_no=${BASH_LINENO[stack_frame_to_show-1]}
 	local func_name=${FUNCNAME[stack_frame_to_show]}
@@ -688,15 +691,15 @@ echoEV() {
 
 declare -i Trace_level=0		# default to none (probably)
 
-is_num() { [[ $1 =~ ^[0-9]+$ ]] || abort -2 "Trace* first arg is a level"; }
-Trace () { is_num $1; (($1 <= Trace_level)) ||return 1;shift; echoE  -1 "$@"; }
-TraceV() { is_num $1; (($1 <= Trace_level)) ||return 1;shift; echoEV -1 "$@"; }
+_isnum() { [[ $1 =~ ^[0-9]+$ ]] || abort -2 "Trace* first arg is a level"; }
+Trace () { _isnum $1; (($1 <= Trace_level)) ||return 1;shift; echoE  -1 "$@"; }
+TraceV() { _isnum $1; (($1 <= Trace_level)) ||return 1;shift; echoEV -1 "$@"; }
 
 # ----------------------------------------------------------------------------
 
 declare -A funcname2was_tracing		# global for next three functions
 
-function remember_tracing {
+function remember-tracing {
 
 	local status=$?			# status from caller's previous command
 	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
@@ -709,7 +712,7 @@ function remember_tracing {
 
 # ----------------------
 
-function suspend_tracing {
+function suspend-tracing {
 
 	local status=$?			# status from caller's previous command
 	if [[ -o xtrace ]]
@@ -724,11 +727,11 @@ function suspend_tracing {
 # ----------------------
 
 # show the values of the variable names passed to us, then restore traing state
-function restore_tracing {
+function restore-tracing {
 
 	local status=$?			# status from caller's previous command
-	is_arg1_in_arg2 ${FUNCNAME[1]} ${!funcname2was_tracing[*]} ||
-	   abort_function "was called without a suspend_tracing"
+	is-arg_1-in-arg_2 ${FUNCNAME[1]} ${!funcname2was_tracing[*]} ||
+	   abort-function "was called without a suspend-tracing"
 	[[ ${funcname2was_tracing[ ${FUNCNAME[1]} ]} ]] || return $status
 
 	local variable
@@ -743,18 +746,18 @@ function restore_tracing {
 	return $status
 }
 
-wont_trace() {         foo=2
-	       suspend_tracing; echo untraced; restore_tracing foo; }
-will_trace() { set -x; foo=1
-	       suspend_tracing; echo untraced; restore_tracing foo
-	       wont_trace; echo traced; set +x; }
-will_trace |& fgrep    ' echo untraced' && _abort "suspend_tracing failed"
-will_trace |& fgrep -q ' echo traced'   || _abort "restore_tracing failed"
-unset -f wont_trace will_trace
+wont-trace() {         foo=2
+	       suspend-tracing; echo untraced; restore-tracing foo; }
+will-trace() { set -x; foo=1
+	       suspend-tracing; echo untraced; restore-tracing foo
+	       wont-trace; echo traced; set +x; }
+will-trace |& fgrep    ' echo untraced' && _abort "suspend-tracing failed"
+will-trace |& fgrep -q ' echo traced'   || _abort "restore-tracing failed"
+unset -f wont-trace will-trace
 
 # ----------------------------------------------------------------------------
 
-print_or_egrep_Usage_then_exit() {
+print-or-egrep-Usage-then-exit() {
 	[[ ${1-} == -[hHk] ]] && shift	# strip help or keyword-search option
 	[[ $# == 0 ]] && echo -e "$Usage" && exit 0
 
@@ -764,7 +767,7 @@ print_or_egrep_Usage_then_exit() {
 
 # ---------------------------------
 
-abort_with_action_Usage() {
+abort-with-action-Usage() {
 	local _action=${*:-$action}
 
 	echo -e "\nBad arguments; here's the usage for this action:"
@@ -778,7 +781,7 @@ abort_with_action_Usage() {
 RunCmd() {
 	[[ $1 == -d ]] && { local IfAbort=$IfRun; shift; } || local IfAbort=
 	[[ $1 == -m ]] && { local msg="; $2"; shift 2; } || local msg=
-	assert_not_option -o ${1-}
+	assert-not-option -o ${1-}
 
 	$IfRun "$@" || $IfAbort abort -1 "'$*' returned $?$msg"
 }
@@ -831,7 +834,7 @@ header() {
 	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
 	[[ $1 == -e ]] && { shift; local nl="\n"; } || local nl=
 	[[ $1 == -E ]] &&   shift || echo
-	assert_not_option -o ${1-}
+	assert-not-option -o ${1-}
 
 	echo -e "==> $* <==$nl"
 	$xtrace
@@ -841,7 +844,7 @@ header() {
 # miscellaneous functions
 # ----------------------------------------------------------------------------
 
-set_absolute_dir() {
+set-absolute_dir() {
 	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
 	[[ $# == 1 ]] || abort "Usage: $FUNCNAME filename" || return 1
 	local name=$1
@@ -853,17 +856,17 @@ set_absolute_dir() {
 
 # -------------------------------------------------------
 
-set_absolute_path() {
+set-absolute_path() {
 	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
 	[[ $# == 1 ]] || abort "Usage: $FUNCNAME filename" || return 1
 	local name=$1
 
 	local absolute_dir
-	set_absolute_dir "$name"
+	set-absolute_dir "$name"
 	  if [[ -d "$name" ]]
 	   then absolute_path=$absolute_dir
 	elif [[ -L "$name" ]]
-	   then set_absolute_path $absolute_dir/$(readlink "$name")
+	   then set-absolute_path $absolute_dir/$(readlink "$name")
 	   else     absolute_path=$absolute_dir/$(basename "$name")
 	fi
 	$xtrace
@@ -889,7 +892,7 @@ cd_() {
 
 # ----------------------------------------------------------------------------
 
-set_FS_inodes_used_percent() {
+set-FS_inodes_used_percent() {
 	local _dir=$1
 
 	# -A 1: multi-line records for long dev names (like Logical Volumes)
@@ -899,7 +902,7 @@ set_FS_inodes_used_percent() {
 
 # ----------------------------------------------------------------------------
 
-set_FS_space_used_percent() {
+set-FS_space_used_percent() {
 	local _dir=$1
 
 	# -A 1: multi-line records for long dev names (like Logical Volumes)
@@ -909,7 +912,7 @@ set_FS_space_used_percent() {
 
 # ----------------------------------------------------------------------------
 
-set_file_KB() {
+set-file_KB() {
 	local _file=$1
 
 	set -- $(ls -sd $_file)
@@ -924,7 +927,7 @@ function have-proc { [[ -e /proc/mounts ]] ; }
 # ---------------------------------
 
 # return 0 if all processes alive, else 1; unlike 'kill -0', works without sudo
-function is_process_alive() {
+function is-process-alive() {
 	local PIDs=$*
 
 	local PID
@@ -938,11 +941,11 @@ function is_process_alive() {
 	return 0
 }
 
-is_process_alive $$ $BASHPID || _abort "is_process_alive failure"
+is-process-alive $$ $BASHPID || _abort "is-process-alive failure"
 
 # -----------------------------------------------------------------------------
 
-function is_readonly() {
+function is-readonly() {
 
 	local variable_name
 	for variable_name
@@ -953,12 +956,12 @@ function is_readonly() {
 
 _readonly_vars="our_path true false"
 _writable_vars="our_name IfRun"
-is_readonly $_readonly_vars || _abort "is_readonly $_readonly_vars"
-is_readonly $_readonly_vars $_writable_vars && _abort "is_readonly all-vars"
+is-readonly $_readonly_vars || _abort "is-readonly $_readonly_vars"
+is-readonly $_readonly_vars $_writable_vars && _abort "is-readonly all-vars"
 
 # ---------------------------------
 
-function is_writable() {
+function is-writable() {
 
 	local variable_name
 	for variable_name
@@ -967,19 +970,19 @@ function is_writable() {
 	return 0
 }
 
-is_writable $_writable_vars || _abort "is_writable $_writable_vars"
-is_writable $_writable_vars $_readonly_vars && _abort "is_readonly all-vars"
+is-writable $_writable_vars || _abort "is-writable $_writable_vars"
+is-writable $_writable_vars $_readonly_vars && _abort "is-readonly all-vars"
 unset _readonly_vars _writable_vars
 
 # ----------------------------------------------------------------------------
 
 # pop word off left side of named list; return non-0 if list was empty
-function set_popped_word___from_list() {
+function set-popped_word-from-list() {
 	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
 	[[ $# == 1 ]] || abort "$FUNCNAME: pass name of list"
 
 	local   list_name=$1
-	[[ -v $list_name ]] || abort_function "$1: '$1' is not set"
+	[[ -v $list_name ]] || abort-function "$1: '$1' is not set"
 	set -f; set -- ${!list_name}; set -- $*; set +f
 	popped_word=${1-}; shift	# grab left-most word
 	eval "$list_name=\$*"		# retain the rest of the words
@@ -990,23 +993,23 @@ function set_popped_word___from_list() {
 _numbers="1 2 3"
   _input=$_numbers
  _output=
-while set_popped_word___from_list _input
+while set-popped_word-from-list _input
    do	_output+=" $popped_word"
 done
 _output=${_output# }
 [[ ! $_input && $_output == "$_numbers" ]] ||
-    _abort "set_popped_word___from_list failure: _input='$_input' _output='$_output'"
+    _abort "set-popped_word-from-list failure: _input='$_input' _output='$_output'"
 unset _numbers _input _output popped_word
 
 # -----------------------------------------------------------------------------
 
-set_division() {
+set-division() {
 	[[ $# == 3 && $1 =~ ^-?[1-9]$ && $2$3 =~ ^[-0-9]+$ ]] || # -0 is hard
-	    abort_function \
+	    abort-function \
 		 decimal-digits=${1-}  numerator=${2-} denominator=${3-} ${4-}
 	local -i decimal_digits=${1#-} numerator=$2    denominator=$3
 	[[ $denominator =~ ^[1-9][0-9]*$ ]] ||
-	    abort_function "denominator must be a counting number"
+	    abort-function "denominator must be a counting number"
 
 	local format="%s.%0${decimal_digits}d"
 
@@ -1023,15 +1026,15 @@ set_division() {
 }
 
 # test minutes to hours
-set_division -2 10 60 ; [[ $division == 0.17 ]] || abort "10/60 != $division"
-set_division -1 10 60 ; [[ $division == 0.2  ]] || abort "10/60 != $division"
-set_division -1 59 60 ; [[ $division == 1.0  ]] || abort "59/60 != $division"
+set-division -2 10 60 ; [[ $division == 0.17 ]] || abort "10/60 != $division"
+set-division -1 10 60 ; [[ $division == 0.2  ]] || abort "10/60 != $division"
+set-division -1 59 60 ; [[ $division == 1.0  ]] || abort "59/60 != $division"
 unset division
 
 # ----------------------------------------------------------------------------
 
 # http://www.tldp.org/HOWTO/Bash-Prompt-HOWTO/x405.html
-print_string_colors() {
+print-string-colors() {
 
 	local n
 	header "Coloring from arguments passed to 'tput' command, see man page"
@@ -1064,10 +1067,10 @@ clear_tput_args="sgr0"
 
 declare -A warning_level2escape_sequence
 
-set_warning_string() {
+set-warning_string() {
 	local level=$1; shift; local string=$*
-	is_arg1_in_arg2 $level ${!warning_level2tput_args[*]} ||
-	   abort_function "$level is unknown level"
+	is-arg_1-in-arg_2 $level ${!warning_level2tput_args[*]} ||
+	   abort-function "$level is unknown level"
 
 	[[ -t 1 || ${do_tput-} ]] || { warning_string=$string; return; }
 
@@ -1110,14 +1113,14 @@ function confirm() {
 	done
 	echo
 
-	[[ $status ]] || abort_function "$*: read failure"
+	[[ $status ]] || abort-function "$*: read failure"
 	$xtrace
 	return $status
 }
 
 # ----------------------------------------------------------------------------
 
-assert_accessible() {
+assert-accessible() {
 	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
 	local tests=
 	while [[ $1 == -* ]] ; do tests="$tests $1"; shift; done
@@ -1137,18 +1140,18 @@ assert_accessible() {
 
 # -------------------
 
-function assert_readable()       { assert_accessible -r "$@"; }
-function assert_writable()       { assert_accessible -w "$@"; }
-function assert_executable()     { assert_accessible -x "$@"; }
+function assert-readable()       { assert-accessible -r "$@"; }
+function assert-writable()       { assert-accessible -w "$@"; }
+function assert-executable()     { assert-accessible -x "$@"; }
 
-function assert_writable_dirs()  { assert_writable -d -x "$@"; }
-function assert_writable_files() { assert_writable -f    "$@"; }
+function assert-writable-dirs()  { assert-writable -d -x "$@"; }
+function assert-writable-files() { assert-writable -f    "$@"; }
 
 # ----------------------------------------------------------------------------
 
 # File $1 is modified in-place (with optional backup) by subsequent command.
 # You don't need this in general, you can use: perl -i~ -e ...
-modify_file() {
+modify-file() {
 	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
 	local backup_ext=
 	[[ $1 == -b* ]] && { backup_ext=$1; shift; }
@@ -1166,20 +1169,20 @@ modify_file() {
 	   then backup_ext=${backup_ext#-b}
 		local backup=$file${backup_ext:-'~'}
 		ln -f "$file" "$backup" ||
-		    abort_function "can't backup file='$file'"
+		    abort-function "can't backup file='$file'"
 	fi
 
 	# we use cp -p just to copy the file metadata (uid, gid, mode)
 	cp -p "$file"   "$file+" &&
 	 "$@" "$file" > "$file+" &&
 	  mv  "$file+"  "$file"  ||
-	   abort_function "$file $* => $?"
+	   abort-function "$file $* => $?"
 	$xtrace
 }
 
 # --------------------------------------------
 
-assert_sha1sum()
+assert-sha1sum()
 {
 	local sha1sum=$1 file=${2-}
 
@@ -1192,12 +1195,12 @@ assert_sha1sum()
 
 # Test an internal function by passing its name + options + args to our script;
 # to show values of global variables it alters, pass: -v "varname(s)"
-run_function()
+run-function()
 {
 	local is_procedure=$false	# abort if function "fails"
 	[[ $1 == -p ]] && { is_procedure=$true; shift; }
 	[[ $1 == -v ]] && { local var_names=$2; shift 2; } || local var_names=
-	assert_not_option -o ${1-}
+	assert-not-option -o ${1-}
 
 	have-cmd $1 || abort "function '$1' doesn't exist"
 
@@ -1214,7 +1217,7 @@ pegrep() { grep --perl-regexp "$@"; }
 
 # ----------------------------------------------------------------------------
 
-does_file_end_in_newline()
+does-file-end-in-newline()
 {
 	local file
 	for file
@@ -1227,8 +1230,8 @@ does_file_end_in_newline()
 # ----------------------------------------------------------------------------
 
 # strip leading tabs (shell script's indent) from $1, and expand remaining tabs
-set_python_script() {
-	[[ $# == 1 ]] || abort_function "takes one arg, got $#" || return 1
+set-python_script() {
+	[[ $# == 1 ]] || abort-function "takes one arg, got $#" || return 1
 	python_script=$1
 
 	local leading_tabs='						'
