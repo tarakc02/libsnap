@@ -602,7 +602,7 @@ print-call-stack() {
 
 warn() {
 
-	local msg="$our_name $*"
+	local msg="$our_name: $*"
 	if [[ ${FUNCNAME[1]-} == abort ]]
 	   then local level=error
 	   else local level=warning
@@ -1054,11 +1054,13 @@ print-string-colors() {
 
 # the setb coloring stands out more, but fails under 'watch' on some OSs
 declare -A warning_level2tput_b_args=(
+         [ok]="setb 2"
     [warning]="setb 6"
       [error]="setb 4"
       [stale]="setb 1"
 )
 declare -A warning_level2tput_args=(
+         [ok]="setf 2"
     [warning]="setf 5"
       [error]="setf 4"
       [stale]="setf 3"
