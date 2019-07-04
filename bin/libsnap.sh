@@ -47,8 +47,9 @@
 ##
 ## A foo_regex var holds an extended regular expression for =~ or egrep.
 ##
-## Boolean variables have names that start with an action verb like is_ or do_;
-##   they're set by $true (t) or $false (null string) test with: [[ $is_OK ]]
+## Boolean variables, or boolean functions [that return true (0) or false (1)],
+##   have names that start with an action verb like 'is' or 'do' or 'did';
+##   vars are set by $true (t) or $false (null string), test with: [[ $is_OK ]]
 ##
 ## A global variable/function that's only used by the following
 ##   variable/function has a name prefixed by '_' (e.g. _chr, defined below);
