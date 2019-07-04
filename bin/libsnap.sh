@@ -563,7 +563,7 @@ function is_arg1_in_arg2() {
 #   a login shell might source it and be terminated by abort's exit. 
 # ----------------------------------------------------------------------------
 
-declare -i max_call_stack_args=7
+declare -i max_call_stack_args=6
 
 print_call_stack() {
 	declare -i stack_skip=1
@@ -580,7 +580,9 @@ print_call_stack() {
 		local args=
 		local -i argc=${BASH_ARGC[depth]} number_args=0
 		for (( arg_i=argv_i+argc-1; arg_i >= argv_i; arg_i-- ))
-		    do	args+="${BASH_ARGV[arg_i]} "
+		    do	local arg=${BASH_ARGV[arg_i]}
+			[[ $arg == *[\	\ ]* ]] && arg="'$arg'"
+			args+="$arg "
 			(( argc > max_args+1 )) || continue
 			(( ++number_args == max_args-2 )) &&
 			   arg_i=argv_i+2 &&
