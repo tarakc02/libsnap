@@ -574,7 +574,7 @@ print-call-stack() {
 	[[ ${1-} == [0-9] ]] && { (( Trace_level >= $1 )) || return; shift; }
 
 	header -E "call stack"
-	declare -p BASH_ARGV BASH_ARGC	# uncomment to debug
+	# declare -p BASH_ARGV BASH_ARGC	# uncomment to debug
 	local -i depth arg_i argv_i=0 max_args=$max_call_stack_args
 	for depth in ${!FUNCNAME[*]}
 	   do	(( depth < stack_skip )) && 
