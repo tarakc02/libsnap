@@ -38,7 +38,7 @@
 ## There are four kinds of naming for routines that set global variables:
 ##    set-foo		# sets foo; 30x faster than foo=$(func), & side-effects
 ##    set-foo-foo_bar	# sets variable foo and also sets variable foo_bar
-##    set-foo-from-xxx	# sets variable foo ... using method/variable
+##    set-foo--from-xxx	# sets variable foo ... using method/variable xxx
 ##    setup-foo-vars	# sets numerous variables related to foo
 ##
 ## An array (indexed or associative) that maps a_key to a_value is named:
@@ -314,7 +314,7 @@ _abort "bash version >= 4.3 must appear earlier in the PATH than an older bash"
 # snapback or snapcrypt users can write a replacement in configure.sh . #
 # -----------------------------------------------------------------------
 
-function set-FS_type-from-path() {
+function set-FS_type--from-path() {
 	local  path=$1
 	[[ -e $path ]] || abort "path='$path' doesn't exist"
 
@@ -323,7 +323,7 @@ function set-FS_type-from-path() {
 	   else have-cmd lsblk ||
 		   abort "fix $FUNCNAME for '$path', email to ${coder-Scott}"
 		[[ ! -b $path ]] && local FS_device &&
-		   set-FS_device-from-path $path  && path=$FS_device
+		   set-FS_device--from-path $path  && path=$FS_device
 		local cmd="lsblk --noheadings --nodeps --output=fstype $path"
 		FS_type=$($cmd)		; [[ $FS_type ]] ||
 		FS_type=$(sudo $cmd)
@@ -334,17 +334,17 @@ function set-FS_type-from-path() {
 
 # ----------------------------------------------------------------------------
 
-function set-inode_size-data_block_size-dir_block_size-from-path() {
+function set-inode_size-data_block_size-dir_block_size--from-path() {
 	local  path=$1
 	[[ -e $path ]] || abort_function "$path: path doesn't exist"
 
 	local FS_type
-	set-FS_type-from-path $path || return $?
+	set-FS_type--from-path $path || return $?
 
 	case $FS_type in
 	   ( ext? )
 		local FS_device
-		set-FS_device-from-path $path
+		set-FS_device--from-path $path
 		set -- $(sudo tune2fs -l $FS_device |&
 				sed -n  -e 's/^Block size://p' \
 					-e 's/^Inode size://p'
@@ -374,7 +374,7 @@ function set-inode_size-data_block_size-dir_block_size-from-path() {
 declare -i device_KB=0
 
 # snapback users can write a replacement in configure.sh
-function set-device_KB-from-block-device() {
+function set-device_KB--from-block-device() {
 	local  dev=$1
 	[[ -b $dev ]] || abort "$dev is not a device"
 
@@ -389,12 +389,12 @@ function set-device_KB-from-block-device() {
 # ----------------------------------------------------------------------------
 
 # snapback or snapcrypt users can write a replacement in configure.sh
-set-FS_label-from-FS-device() {
+set-FS_label--from-FS-device() {
 	local  dev=$1
 	[[ -b $dev ]] || abort "$dev is not a device"
 
-	[[ set-mount_dir-from-FS-device != ${FUNCNAME[1]} ]] && {
-	   set-mount_dir-from-FS-device $dev
+	[[ set-mount_dir--from-FS-device != ${FUNCNAME[1]} ]] && {
+	   set-mount_dir--from-FS-device $dev
 	set -- $(grep "[[:space:]]$mount_dir[[:space:]]" /etc/fstab)
 	[[ ${1-} == LABEL=* ]] && FS_label=${1#*=} || FS_label=	; }
 
@@ -417,9 +417,9 @@ label-drive() {
 	[[ -b $device ]] || abort "$device is not a device"
 
 	local FS_type FS_label
-	set-FS_type-from-path $device
+	set-FS_type--from-path $device
 
-	set-FS_label-from-mount_dir $mount_dir
+	set-FS_label--from-mount_dir $mount_dir
 
 	case $FS_type in
 	   ( ext? ) $IfRun sudo e2label $device $FS_label ;;
@@ -430,11 +430,11 @@ label-drive() {
 
 # ----------------------------------------------------------------------------
 
-set-FS_device-from-FS-label() {
+set-FS_device--from-FS-label() {
 	local label=$1
 
 	if [[ -d /Volumes ]]		# Darwin?
-	   then set-FS_device-from-path /Volumes/$label
+	   then set-FS_device--from-path /Volumes/$label
 		return
 	fi
 
@@ -446,7 +446,7 @@ set-FS_device-from-FS-label() {
 	FS_device=$($cmd)		; [[ $FS_device ]] ||
 	FS_device=$(sudo $cmd)
 
-	set-FS_label-from-FS-device $FS_device
+	set-FS_label--from-FS-device $FS_device
 	[[ $FS_label == $label ]] ||
 	  abort "'blkid' lies: pass device to '$our_name' by-hand"
 
@@ -486,7 +486,7 @@ set-OS_release_file-OS_release() {
 # snapback or snapcrypt users can write replacements in configure.sh .	#
 # -----------------------------------------------------------------------
 
-set-FS_device-from-path() {
+set-FS_device--from-path() {
 	local  path=$1
 	[[ -e $path ]] || abort "path=$path doesn't exist"
 
@@ -497,7 +497,7 @@ set-FS_device-from-path() {
 
 # ----------------------------
 
-function set-mount_dir-from-FS-device() {
+function set-mount_dir--from-FS-device() {
 	[[ $1 == -q ]] && { local is_quiet=$true; shift; } || local is_quiet=
 	local  dev=$1
 	[[ -b $dev ]] || abort "$dev is not a device"
@@ -511,7 +511,7 @@ function set-mount_dir-from-FS-device() {
 	[[ $mount_dir ]] && return 0
 
 	local FS_label
-	set-FS_label-from-FS-device $dev
+	set-FS_label--from-FS-device $dev
 	set -- $(grep "^[[:space:]]*LABEL=$FS_label[[:space:]]" /etc/fstab)
 	mount_dir=${2-}
 
@@ -522,7 +522,7 @@ function set-mount_dir-from-FS-device() {
 
 # ----------------------------
 
-function set-mount_dir-from-FS-label() {
+function set-mount_dir--from-FS-label() {
 	local label=$1
 
 	mount_dir=/${label//_/\/}
@@ -531,7 +531,7 @@ function set-mount_dir-from-FS-label() {
 
 # -------------------------------
 
-set-FS_label-from-mount_dir() {
+set-FS_label--from-mount_dir() {
 	local mount_dir=$1
 
 	FS_label=${mount_dir#/}
@@ -976,7 +976,7 @@ unset _readonly_vars _writable_vars
 # ----------------------------------------------------------------------------
 
 # pop word off left side of named list; return non-0 if list was empty
-function set-popped_word-from-list() {
+function set-popped_word--from-list() {
 	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
 	[[ $# == 1 ]] || abort "$FUNCNAME: pass name of list"
 
@@ -992,12 +992,12 @@ function set-popped_word-from-list() {
 _numbers="1 2 3"
   _input=$_numbers
  _output=
-while set-popped_word-from-list _input
+while set-popped_word--from-list _input
    do	_output+=" $popped_word"
 done
 _output=${_output# }
 [[ ! $_input && $_output == "$_numbers" ]] ||
-    _abort "set-popped_word-from-list failure: _input='$_input' _output='$_output'"
+    _abort "set-popped_word--from-list failure: _input='$_input' _output='$_output'"
 unset _numbers _input _output popped_word
 
 # -----------------------------------------------------------------------------
