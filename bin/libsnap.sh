@@ -66,7 +66,7 @@
 ##############################################################################
 
 # to announce errors in this script
- _warn() { echo -e "\n$0: source libsnap.sh: $*\n" >&2; return 1; }
+function _warn() { echo -e "\n$0: source libsnap.sh: $*\n" >&2; return 1; }
 _abort() {
 	_warn "$*"
 	[[ $is_sourced_by_interactive_shell ]] && return 1
@@ -240,7 +240,7 @@ need-commands() { need-cmds "$@"; }
 # -----------------------------------------------------------------------------
 
 # used to precede a command/function that is not yet ready to run
-not-yet() { warn "'$*' not yet available, ignoring"; }
+function not-yet() { warn "'$*' not yet available, ignoring"; }
 
 # ----------------------------------------------------------------------------
 # let sysadmin install newer versions of (GNU) commands in /usr/local/*bin
@@ -314,7 +314,7 @@ _abort "bash version >= 4.3 must appear earlier in the PATH than an older bash"
 # snapback or snapcrypt users can write a replacement in configure.sh . #
 # -----------------------------------------------------------------------
 
-set-FS_type-from-path() {
+function set-FS_type-from-path() {
 	local  path=$1
 	[[ -e $path ]] || abort "path='$path' doesn't exist"
 
@@ -334,7 +334,7 @@ set-FS_type-from-path() {
 
 # ----------------------------------------------------------------------------
 
-set-inode_size-data_block_size-dir_block_size-from-path() {
+function set-inode_size-data_block_size-dir_block_size-from-path() {
 	local  path=$1
 	[[ -e $path ]] || abort_function "$path: path doesn't exist"
 
@@ -374,7 +374,7 @@ set-inode_size-data_block_size-dir_block_size-from-path() {
 declare -i device_KB=0
 
 # snapback users can write a replacement in configure.sh
-set-device_KB-from-block-device() {
+function set-device_KB-from-block-device() {
 	local  dev=$1
 	[[ -b $dev ]] || abort "$dev is not a device"
 
@@ -498,7 +498,7 @@ set-FS_device-from-path() {
 # ----------------------------
 
 function set-mount_dir-from-FS-device() {
-	[[ $1 == -q ]] && { local is_quiet=$true; shift; } || local is_quiet=$false
+	[[ $1 == -q ]] && { local is_quiet=$true; shift; } || local is_quiet=
 	local  dev=$1
 	[[ -b $dev ]] || abort "$dev is not a device"
 
@@ -522,7 +522,7 @@ function set-mount_dir-from-FS-device() {
 
 # ----------------------------
 
-set-mount_dir-from-FS-label() {
+function set-mount_dir-from-FS-label() {
 	local label=$1
 
 	mount_dir=/${label//_/\/}
@@ -598,9 +598,9 @@ print-call-stack() {
 
 # --------------------------------------------
 
-warn() {
-
+function warn() {
 	local msg="$our_name: $*"
+
 	if [[ ${FUNCNAME[1]-} == abort ]]
 	   then local level=error
 	   else local level=warning
@@ -800,7 +800,7 @@ declare -i log_level=0			# set by getopts or configure.sh
 
 log_msg_prefix=				# can hold variables, it's eval'ed
 
-log() {
+function log() {
 	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
 	[[ $1 == [0-9] ]] && { local level=$1; shift; } || local level=0
 	local _msg="$*"
@@ -887,7 +887,6 @@ cd_() {
 		echo "$_msg"
 	fi
 	$xtrace
-	return 0
 }
 
 # ----------------------------------------------------------------------------
@@ -912,7 +911,7 @@ set-FS_space_used_percent() {
 
 # ----------------------------------------------------------------------------
 
-set-file_KB() {
+function set-file_KB() {
 	local _file=$1
 
 	set -- $(ls -sd $_file)
@@ -1183,8 +1182,7 @@ modify-file() {
 
 # --------------------------------------------
 
-assert-sha1sum()
-{
+assert-sha1sum() {
 	local sha1sum=$1 file=${2-}
 
 	set --  $(sha1sum $file)
@@ -1196,8 +1194,7 @@ assert-sha1sum()
 
 # Test an internal function by passing its name + options + args to our script;
 # to show values of global variables it alters, pass: -v "varname(s)"
-run-function()
-{
+function run-function() {
 	local is_procedure=$false	# abort if function "fails"
 	[[ $1 == -p ]] && { is_procedure=$true; shift; }
 	[[ $1 == -v ]] && { local var_names=$2; shift 2; } || local var_names=
@@ -1214,12 +1211,12 @@ run-function()
 
 # ----------------------------------------------------------------------------
 
-pegrep() { grep --perl-regexp "$@"; }
+function pegrep() { grep --perl-regexp "$@"; }
 
 # ----------------------------------------------------------------------------
 
-does-file-end-in-newline()
-{
+function does-file-end-in-newline() {
+
 	local file
 	for file
 	    do	[[ -f $file && -s $file ]] || return 1
