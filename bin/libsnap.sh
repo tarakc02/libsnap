@@ -52,7 +52,7 @@
 ##
 ## A global variable/function that's only used by the following
 ##   variable/function has a name prefixed by '_' (e.g. _chr, defined below);
-## an exception is _set_foo, which can be a lightweight version of set_foo
+## an exception is _set-foo, which can be a lightweight version of set-foo
 ##   (typically with fewer side-effects).
 ## A global variable/function that replaces an external version
 ##   has a name that ends in '_' (e.g. cd_, defined below).
@@ -130,7 +130,7 @@ rsync_temp_file_suffix="$_chr$_chr$_chr$_chr$_chr$_chr"; unset _chr
 # ----------------------------------------------------------------------------
 
 # return non-0 if any of the passed variable names have not been set
-function is-set() { [[ -v $1 ]] ; return; }
+function is-set() { [[ -v $1 ]] ; return $?; }
 
 _foo=
 is-set _foo || _abort "is-set _foo"
@@ -203,8 +203,8 @@ prepend-to-PATH-var() {
 
 # return true if have any of the passed commands, else silently return false
 function have-cmd() {
-	local _cmd
 
+	local _cmd
 	for _cmd
 	   do	type -t $_cmd > /dev/null && return 0
 	done
@@ -323,7 +323,7 @@ set-FS_type-from-path() {
 	   else have-cmd lsblk ||
 		   abort "fix $FUNCNAME for '$path', email to ${coder-Scott}"
 		[[ ! -b $path ]] && local FS_device &&
-		   set_FS_device___from_path $path  && path=$FS_device
+		   set-FS_device-from-path $path  && path=$FS_device
 		local cmd="lsblk --noheadings --nodeps --output=fstype $path"
 		FS_type=$($cmd)		; [[ $FS_type ]] ||
 		FS_type=$(sudo $cmd)
@@ -344,7 +344,7 @@ set-inode_size-data_block_size-dir_block_size-from-path() {
 	case $FS_type in
 	   ( ext? )
 		local FS_device
-		set_FS_device___from_path $path
+		set-FS_device-from-path $path
 		set -- $(sudo tune2fs -l $FS_device |&
 				sed -n  -e 's/^Block size://p' \
 					-e 's/^Inode size://p'
@@ -393,8 +393,8 @@ set-FS_label-from-FS-device() {
 	local  dev=$1
 	[[ -b $dev ]] || abort "$dev is not a device"
 
-	[[ set_mount_dir___from_FS_device != ${FUNCNAME[1]} ]] && {
-	   set_mount_dir___from_FS_device $dev
+	[[ set-mount_dir-from-FS-device != ${FUNCNAME[1]} ]] && {
+	   set-mount_dir-from-FS-device $dev
 	set -- $(grep "[[:space:]]$mount_dir[[:space:]]" /etc/fstab)
 	[[ ${1-} == LABEL=* ]] && FS_label=${1#*=} || FS_label=	; }
 
@@ -434,7 +434,7 @@ set-FS_device-from-FS-label() {
 	local label=$1
 
 	if [[ -d /Volumes ]]		# Darwin?
-	   then set_FS_device___from_path /Volumes/$label
+	   then set-FS_device-from-path /Volumes/$label
 		return
 	fi
 
@@ -497,7 +497,8 @@ set-FS_device-from-path() {
 
 # ----------------------------
 
-set-mount_dir-from-FS-device() {
+function set-mount_dir-from-FS-device() {
+	[[ $1 == -q ]] && { local is_quiet=$true; shift; } || local is_quiet=$false
 	local  dev=$1
 	[[ -b $dev ]] || abort "$dev is not a device"
 
@@ -514,7 +515,9 @@ set-mount_dir-from-FS-device() {
 	set -- $(grep "^[[:space:]]*LABEL=$FS_label[[:space:]]" /etc/fstab)
 	mount_dir=${2-}
 
-	[[ $mount_dir ]] || abort "couldn't find mount dir for dev=$dev"
+	[[ $mount_dir ]] && return 0
+
+	[[ ! $is_quiet ]] && abort "couldn't find mount dir for dev=$dev"
 }
 
 # ----------------------------
@@ -802,7 +805,7 @@ log() {
 	[[ $1 == [0-9] ]] && { local level=$1; shift; } || local level=0
 	local _msg="$*"
 
-	(( $level <= $log_level )) || return 1
+	(( $level <= $log_level )) || { $xtrace; return 1; }
 
 	[[ ( ! -e $file_for_logging && -w ${file_for_logging%/*} ) ||
 	       -w $file_for_logging ]] && local sudo= || local sudo=sudo
@@ -841,7 +844,8 @@ header() {
 
 set-absolute_dir() {
 	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
-	[[ $# == 1 ]] || abort "Usage: $FUNCNAME filename" || return 1
+	[[ $# == 1 ]] || abort "Usage: $FUNCNAME filename" ||
+	    { $xtrace; return 1; }
 	local name=$1
 
 	[[ -d "$name" ]] || name=$(dirname "$name")
@@ -853,7 +857,8 @@ set-absolute_dir() {
 
 set-absolute_path() {
 	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
-	[[ $# == 1 ]] || abort "Usage: $FUNCNAME filename" || return 1
+	[[ $# == 1 ]] || abort "Usage: $FUNCNAME filename" ||
+	    { $xtrace; return 1; }
 	local name=$1
 
 	local absolute_dir
@@ -1156,8 +1161,7 @@ modify-file() {
 	(( $# >= 2   )) || abort "Usage: $FUNCNAME [-b[ext]] file command"
 	local file=$1; shift
 
-	local dir
-	set_dir "$file"
+	local dir=${file%/*}
 
 	assert_writable_files "$file"
 	assert_writable_dirs  "$dir"
@@ -1184,7 +1188,7 @@ assert-sha1sum()
 	local sha1sum=$1 file=${2-}
 
 	set --  $(sha1sum $file)
-	[[ $1 == $sha1sum ]] && return 0
+	[[ $1 == $sha1sum ]] && return
 	abort    "sha1sum($file) != $sha1sum"
 }
 
