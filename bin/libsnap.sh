@@ -252,6 +252,8 @@ prepend-to-PATH-var PATH /usr/local/bin /usr/local/sbin
 # Customization for Darwin (MacOS) + Homebrew, precedence over /usr/local/*bin
 # ----------------------------------------------------------------------------
 
+[[ $OSTYPE == linux*  ]] && readonly is_linux=$true  || readonly is_linux=
+
 [[ $OSTYPE == darwin* ]] && readonly is_darwin=$true || readonly is_darwin=
 
 [[ $is_darwin ]] && {
