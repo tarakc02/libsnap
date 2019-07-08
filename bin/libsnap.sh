@@ -101,9 +101,6 @@ export PS4
 # put $IfRun in front of cmds w/side-effects, so -d means: debug only, simulate
 : ${IfRun=}
 
-# support: echo $flakey_disk_dir/* | read -t 0.1 matches || warn "slow disk"
-shopt -s lastpipe
-
 readonly true=t True=t
 readonly false= False=
 
