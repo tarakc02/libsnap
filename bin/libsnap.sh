@@ -27,7 +27,7 @@
 #############################################################################
 #############################################################################
 
-# -----------------------------------------------------------------------------
+# ----------------------------------------------------------------------------
 
 ##############################################################################
 ## There are three kinds of syntax (not always followed) for routines:
@@ -58,7 +58,7 @@
 ##   has a name that ends in '_' (e.g. cd_, defined below).
 ##############################################################################
 
-# -----------------------------------------------------------------------------
+# ----------------------------------------------------------------------------
 
 ##############################################################################
 # As setup the environment, errors are problems with libsnap.sh,
@@ -134,7 +134,7 @@ is-set _foo || _abort "is-set _foo"
 is-set _bar && _abort "is-set _bar"
 unset _foo
 
-# -----------------------------------------------------------------------------
+# ----------------------------------------------------------------------------
 
 # $1 is path variable name, other args are dirs; append dirs one by one
 append-to-PATH-var() {
@@ -234,7 +234,7 @@ need-cmds() {
 
 need-commands() { need-cmds "$@"; }
 
-# -----------------------------------------------------------------------------
+# ----------------------------------------------------------------------------
 
 # used to precede a command/function that is not yet ready to run
 function not-yet() { warn "'$*' not yet available, ignoring"; }
@@ -450,7 +450,7 @@ set-FS_device--from-FS-label() {
 	[[ $FS_device ]] || abort "couldn't find device for $label"
 }
 
-# -----------------------------------------------------------------------------
+# ----------------------------------------------------------------------------
 
 set-OS_release_file-OS_release() {
 
@@ -582,6 +582,7 @@ print-call-stack() {
 			[[ $arg == *[\	\ ]* ]] && arg="'$arg'"
 			args+="$arg "
 			(( argc > max_args+1 )) || continue
+			# we never want to say "<1 more args>"
 			(( ++number_args == max_args-2 )) &&
 			   arg_i=argv_i+2 &&
 			   args+="<$((argc-max_args)) more args> "
@@ -647,7 +648,7 @@ assert-not-option() {
 	abort -1 "${FUNCNAME[1]}: unknown option $1$msg"
 }
 
-# -----------------------------------------------------------------------------
+# ----------------------------------------------------------------------------
 
 # echo to stdError, include the line and function from which we're called
 echoE () {
@@ -939,7 +940,7 @@ function is-process-alive() {
 
 is-process-alive $$ $BASHPID || _abort "is-process-alive failure"
 
-# -----------------------------------------------------------------------------
+# ----------------------------------------------------------------------------
 
 function is-readonly() {
 
@@ -997,7 +998,7 @@ _output=${_output# }
     _abort "set-popped_word--from-list failure: _input='$_input' _output='$_output'"
 unset _numbers _input _output popped_word
 
-# -----------------------------------------------------------------------------
+# ----------------------------------------------------------------------------
 
 set-division() {
 	[[ $# == 3 && $1 =~ ^-?[1-9]$ && $2$3 =~ ^[-0-9]+$ ]] || # -0 is hard
@@ -1032,9 +1033,9 @@ unset division
 # http://www.tldp.org/HOWTO/Bash-Prompt-HOWTO/x405.html
 print-string-colors() {
 
-	local n
 	header "Coloring from arguments passed to 'tput' command, see man page"
-	for (( n = 1; n <= 8; n++ ))
+	local n
+	for n in {1..8}
 	    do	local line=
 		local capname
 		for capname in setab setb setaf setf
@@ -1116,6 +1117,41 @@ function confirm() {
 	return $status
 }
 
+# --------------------------------------------
+
+assert-sha1sum() {
+	local sha1sum=$1 file=${2-}
+
+	set --  $(sha1sum $file)
+	[[ $1 == $sha1sum ]] && return
+	abort    "sha1sum($file) != $sha1sum"
+}
+
+# ----------------------------------------------------------------------------
+
+# Test an internal function by passing its name + options + args to our script;
+# to show values of global variables it alters, pass: -v "varname(s)"
+function run-function() {
+	local is_procedure=$false	# abort if function "fails"
+	[[ $1 == -p ]] && { is_procedure=$true; shift; }
+	[[ $1 == -v ]] && { local var_names=$2; shift 2; } || local var_names=
+	assert-not-option -o ${1-}
+
+	have-cmd $1 || abort "function '$1' doesn't exist"
+
+	"$@"
+	local status=$?
+	[[ $var_names ]] && echoEV -1 $var_names
+	[[ $status == 0 || $is_procedure ]] || abort -1 "'$*' returned $status"
+	return $status
+}
+
+# ----------------------------------------------------------------------------
+
+function pegrep() { grep --perl-regexp "$@"; }
+
+# ----------------------------------------------------------------------------
+# check, create, and rewrite files
 # ----------------------------------------------------------------------------
 
 assert-accessible() {
@@ -1177,39 +1213,6 @@ modify-file() {
 	$xtrace
 }
 
-# --------------------------------------------
-
-assert-sha1sum() {
-	local sha1sum=$1 file=${2-}
-
-	set --  $(sha1sum $file)
-	[[ $1 == $sha1sum ]] && return
-	abort    "sha1sum($file) != $sha1sum"
-}
-
-# ----------------------------------------------------------------------------
-
-# Test an internal function by passing its name + options + args to our script;
-# to show values of global variables it alters, pass: -v "varname(s)"
-function run-function() {
-	local is_procedure=$false	# abort if function "fails"
-	[[ $1 == -p ]] && { is_procedure=$true; shift; }
-	[[ $1 == -v ]] && { local var_names=$2; shift 2; } || local var_names=
-	assert-not-option -o ${1-}
-
-	have-cmd $1 || abort "function '$1' doesn't exist"
-
-	"$@"
-	local status=$?
-	[[ $var_names ]] && echoEV -1 $var_names
-	[[ $status == 0 || $is_procedure ]] || abort -1 "'$*' returned $status"
-	return $status
-}
-
-# ----------------------------------------------------------------------------
-
-function pegrep() { grep --perl-regexp "$@"; }
-
 # ----------------------------------------------------------------------------
 
 function does-file-end-in-newline() {
@@ -1243,5 +1246,7 @@ set-python_script() {
 	python_script=$(echo "$python_script" |
 			sed "s/^$leading_tabs//" | expand)
 }
+
+# ----------------------------------------------------------------------------
 
 true					# we must return 0
