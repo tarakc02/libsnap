@@ -1194,29 +1194,24 @@ copy-file-perms() {
 # return non-0 if din't find any emacs backup files
 function set-backup_suffix--for-emacs() {
 	[[ $# == 1  ]] || abort-function ": specify a single file"
-	local path=$1 i
+	local  path=$1
+	[[ -f $path ]] || abort-function ": '$path' not file, or doesn't exist"
 
-	set -f
-	set -- [1-9]
-	for i in {1..6}
-	    do	set -- $1[0-9] $*
-	done
-	set +f
-
-	local number_glob number_globs latest_backup=
-	for number_glob
-	    do	set -- "$path".~$number_glob~
-		[[ $# != 0 && -e "$1" ]] || continue
-		latest_backup=${!#}
-		break
+	local -i max_num=0
+	local backup
+	for backup in $path.~[1-9]*~
+	   do	local version=${backup##*.\~}
+		      version=${version%\~}
+		[[ $version =~ ^[1-9][0-9]*$ ]] || continue
+		(( max_num < $version )) &&
+		   max_num=$version
 	done
 
-	if [[ $latest_backup ]]
-	   then local number=${latest_backup##*.\~}
-		local -i next_number=${number%\~}+1
-		backup_suffix=.~$next_number~	; return 0
-	   else backup_suffix=.~1~		; return 1
-	fi
+	(( max_num == 0 )) && local status=1 || local status=0
+	let max_num+=1
+	backup_suffix=.~$max_num~
+
+	return $status
 }
 
 # ---------------------------------
