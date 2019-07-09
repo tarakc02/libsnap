@@ -1200,11 +1200,10 @@ function set-backup_suffix--for-emacs() {
 	local -i max_num=0
 	local backup
 	for backup in $path.~[1-9]*~
-	   do	local version=${backup##*.\~}
-		      version=${version%\~}
-		[[ $version =~ ^[1-9][0-9]*$ ]] || continue
-		(( max_num < $version )) &&
-		   max_num=$version
+	   do	[[ $backup =~ ~([1-9][0-9]*)~$ ]] || continue
+		local -i num=${BASH_REMATCH[1]}
+		(( max_num < num )) &&
+		   max_num=$num
 	done
 
 	(( max_num == 0 )) && local status=1 || local status=0
