@@ -141,7 +141,7 @@ append-to-PATH-var() {
 	local do_reverse_dirs=
 	[[ $1 == -r ]] && { do_reverse_dirs=1; shift; }
 	local   pathname=$1; shift
-	[[ -v $pathname ]] || abort_function "$1 ... : '$1' is not set"
+	[[ -v $pathname ]] || abort-function "$1 ... : '$1' is not set"
 	local path=${!pathname}
 
 	local dirs=$* dir
@@ -171,7 +171,7 @@ prepend-to-PATH-var() {
 	local do_reverse_dirs=
 	[[ $1 == -r ]] && { do_reverse_dirs=1; shift; }
 	local   pathname=$1; shift
-	[[ -v $pathname ]] || abort_function "$1 ... : '$1' is not set"
+	[[ -v $pathname ]] || abort-function "$1 ... : '$1' is not set"
 	local path=${!pathname}
 
 	local dirs=$* dir
@@ -333,7 +333,7 @@ function set-FS_type--from-path() {
 
 function set-inode_size-data_block_size-dir_block_size--from-path() {
 	local  path=$1
-	[[ -e $path ]] || abort_function "$path: path doesn't exist"
+	[[ -e $path ]] || abort-function "$path: path doesn't exist"
 
 	local FS_type
 	set-FS_type--from-path $path || return $?
@@ -363,7 +363,7 @@ function set-inode_size-data_block_size-dir_block_size--from-path() {
 	   (  *   )
 		abort "fix $FUNCNAME for '$FS_type', email ${coder-}"
 		;;
-	esac || abort_function "$path (FS_type=$FS_type) returned $status"
+	esac || abort-function "$path (FS_type=$FS_type) returned $status"
 }
 
 # ----------------------------------------------------------------------------
@@ -422,7 +422,7 @@ label-drive() {
 	   ( ext? ) $IfRun sudo e2label $device $FS_label ;;
 	   ( xfs  ) $IfRun sudo xfs_admin -L $FS_label $device ;;
 	   (  *   ) abort "fix $FUNCNAME for '$FS_type', email ${coder-}" ;;
-	esac || abort_function "$device $mount_dir: returned $? ($FS_type)"
+	esac || abort-function "$device $mount_dir: returned $? ($FS_type)"
 }
 
 # ----------------------------------------------------------------------------
@@ -635,7 +635,8 @@ abort() {
 abort-function() {
 	local opts= ; while [[ ${1-} == -* ]] ; do opts+=" $1"; shift; done
 
-	abort -1 $opts ${FUNCNAME[1]} $*
+	[[ $1 == ':'* ]] && local msg=$* || local msg=" $*"
+	abort -1 $opts ${FUNCNAME[1]}$msg
 }
 
 # --------------------------------------------
@@ -1151,66 +1152,79 @@ function run-function() {
 function pegrep() { grep --perl-regexp "$@"; }
 
 # ----------------------------------------------------------------------------
-# check, create, and rewrite files
+# create and rewrite files
 # ----------------------------------------------------------------------------
 
-assert-accessible() {
-	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
-	local tests=
-	while [[ $1 == -* ]] ; do tests="$tests $1"; shift; done
+copy-file-perms() {
+	[[ $1 == -D ]] && local mkdir_opt=-p
+	[[ $1 == -d ]] && local mkdir_opt=
+	[[ $1 == -[dDf] ]] && { local opt=$1; shift; } || local opt=
+	assert-not-option $1
+	local reference=$1; shift
 
-	local file
-	for file
-	   do	[[ -e $file ]] || abort "file='$file' doesn't exist"
+	local path sudo=
+	for path
+	    do	if [[ $opt == -f ]]
+		   then if [[ -e "$path" ]]
+			   then [[ -w "$path" ]] || sudo=sudo
+				[[ -f "$path" ]] || abort "'$path' not a file"
+			   else [[ -w "${path%/*}" ]] || sudo=sudo
+				$IfRun $sudo touch "$path"
+			fi
+		elif [[ $opt == -[dD] ]]
+		   then if [[ -e "$path" ]]
+			   then [[ -w "$path" ]] || sudo=sudo
+				[[ -d "$path" ]] || abort "'$path' not a dir"
+			   else [[ -w "${path%/*}" ]] || sudo=sudo
+				$IfRun $sudo mkdir $mkdir_opt "$path"
+			fi
+		elif [[ ! -e "$path" ]]
+		   then abort-function ": '$path' doesn't exist, & no options"
+		fi || abort-function ": couldn't create '$path'"
 
-		local test
-		for test in $tests
-		    do	eval "[[ $test '$file' ]]" ||
-			   abort "file='$file' fails test='$test'"
+		local cmd
+		for cmd in chown chmod
+		    do	$IfRun $sudo $cmd --reference="$reference" "$path"
 		done
 	done
-	$xtrace
 }
-
-# -------------------
-
-function assert-readable()       { assert-accessible -r "$@"; }
-function assert-writable()       { assert-accessible -w "$@"; }
-function assert-executable()     { assert-accessible -x "$@"; }
-
-function assert-writable-dirs()  { assert-writable -d -x "$@"; }
-function assert-writable-files() { assert-writable -f    "$@"; }
 
 # ----------------------------------------------------------------------------
 
-# File $1 is modified in-place (with optional backup) by subsequent command.
-# You don't need this in general, you can use: perl -i~ -e ...
-modify-file() {
-	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
-	local backup_ext=
-	[[ $1 == -b* ]] && { backup_ext=$1; shift; }
-	[[ $1 != -*  ]] || abort "$FUNCNAME: unknown option $1"
-	(( $# >= 2   )) || abort "Usage: $FUNCNAME [-b[ext]] file command"
-	local file=$1; shift
+# return non-0 if din't find any emacs backup files
+function set-backup_suffix--for-emacs() {
+	[[ $# == 1  ]] || abort-function ": specify a single file"
+	local path=$1 i
 
-	local dir=${file%/*}
+	set -f
+	set -- [1-9]
+	for i in {1..6}
+	    do	set -- $1[0-9] $*
+	done
+	set +f
 
-	assert_writable_files "$file"
-	assert_writable_dirs  "$dir"
+	local number_glob number_globs latest_backup=
+	for number_glob
+	    do	set -- "$path".~$number_glob~
+		[[ $# != 0 && -e "$1" ]] || continue
+		latest_backup=${!#}
+		break
+	done
 
-	if [[ $backup_ext ]]
-	   then backup_ext=${backup_ext#-b}
-		local backup=$file${backup_ext:-'~'}
-		ln -f "$file" "$backup" ||
-		    abort-function "can't backup file='$file'"
+	if [[ $latest_backup ]]
+	   then local number=${latest_backup##*.\~}
+		local -i next_number=${number%\~}+1
+		backup_suffix=.~$next_number~	; return 0
+	   else backup_suffix=.~1~		; return 1
 	fi
+}
 
-	# we use cp -p just to copy the file metadata (uid, gid, mode)
-	cp -p "$file"   "$file+" &&
-	 "$@" "$file" > "$file+" &&
-	  mv  "$file+"  "$file"  ||
-	   abort-function "$file $* => $?"
-	$xtrace
+# ---------------------------------
+
+# this is for 'sed --in-place[=SUFFIX]' or 'perl -i[extension]'
+set-backup_suffix() {
+
+	set-backup_suffix--for-emacs "$@" || backup_suffix='~'
 }
 
 # ----------------------------------------------------------------------------
