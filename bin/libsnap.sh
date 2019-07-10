@@ -559,6 +559,8 @@ function is-arg_1-in-arg_2() {
 
 declare -i max_call_stack_args=6
 
+shopt -s extdebug			# enable BASH_ARGV and BASH_ARGC
+
 print-call-stack() {
 	declare -i stack_skip=1
 	[[ ${1-} ==   -s  ]] && { stack_skip=$2+1; shift 2; }
@@ -610,9 +612,9 @@ function warn() {
 
 abort() {
 	set +x
-	[[ $1 == -r ]] && { shift; is_recursion=$true; } || is_recursion=$false
+	[[ ${1-} == -r ]] && { shift; is_recursion=$true; } || is_recursion=
 	declare -i stack_skip=1
-	[[ $1 =~ ^-[0-9]+$ ]] && { stack_skip=${1#-}+1; shift; }
+	[[ ${1-} =~ ^-[0-9]+$ ]] && { stack_skip=${1#-}+1; shift; }
 
 	if [[ $is_recursion ]]
 	   then echo "$@" ; stack_skip+=1
