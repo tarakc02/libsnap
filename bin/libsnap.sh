@@ -90,8 +90,6 @@ our_path=${0#-}
 # basename of calling script, we won't change caller's value
 : ${our_name:=${0##*/}}		# user can change before or after source us
 
-set -o functrace
-shopt -s extdebug
 # if command in /home/, precede by ~ (yourself) else ~other-user .
 # this logic for the first-half of PS4 is duplicated in print-call-stack
 PS4='+ $(echo $BASH_SOURCE | sed "s@^$HOME/@~/@; s@^/home/@~@; s@/.*/@ @")'
