@@ -559,6 +559,7 @@ function is-arg_1-in-arg_2() {
 
 declare -i max_call_stack_args=6
 
+[[ $is_sourced_by_interactive_shell ]] ||
 shopt -s extdebug			# enable BASH_ARGV and BASH_ARGC
 
 print-call-stack() {
