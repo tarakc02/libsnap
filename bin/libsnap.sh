@@ -313,12 +313,13 @@ function set-FS_type--from-path() {
 	local  path=$1
 	[[ -e $path ]] || abort "path='$path' doesn't exist"
 
-	if [[ ! -b $path || $(df | fgrep -w  $path) ]]
-	   then FS_type=$(df --output=fstype $path | tail -n1)
+	set -- $(df --output=fstype --no-sync $path 2> /dev/null)
+	if [[ $# != 0 ]]
+	   then FS_type=${!#}
 	   else have-cmd lsblk ||
 		   abort "fix $FUNCNAME for '$path', email to ${coder-Scott}"
 		[[ ! -b $path ]] && local FS_device &&
-		   set-FS_device--from-path $path  && path=$FS_device
+		   set-FS_device--from-path $path   && path=$FS_device
 		local cmd="lsblk --noheadings --nodeps --output=fstype $path"
 		FS_type=$($cmd)		; [[ $FS_type ]] ||
 		FS_type=$(sudo $cmd)
@@ -377,7 +378,7 @@ function set-device_KB--from-block-device() {
 	have-cmd lsblk || return 1
 
 	set -- $(lsblk --noheadings --bytes --output=SIZE $dev)
-	[[ $# == 1 ]] || abort "$FUNCNAME: specify a partition not whole drive"
+	[[ $# == 1 ]] || abort-function ": specify a partition not whole drive"
 	device_KB=$(( $1/1024 ))
 }
 
@@ -453,7 +454,6 @@ set-FS_device--from-FS-label() {
 set-OS_release_file-OS_release() {
 
 	set -- /usr/lib/*-release /etc/*-release
-	[[ -s $1 ]] || shift
 	while (( $# > 1 ))
 	   do	[[ -s $1 ]] || { shift; continue; }
 		case $(basename $1) in
@@ -485,9 +485,9 @@ set-FS_device--from-path() {
 	local  path=$1
 	[[ -e $path ]] || abort "path=$path doesn't exist"
 
-	FS_device=$(set -- $(df $path | tail -n1); echo $1)
-
-	[[ $FS_device ]] || abort "couldn't find device for path=$path"
+	set -- $(df --output=source --no-sync $path 2> /dev/null)
+	[[ $# != 0 ]] || abort_function "couldn't find device for path=$path"
+	FS_device=${!#}
 }
 
 # ----------------------------
@@ -497,7 +497,8 @@ function set-mount_dir--from-FS-device() {
 	local  dev=$1
 	[[ -b $dev ]] || abort "$dev is not a device"
 
-	mount_dir=$(set -- $(df $dev | tail -n1); echo ${!#})
+	set -- $(df --output=target --no-sync $dev 2> /dev/null)
+	[[ $# == 0 ]] && mount_dir= || mount_dir=${!#}
 	[[ ! $mount_dir || $mount_dir == / || $mount_dir == /dev ]] ||
 	   return 0
 
@@ -542,7 +543,7 @@ set-FS_label--from-mount_dir() {
 function is-arg_1-in-arg_2() {
 	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
 	local arg1=$1; shift
-	set -- $*; local arg2=$*	# turn tabs into spaces
+	set -f; set -- $*; set +f; local arg2=$* # turn tabs into spaces
 	[[ $arg1 && $arg2 ]] || { $xtrace; return 1; }
 
 	[[ " $arg2 " == *" $arg1 "* ]]
@@ -681,7 +682,7 @@ echoEV() {
 	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
 	declare -i stack_frame_to_show=1 # default to our caller's stack frame
 	[[ $1 =~ ^-[0-9]+$ ]] && { stack_frame_to_show=${1#-}+1; shift; }
-	[[ $1 != -*  ]] || abort "$FUNCNAME: unknown option $1"
+	assert-not-option ${1-}
 
 	local var
 	for var
@@ -764,7 +765,7 @@ print-or-egrep-Usage-then-exit() {
 	[[ ${1-} == -[hHk] ]] && shift	# strip help or keyword-search option
 	[[ $# == 0 ]] && echo -e "$Usage" && exit 0
 
-	echo "$Usage" | grep -i "$@"
+	echo "$Usage" | egrep -i "$@"
 	exit 0
 }
 
@@ -881,7 +882,7 @@ set-absolute_path() {
 
 cd_() {
 	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
-	(( $# <= 1 )) || abort "wrong number args: $FUNCNAME $*"
+	(( $# <= 1 )) || abort-function "$*: wrong number args"
 	local _dir=${1-$HOME}
 
 	cd "$_dir" || abort "cd $_dir"
@@ -899,9 +900,10 @@ cd_() {
 set-FS_inodes_used_percent() {
 	local _dir=$1
 
-	# -A 1: multi-line records for long dev names (like Logical Volumes)
-	set -- $(df --inodes --no-sync $_dir/. | grep -A 1 "^/")
-	FS_inodes_used_percent=${5%\%}
+	set -- $(df --output=ipcent --no-sync $_dir/. 2> /dev/null)
+	[[ $# != 0 ]] || abort_function "$_dir not mounted"
+	FS_inodes_used_percent=${!#}
+	FS_inodes_used_percent=${FS_inodes_used_percent%\%}
 }
 
 # ----------------------------------------------------------------------------
@@ -909,9 +911,10 @@ set-FS_inodes_used_percent() {
 set-FS_space_used_percent() {
 	local _dir=$1
 
-	# -A 1: multi-line records for long dev names (like Logical Volumes)
-	set -- $(df -k --no-sync $_dir/. | grep -A 1 "^/")
-	FS_space_used_percent=${5%\%}
+	set -- $(df --output=pcent --no-sync $_dir/. 2> /dev/null)
+	[[ $# != 0 ]] || abort_function "$_dir not mounted"
+	FS_space_used_percent=${!#}
+	FS_space_used_percent=${FS_space_used_percent%\%}
 }
 
 # ----------------------------------------------------------------------------
@@ -983,7 +986,7 @@ unset _readonly_vars _writable_vars
 # pop word off left side of named list; return non-0 if list was empty
 function set-popped_word--from-list() {
 	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
-	[[ $# == 1 ]] || abort "$FUNCNAME: pass name of list"
+	[[ $# == 1 ]] || abort-function ": pass name of list"
 
 	local   list_name=$1
 	[[ -v $list_name ]] || abort-function "$1: '$1' is not set"
@@ -1092,7 +1095,7 @@ set-warning_string() {
 function confirm() {
 	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
 	[[ $1 == -n  ]] && { echo; shift; }
-	[[ $1 != -*  ]] || abort "$FUNCNAME: unknown option $1"
+	assert-not-option $1
 	local _prompt=$1 default=${2-}
 
 	local y_n status
