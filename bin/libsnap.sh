@@ -313,9 +313,9 @@ function set-FS_type--from-path() {
 	local  path=$1
 	[[ -e $path ]] || abort "path='$path' doesn't exist"
 
-	set -- $(df --output=fstype --no-sync $path 2> /dev/null)
-	if [[ $# != 0 ]]
-	   then FS_type=${!#}
+	if [[ ! -b $path || $(df --no-sync | fgrep -w $path) ]]
+	   then set -- $(df --output=fstype --no-sync $path)
+		FS_type=${!#}
 	   else have-cmd lsblk ||
 		   abort "fix $FUNCNAME for '$path', email to ${coder-Scott}"
 		[[ ! -b $path ]] && local FS_device &&
