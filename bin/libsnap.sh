@@ -677,6 +677,18 @@ echoE () {
 
 # ----------------------
 
+set-var_value--from-var_name() {
+	local var_name=$1
+
+	if is-set $var_name
+	   then var_value=${!var_name}
+	   else var_value='<unset>'
+	fi
+	[[ $var_value == *[\ \	]* ]] && var_value="'$var_value'"
+}
+
+# ----------------------
+
 # like echoE, but also show the values of the variable names passed to us
 echoEV() {
 	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
@@ -684,9 +696,10 @@ echoEV() {
 	[[ $1 =~ ^-[0-9]+$ ]] && { stack_frame_to_show=${1#-}+1; shift; }
 	assert-not-option ${1-}
 
-	local var
-	for var
-	   do	echoE -$stack_frame_to_show "$var=${!var-}"
+	local var_name var_value
+	for var_name
+	   do	set-var_value--from-var_name $var_name
+		echoE -$stack_frame_to_show "$var_name=$var_value"
 	done >&2
 	$xtrace
 }
