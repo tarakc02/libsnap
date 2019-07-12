@@ -313,7 +313,7 @@ function set-FS_type--from-path() {
 	local  path=$1
 	[[ -e $path ]] || abort "path='$path' doesn't exist"
 
-	if [[ ! -b $path || $(df --no-sync | fgrep -w $path) ]]
+	if [[ $(df --no-sync | fgrep -w $path) ]]
 	   then set -- $(df --output=fstype --no-sync $path)
 		FS_type=${!#}
 	   else have-cmd lsblk ||
