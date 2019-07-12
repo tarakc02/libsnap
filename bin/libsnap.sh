@@ -540,7 +540,7 @@ set-FS_label--from-mount_dir() {
 # ----------------------------------------------------------------------------
 
 # does 1st argument match any of the whitespace-separated words in rest of args
-function is-arg_1-in-arg_2() {
+function is-arg1-in-arg2() {
 	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
 	local arg1=$1; shift
 	set -f; set -- $*; set +f; local arg2=$* # turn tabs into spaces
@@ -734,7 +734,7 @@ function suspend-tracing {
 function restore-tracing {
 
 	local status=$?			# status from caller's previous command
-	is-arg_1-in-arg_2 ${FUNCNAME[1]} ${!funcname2was_tracing[*]} ||
+	is-arg1-in-arg2 ${FUNCNAME[1]} ${!funcname2was_tracing[*]} ||
 	   abort-function "was called without a suspend-tracing"
 	[[ ${funcname2was_tracing[ ${FUNCNAME[1]} ]} ]] || return $status
 
@@ -1078,7 +1078,7 @@ declare -A warning_level2escape_sequence
 
 set-warning_string() {
 	local level=$1; shift; local string=$*
-	is-arg_1-in-arg_2 $level ${!warning_level2tput_args[*]} ||
+	is-arg1-in-arg2 $level ${!warning_level2tput_args[*]} ||
 	   abort-function "$level is unknown level"
 
 	[[ -t 1 || ${do_tput-} ]] || { warning_string=$string; return; }
