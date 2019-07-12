@@ -125,12 +125,21 @@ rsync_temp_file_suffix="$_chr$_chr$_chr$_chr$_chr$_chr"; unset _chr
 # ----------------------------------------------------------------------------
 
 # return non-0 if any of the passed variable names have not been set
-function is-set() { [[ -v $1 ]] ; return $?; }
+function is-set() { [[ -v $1 ]] ; }
 
 _foo=
 is-set _foo || _abort "is-set _foo"
 is-set _bar && _abort "is-set _bar"
 unset _foo
+
+# ---------------------------------
+
+function is-var() { declare -p $1 &> /dev/null ; }
+
+function is-variable() { is-var "$@"; }
+
+is-var our_path || _abort "have our_path"
+is-var NoTeXiSt && _abort "don't have NoTeXiSt"
 
 # ----------------------------------------------------------------------------
 
@@ -337,6 +346,12 @@ function set-inode_size-data_block_size-dir_block_size--from-path() {
 	local FS_type
 	set-FS_type--from-path $path || return $?
 
+	local var_name
+	for var_name in inode_size data_block_size dir_block_size
+	    do	is-var $var_name ||
+		declare -g -i $var_name
+	done
+
 	case $FS_type in
 	   ( ext? )
 		local FS_device
@@ -379,6 +394,8 @@ function set-device_KB--from-block-device() {
 
 	set -- $(lsblk --noheadings --bytes --output=SIZE $dev)
 	[[ $# == 1 ]] || abort-function ": specify a partition not whole drive"
+	is-var device_KB ||
+	declare -g -i device_KB
 	device_KB=$(( $1/1024 ))
 }
 
@@ -486,7 +503,7 @@ set-FS_device--from-path() {
 	[[ -e $path ]] || abort "path=$path doesn't exist"
 
 	set -- $(df --output=source --no-sync $path 2> /dev/null)
-	[[ $# != 0 ]] || abort_function "couldn't find device for path=$path"
+	[[ $# != 0 ]] || abort-function "couldn't find device for path=$path"
 	FS_device=${!#}
 }
 
@@ -677,6 +694,12 @@ echoE () {
 
 # ----------------------
 
+function is-integer-var() { is-var $1 && [[ $(declare -p $1) =~ ' '-.?i ]] ; }
+
+function is-integer-variable() { is-integer-var "$@"; }
+
+# ----------------------
+
 set-var_value--from-var_name() {
 	local var_name=$1
 
@@ -684,7 +707,11 @@ set-var_value--from-var_name() {
 	   then var_value=${!var_name}
 	   else var_value='<unset>'
 	fi
+
 	[[ $var_value == *[\ \	]* ]] && var_value="'$var_value'"
+
+	is-integer-variable $var_name &&
+	var_value="$var_value	# integer variable"
 }
 
 # ----------------------
@@ -910,24 +937,39 @@ cd_() {
 
 # ----------------------------------------------------------------------------
 
-set-FS_inodes_used_percent() {
-	local _dir=$1
+is-integer() { [[ $1 =~ ^-?[0-9]+$ ]] ; }
 
-	set -- $(df --output=ipcent --no-sync $_dir/. 2> /dev/null)
-	[[ $# != 0 ]] || abort_function "$_dir not mounted"
-	FS_inodes_used_percent=${!#}
-	FS_inodes_used_percent=${FS_inodes_used_percent%\%}
-}
+is-integer -123 || abort "-123 is an integer"
+is-integer  123 || abort  "123 is an integer"
+is-integer  1.3 && abort  "1.3 is not an integer"
 
-# ----------------------------------------------------------------------------
+# --------------------------------------------
 
-set-FS_space_used_percent() {
-	local _dir=$1
+# for each field, assign that field's value to a variable named for that field
+setup-df-data-from-fields() {
+	local drive=$1; shift
+	local fields=$*
 
-	set -- $(df --output=pcent --no-sync $_dir/. 2> /dev/null)
-	[[ $# != 0 ]] || abort_function "$_dir not mounted"
-	FS_space_used_percent=${!#}
-	FS_space_used_percent=${FS_space_used_percent%\%}
+	[[ -b $drive || -d $drive ]] ||
+	    abort-function ": first arg must be device or directory"
+
+	set -f; set -- ${fields//,/ }; set +f
+	fields=$*
+	local -i field_count=$#
+
+	set -f; set -- $(df --output=${fields// /,} --no-sync $drive/.); set +f
+	[[ $# != 0 ]] || abort-function "'df $drive' failed"
+	while (( $# > $field_count )) ; do shift; done
+
+	local name
+	for name in $fields
+	    do	local value=${1%\%}	# remove any trailing '%'
+		if is-integer $value && ! is-var $name
+		   then eval "declare -g -i $name=\$value"
+		   else eval		   "$name=\$value"
+		fi
+		shift
+	done
 }
 
 # ----------------------------------------------------------------------------
@@ -936,6 +978,8 @@ function set-file_KB() {
 	local _file=$1
 
 	set -- $(ls -sd $_file)
+	is-var file_KB ||
+	declare -g -i file_KB
 	file_KB=$1
 	[[ $file_KB ]]
 }
@@ -1164,7 +1208,7 @@ function run-function() {
 
 	"$@"
 	local status=$?
-	[[ $var_names ]] && echoEV -1 $var_names
+	[[ $var_names ]] && echoEV -1 ${var_names//,/ }
 	[[ $status == 0 || $is_procedure ]] || abort -1 "'$*' returned $status"
 	return $status
 }
