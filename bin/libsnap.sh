@@ -694,9 +694,45 @@ echoE () {
 
 # ----------------------
 
-function is-integer-var() { is-var $1 && [[ $(declare -p $1) =~ ' '-.?i ]] ; }
+function is-readonly-var() {
+	is-var $1 && [[ $(declare -p $1) =~ ' '-[a-zA-Z]*r ]]
+}
+
+function is-readonly-variable() { is-readonly-var "$@"; }
+
+# ----------------------
+
+function is-writable-var() {
+	is-var $1 && ! is-readonly-var $1
+}
+
+function is-writable-variable() { is-writable-var "$@"; }
+
+# ----------------------
+
+function is-integer-var() {
+	is-var $1 && [[ $(declare -p $1) =~ ' '-[a-zA-Z]*i ]]
+}
 
 function is-integer-variable() { is-integer-var "$@"; }
+
+is-writable-var our_path && _abort "our_path is a readonly var"
+
+declare -i _int_var
+declare    _str_var
+is-writable-var _int_var &&
+ is-integer-var _int_var || _abort "_int_var is writable int var"
+ is-integer-var _str_var && _abort "_str_var is not an int var"
+is-readonly-var _str_var && _abort "_str_var is not readonly var"
+unset _int_var _str_var
+
+# --------------------------------
+
+is-integer() { [[ $1 =~ ^-?[0-9]+$ ]] ; }
+
+is-integer -123 || _abort "-123 is an integer"
+is-integer  123 || _abort  "123 is an integer"
+is-integer  1.3 && _abort  "1.3 is not an integer"
 
 # ----------------------
 
@@ -937,14 +973,6 @@ cd_() {
 
 # ----------------------------------------------------------------------------
 
-is-integer() { [[ $1 =~ ^-?[0-9]+$ ]] ; }
-
-is-integer -123 || abort "-123 is an integer"
-is-integer  123 || abort  "123 is an integer"
-is-integer  1.3 && abort  "1.3 is not an integer"
-
-# --------------------------------------------
-
 # for each field, assign that field's value to a variable named for that field
 setup-df-data-from-fields() {
 	local drive=$1; shift
@@ -1009,34 +1037,19 @@ is-process-alive $$ $BASHPID || _abort "is-process-alive failure"
 
 # ----------------------------------------------------------------------------
 
-function is-readonly() {
+set-reversed_words() {
 
-	local variable_name
-	for variable_name
-	    do	eval "$variable_name+=" 2> /dev/null && return 1
+	set -f; set -- $*; set +f
+	reversed_words=
+	local word
+	for word
+	   do	reversed_words="$word $reversed_words"
 	done
-	return 0
+	reversed_words=${reversed_words% }
 }
 
-_readonly_vars="our_path true false"
-_writable_vars="our_name IfRun"
-is-readonly $_readonly_vars || _abort "is-readonly $_readonly_vars"
-is-readonly $_readonly_vars $_writable_vars && _abort "is-readonly all-vars"
-
-# ---------------------------------
-
-function is-writable() {
-
-	local variable_name
-	for variable_name
-	    do	eval "$variable_name+=" 2> /dev/null || return 1
-	done
-	return 0
-}
-
-is-writable $_writable_vars || _abort "is-writable $_writable_vars"
-is-writable $_writable_vars $_readonly_vars && _abort "is-readonly all-vars"
-unset _readonly_vars _writable_vars
+set-reversed_words "1	2 3 "
+[[ $reversed_words == "3 2 1" ]] || _abort "reversed_words='$reversed_words'"
 
 # ----------------------------------------------------------------------------
 
@@ -1090,9 +1103,9 @@ set-division() {
 }
 
 # test minutes to hours
-set-division -2 10 60 ; [[ $division == 0.17 ]] || abort "10/60 != $division"
-set-division -1 10 60 ; [[ $division == 0.2  ]] || abort "10/60 != $division"
-set-division -1 59 60 ; [[ $division == 1.0  ]] || abort "59/60 != $division"
+set-division -2 10 60 ; [[ $division == 0.17 ]] || _abort "10/60 != $division"
+set-division -1 10 60 ; [[ $division == 0.2  ]] || _abort "10/60 != $division"
+set-division -1 59 60 ; [[ $division == 1.0  ]] || _abort "59/60 != $division"
 unset division
 
 # ----------------------------------------------------------------------------
