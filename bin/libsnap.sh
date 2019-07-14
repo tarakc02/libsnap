@@ -306,8 +306,12 @@ umask 022				# caller can change it
 # ----------------------------------------------------------------------------
 
 [[ ! $is_sourced_by_interactive_shell ]] &&
-[[     $BASH_VERSION <  4.3 ]] &&     # need reliable lastpipe
+[[     $BASH_VERSION <  4.3 ]] &&
 _abort "bash version >= 4.3 must appear earlier in the PATH than an older bash"
+# 4.3: [[ -v array[i] ]] ; globasciiranges; negative subscripts count backwards
+# bash-4.4 is better: executing RHS of && or || won't cause the shell to fork
+
+shopt -s globasciiranges		# so weird locales don't mess us up
 
 ###########################################################################
 # define functions that abstract OS/kernel-specific operations or queries #
@@ -560,7 +564,7 @@ set-FS_label--from-mount_dir() {
 function is-arg1-in-arg2() {
 	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
 	local arg1=$1; shift
-	set -f; set -- $*; set +f; local arg2=$* # turn tabs into spaces
+	set -f; eval "set -- $*"; set +f; local arg2=$* # split words apart
 	[[ $arg1 && $arg2 ]] || { $xtrace; return 1; }
 
 	[[ " $arg2 " == *" $arg1 "* ]]
@@ -831,8 +835,8 @@ wont-trace() {         foo=2
 will-trace() { set -x; foo=1
 	       suspend-tracing; echo untraced; restore-tracing foo
 	       wont-trace; echo traced; set +x; }
-will-trace |& fgrep    ' echo untraced' && _abort "suspend-tracing failed"
-will-trace |& fgrep -q ' echo traced'   || _abort "restore-tracing failed"
+[[ $(will-trace 2>&1) == *' echo untrac'* ]] && _abort "suspend-tracing failed"
+[[ $(will-trace 2>&1) == *' echo traced'* ]] || _abort "restore-tracing failed"
 unset -f wont-trace will-trace
 
 # ----------------------------------------------------------------------------
@@ -867,7 +871,7 @@ RunCmd() {
 }
 
 RunCmd true &&
-RunCmd -d -m "expected (non fatal)" false |& fgrep -q 'non fatal' ||
+[[ $(RunCmd -d -m "expected (non fatal)" false 2>&1) == *'(non fatal)'* ]] ||
    _abort "RunCmd error"
 
 # ----------------------------------------------------------------------------
@@ -1039,7 +1043,7 @@ is-process-alive $$ $BASHPID || _abort "is-process-alive failure"
 
 set-reversed_words() {
 
-	set -f; set -- $*; set +f
+	set -f; eval "set -- $*"; set +f # split words apart
 	reversed_words=
 	local word
 	for word
@@ -1050,6 +1054,7 @@ set-reversed_words() {
 
 set-reversed_words "1	2 3 "
 [[ $reversed_words == "3 2 1" ]] || _abort "reversed_words='$reversed_words'"
+unset reversed_words
 
 # ----------------------------------------------------------------------------
 
@@ -1058,10 +1063,10 @@ function set-popped_word--from-list() {
 	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
 	[[ $# == 1 ]] || abort-function ": pass name of list"
 
-	local   list_name=$1
+	local  list_name=$1
 	[[ -v $list_name ]] || abort-function "$1: '$1' is not set"
-	set -f; set -- ${!list_name}; set -- $*; set +f
-	popped_word=${1-}; shift	# grab left-most word
+	set -f; eval "set -- ${!list_name}"; set +f # eval to split words apart
+	popped_word=${1-}; shift	# pop left-most word
 	eval "$list_name=\$*"		# retain the rest of the words
 	$xtrace
 	[[ $popped_word ]]
