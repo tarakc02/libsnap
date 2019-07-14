@@ -636,6 +636,8 @@ function warn() {
 
 # ---------------------------------
 
+: ${master_PID=$BASHPID}
+
 abort() {
 	set +x
 	[[ ${1-} == -r ]] && { shift; is_recursion=$true; } || is_recursion=
@@ -653,6 +655,12 @@ abort() {
 
 	[[ ! $is_recursion ]] && log "$(abort -r $* 2>&1)" > /dev/null
 
+	if [[ $master_PID != $BASHPID ]] # are we in a sub-shell?
+	   then trap '' TERM		 # don't kill ourself when ...
+		kill -$master_PID	 # kill our parent and its children
+		sleep 1
+		kill -9 -$master_PID
+	fi
 	exit 1
 }
 
@@ -871,7 +879,8 @@ RunCmd() {
 }
 
 RunCmd true &&
-[[ $(RunCmd -d -m "expected (non fatal)" false 2>&1) == *'(non fatal)'* ]] ||
+[[ $(master_PID=$BASHPID \
+     RunCmd -d -m "expected (non fatal)" false 2>&1) == *'(non fatal)'* ]] ||
    _abort "RunCmd error"
 
 # ----------------------------------------------------------------------------
