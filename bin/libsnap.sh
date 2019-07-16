@@ -564,7 +564,7 @@ set-FS_label--from-mount_dir() {
 function is-arg1-in-arg2() {
 	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
 	local arg1=$1; shift
-	set -f; eval "set -- $*"; set +f; local arg2=$* # split words apart
+	local arg2=$*
 	[[ $arg1 && $arg2 ]] || { $xtrace; return 1; }
 
 	[[ " $arg2 " == *" $arg1 "* ]]
@@ -693,7 +693,7 @@ echoE () {
 	[[ $1 == -n ]] && { local show_name=$true; shift; } || local show_name=
 	declare -i stack_frame_to_show=1 # default to our caller's stack frame
 	[[ $1 =~ ^-[0-9]+$ ]] && { stack_frame_to_show=${1#-}+1; shift; }
-	assert-not-option -o ${1-}
+	assert-not-option -o "${1-}"
 
 	local   line_no=${BASH_LINENO[stack_frame_to_show-1]}
 	local func_name=${FUNCNAME[stack_frame_to_show]}
@@ -769,11 +769,12 @@ echoEV() {
 	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
 	declare -i stack_frame_to_show=1 # default to our caller's stack frame
 	[[ $1 =~ ^-[0-9]+$ ]] && { stack_frame_to_show=${1#-}+1; shift; }
-	assert-not-option ${1-}
+	assert-not-option "${1-}"
 
 	local var_name var_value
 	for var_name
 	   do	set-var_value--from-var_name $var_name
+
 		echoE -$stack_frame_to_show "$var_name=$var_value"
 	done >&2
 	$xtrace
@@ -873,7 +874,7 @@ abort-with-action-Usage() {
 RunCmd() {
 	[[ $1 == -d ]] && { local IfAbort=$IfRun; shift; } || local IfAbort=
 	[[ $1 == -m ]] && { local msg="; $2"; shift 2; } || local msg=
-	assert-not-option -o ${1-}
+	assert-not-option -o "${1-}"
 
 	$IfRun "$@" || $IfAbort abort -1 "'$*' returned $?$msg"
 }
@@ -927,7 +928,7 @@ header() {
 	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
 	[[ $1 == -e ]] && { shift; local nl="\n"; } || local nl=
 	[[ $1 == -E ]] &&   shift || echo
-	assert-not-option -o ${1-}
+	assert-not-option -o "${1-}"
 
 	echo -e "==> $* <==$nl"
 	$xtrace
@@ -1052,7 +1053,6 @@ is-process-alive $$ $BASHPID || _abort "is-process-alive failure"
 
 set-reversed_words() {
 
-	set -f; eval "set -- $*"; set +f # split words apart
 	reversed_words=
 	local word
 	for word
@@ -1061,7 +1061,7 @@ set-reversed_words() {
 	reversed_words=${reversed_words% }
 }
 
-set-reversed_words "1	2 3 "
+set-reversed_words     1 2 3
 [[ $reversed_words == "3 2 1" ]] || _abort "reversed_words='$reversed_words'"
 unset reversed_words
 
@@ -1074,7 +1074,7 @@ function set-popped_word--from-list() {
 
 	local  list_name=$1
 	[[ -v $list_name ]] || abort-function "$1: '$1' is not set"
-	set -f; eval "set -- ${!list_name}"; set +f # eval to split words apart
+	set -f; set -- ${!list_name}; set +f # split words apart
 	popped_word=${1-}; shift	# pop left-most word
 	eval "$list_name=\$*"		# retain the rest of the words
 	$xtrace
@@ -1091,6 +1091,19 @@ _output=${_output# }
 [[ ! $_input && $_output == "$_numbers" ]] ||
     _abort "set-popped_word--from-list failure: _input='$_input' _output='$_output'"
 unset _numbers _input _output popped_word
+
+_prune_type_globs="-{?[3579],[1-3]1} -{[02][26],1[048],30}"
+_input=$_prune_type_globs
+_output=
+declare -i _count=0
+while set-popped_word--from-list _input
+   do	_output+=" $popped_word"
+	let _count+=1
+done
+_output=${_output# }
+[[ ! $_input && $_output == "$_prune_type_globs" && $_count == 2 ]] ||
+    _abort "set-popped_word--from-list failure: $_output"
+unset _prune_type_globs _input _output popped_word _count
 
 # ----------------------------------------------------------------------------
 
@@ -1179,7 +1192,7 @@ set-warning_string() {
 function confirm() {
 	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
 	[[ $1 == -n  ]] && { echo; shift; }
-	assert-not-option $1
+	assert-not-option "$1"
 	local _prompt=$1 default=${2-}
 
 	local y_n status
@@ -1229,7 +1242,7 @@ function run-function() {
 	local is_procedure=$false	# abort if function "fails"
 	[[ $1 == -p ]] && { is_procedure=$true; shift; }
 	[[ $1 == -v ]] && { local var_names=$2; shift 2; } || local var_names=
-	assert-not-option -o ${1-}
+	assert-not-option -o "${1-}"
 
 	have-cmd $1 || abort "function '$1' doesn't exist"
 
@@ -1252,7 +1265,7 @@ copy-file-perms() {
 	[[ $1 == -D ]] && local mkdir_opt=-p
 	[[ $1 == -d ]] && local mkdir_opt=
 	[[ $1 == -[dDf] ]] && { local opt=$1; shift; } || local opt=
-	assert-not-option $1
+	assert-not-option "$1"
 	local reference=$1; shift
 
 	local path sudo=
