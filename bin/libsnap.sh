@@ -573,6 +573,9 @@ function is-arg1-in-arg2() {
 	return $status
 }
 
+is-arg1-in-arg2 foo "" && _abort "null arg2 means false"
+is-arg1-in-arg2 foo    && _abort   "no arg2 means false"
+
 # ----------------------------------------------------------------------------
 # simple error and warning and trace functions.
 # don't assign these until all the environment setup is finished, otherwise
