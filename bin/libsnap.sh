@@ -682,7 +682,7 @@ abort-function() {
 assert-not-option() {
 	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
 	[[ ${1-} == -o ]] && { local order_opt=$1; shift; } || local order_opt=
-	[[ ${1-} != -* ]] && { $xtrace; return; }
+	[[ ${1-} != -? ]] && { $xtrace; return; }
 
 	[[ $order_opt ]] && msg=" (order matters)" || msg=
 	abort -1 "${FUNCNAME[1]}: unknown option $1$msg"
