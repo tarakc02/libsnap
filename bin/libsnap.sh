@@ -1095,19 +1095,6 @@ _output=${_output# }
     _abort "set-popped_word--from-list failure: _input='$_input' _output='$_output'"
 unset _numbers _input _output popped_word
 
-_prune_type_globs="-{?[3579],[1-3]1} -{[02][26],1[048],30}"
-_input=$_prune_type_globs
-_output=
-declare -i _count=0
-while set-popped_word--from-list _input
-   do	_output+=" $popped_word"
-	let _count+=1
-done
-_output=${_output# }
-[[ ! $_input && $_output == "$_prune_type_globs" && $_count == 2 ]] ||
-    _abort "set-popped_word--from-list failure: $_output"
-unset _prune_type_globs _input _output popped_word _count
-
 # ----------------------------------------------------------------------------
 
 set-division() {
