@@ -616,7 +616,7 @@ print-call-stack() {
 			   arg_i=argv_i+2 &&
 			   args+="<$((argc-max_args)) more args> "
 		done
-		argv_i+=argc
+		let argv_i+=argc
 		echo -n "$src line ${BASH_LINENO[depth-1]}: "
 		echo    "${FUNCNAME[depth]} ${args% }"
 	done
@@ -648,7 +648,7 @@ abort() {
 	[[ ${1-} =~ ^-[0-9]+$ ]] && { stack_skip=${1#-}+1; shift; }
 
 	if [[ $is_recursion ]]
-	   then echo "$@" ; stack_skip+=1
+	   then echo "$@" ; let stack_skip+=1
 	elif [[ ${Usage-} && "$*" == "$Usage" ]]
 	   then echo "$@" >&2 ; exit 1
 	   else	warn "$@"
@@ -1125,7 +1125,7 @@ set-division() {
 	local -i fraction=$(( ( multiplier*(numerator % denominator)
 				+ (denominator / 2) ) / denominator ))
 	if (( fraction >= multiplier ))	# fraction rounded up to whole number?
-	   then whole_number+=1
+	   then let whole_number+=1
 		fraction=0
 	fi
 
