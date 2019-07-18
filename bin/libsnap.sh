@@ -222,6 +222,8 @@ have-cmd our_path && _abort "don't have func our_path"
 
 # --------------------------------------------
 
+xtrace=				  # in case comment-out first line of function
+
 # exit noisily if missing (e.g. not in PATH) any of the $* commands
 need-cmds() {
 
@@ -656,7 +658,8 @@ abort() {
 
 	print-call-stack -s $stack_skip >&2
 
-	[[ ! $is_recursion ]] && log "$(abort -r $* 2>&1)" > /dev/null
+	[[ ! $is_recursion ]] &&
+	   log "$(master_PID=$BASHPID abort -r $* 2>&1)" > /dev/null
 
 	if [[ $master_PID != $BASHPID ]] # are we in a sub-shell?
 	   then trap '' TERM		 # don't kill ourself when ...
@@ -671,11 +674,14 @@ abort() {
 
 abort-function() {
 	set +x
+	declare -i stack_skip=1
+	[[ ${1-} =~ ^-[0-9]+$ ]] && { stack_skip=${1#-}+1; shift; }
 	local opts= ; while [[ ${1-} == -* ]] ; do opts+=" $1"; shift; done
 
 	[[ $1 == ':'* ]] && local msg=$* || local msg=" $*"
-	abort -1 $opts ${FUNCNAME[1]}$msg
+	abort -$stack_skip $opts ${FUNCNAME[$stack_skip]}$msg
 }
+readonly -f abort-function
 
 # --------------------------------------------
 
@@ -1070,15 +1076,38 @@ unset reversed_words
 
 # ----------------------------------------------------------------------------
 
+function set-is_FIFO() {
+	local arg=${1-}
+
+	[[ $arg == -[^fqls] ]] &&
+	    abort-function -1 "only allows these options: -f -q -l -s"
+
+	is_FIFO=$true			 # default, also called queue
+	[[ $arg ==  -[fqls] ]] || return 1
+
+	[[ $1 == -f ]] && is_FIFO=$true	 # FIFO  aka queue
+	[[ $1 == -q ]] && is_FIFO=$true	 # Queue aka FIFO
+	[[ $1 == -l ]] && is_FIFO=$false # LIFO  aka stack
+	[[ $1 == -s ]] && is_FIFO=$false # Stack aka LIFO
+	return 0
+}
+
+# ---------------------------------
+
 # pop word off left side of named list; return non-0 if list was empty
 function set-popped_word--from-list() {
 	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
+	set-is_FIFO ${1-} && shift
 	[[ $# == 1 ]] || abort-function ": pass name of list"
 
 	local  list_name=$1
 	[[ -v $list_name ]] || abort-function "$1: '$1' is not set"
 	set -f; set -- ${!list_name}; set +f # split words apart
-	popped_word=${1-}; shift	# pop left-most word
+	[[ $# == 0 ]] && popped_word= ||
+	if [[ $is_FIFO ]]
+	   then popped_word=${1-}; shift # pop left-most word
+	   else popped_word=${!#}; set -f; set -- ${*%$popped_word}; set +f
+	fi
 	eval "$list_name=\$*"		# retain the rest of the words
 	$xtrace
 	[[ $popped_word ]]
@@ -1093,6 +1122,16 @@ done
 _output=${_output# }
 [[ ! $_input && $_output == "$_numbers" ]] ||
     _abort "set-popped_word--from-list failure: _input='$_input' _output='$_output'"
+
+  _input=$_numbers
+ _output=
+while set-popped_word--from-list -l _input
+   do	_output="$popped_word $_output"
+done
+_output=${_output% }
+[[ ! $_input && $_output == "$_numbers" ]] ||
+    _abort "set-popped_word--from-list failure: _input='$_input' _output='$_output'"
+
 unset _numbers _input _output popped_word
 
 # ----------------------------------------------------------------------------
