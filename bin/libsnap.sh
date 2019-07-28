@@ -102,7 +102,7 @@ export PS4
 readonly true=t True=t
 readonly false= False=
 
-case ${0#-} in
+case $our_name in
     ( bash | csh | ksh | scsh | sh | tcsh | zsh )
 	  is_sourced_by_interactive_shell=$true  ;;
     ( * ) is_sourced_by_interactive_shell=$false ;;
