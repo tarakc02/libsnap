@@ -109,7 +109,7 @@ shopt -s globasciiranges		# so weird locales don't mess us up
 
 # set -x: if command in /home/, precede by ~ (yourself) else ~other-user .
 # this logic for the first-half of PS4 is duplicated in print-call-stack
-PS4='+ $(echo $BASH_SOURCE | sed "s@^$HOME/@~/@; s@^/home/@~@; s@/.*/@ @")'
+PS4='+ $(echo ${BASH_SOURCE-} | sed "s@^$HOME/@~/@; s@^/home/@~@; s@/.*/@ @")'
 PS4+=' line ${LINENO-}, in ${FUNCNAME-}(): '
 export PS4
 
