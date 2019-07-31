@@ -90,15 +90,6 @@ our_path=${0#-}
 # basename of calling script, we won't change caller's value
 : ${our_name:=${0##*/}}		# user can change before or after source us
 
-# if command in /home/, precede by ~ (yourself) else ~other-user .
-# this logic for the first-half of PS4 is duplicated in print-call-stack
-PS4='+ $(echo $BASH_SOURCE | sed "s@^$HOME/@~/@; s@^/home/@~@; s@/.*/@ @")'
-PS4+=' line ${LINENO-}, in ${FUNCNAME-}(): '
-export PS4
-
-# put $IfRun in front of cmds w/side-effects, so -d means: debug only, simulate
-: ${IfRun=}
-
 readonly true=t True=t
 readonly false= False=
 
@@ -107,6 +98,23 @@ case $our_name in
 	  is_sourced_by_interactive_shell=$true  ;;
     ( * ) is_sourced_by_interactive_shell=$false ;;
 esac
+
+[[ ! $is_sourced_by_interactive_shell ]] &&
+[[     $BASH_VERSION <  4.4 ]] &&
+_abort "bash version >= 4.4 must appear earlier in the PATH than an older bash"
+# 4.3: [[ -v array[i] ]] ; globasciiranges; negative subscripts count backwards
+# 4.4: executing RHS of && or || won't cause shell to fork (lose side-effects)
+
+shopt -s globasciiranges		# so weird locales don't mess us up
+
+# set -x: if command in /home/, precede by ~ (yourself) else ~other-user .
+# this logic for the first-half of PS4 is duplicated in print-call-stack
+PS4='+ $(echo $BASH_SOURCE | sed "s@^$HOME/@~/@; s@^/home/@~@; s@/.*/@ @")'
+PS4+=' line ${LINENO-}, in ${FUNCNAME-}(): '
+export PS4
+
+# put $IfRun in front of cmds w/side-effects, so -d means: debug only, simulate
+: ${IfRun=}
 
 readonly lockpid_busy_exit_status=125
 
@@ -302,18 +310,6 @@ export LC_ALL=C				# server needs nothing special
 export RSYNC_RSH=ssh
 
 umask 022				# caller can change it
-
-# ----------------------------------------------------------------------------
-# make sure shell has needed features (need' GNU sed)
-# ----------------------------------------------------------------------------
-
-[[ ! $is_sourced_by_interactive_shell ]] &&
-[[     $BASH_VERSION <  4.3 ]] &&
-_abort "bash version >= 4.3 must appear earlier in the PATH than an older bash"
-# 4.3: [[ -v array[i] ]] ; globasciiranges; negative subscripts count backwards
-# bash-4.4 is better: executing RHS of && or || won't cause the shell to fork
-
-shopt -s globasciiranges		# so weird locales don't mess us up
 
 ###########################################################################
 # define functions that abstract OS/kernel-specific operations or queries #
@@ -1197,6 +1193,12 @@ declare -A warning_level2tput_args=(
     [warning]="setf 5"
       [error]="setf 4"
       [stale]="setf 3"
+)
+declare -A warning_level2tput_args=(
+         [ok]="setaf 2"
+    [warning]="setaf 5"
+      [error]="setaf 1"
+      [stale]="setaf 3"
 )
 clear_tput_args="sgr0"
 
