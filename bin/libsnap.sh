@@ -943,6 +943,17 @@ header() {
 # miscellaneous functions
 # ----------------------------------------------------------------------------
 
+is-an-FS-device-mounted() {
+	local mount_dir=$1
+
+	set -- $(df --output=target --no-sync $mount_dir 2> /dev/null)
+	[[ ${!#} == $mount_dir ]]
+}
+
+is-an-FS-device-mounted / || _abort "can't find mounted root device"
+
+# ----------------------------------------------------------------------------
+
 set-absolute_dir() {
 	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
 	[[ $# == 1 ]] || abort "Usage: $FUNCNAME filename" ||
