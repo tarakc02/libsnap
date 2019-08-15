@@ -1383,6 +1383,14 @@ function does-file-end-in-newline() {
 
 # ----------------------------------------------------------------------------
 
+merged-continuation-lines() {
+
+	# https://catonmat.net/sed-one-liners-explained-part-one
+	sed -e :a -e '/\\$/N; s/\\\n//; ta' "$@"
+}
+
+# ----------------------------------------------------------------------------
+
 # strip leading tabs (shell script's indent) from $1, and expand remaining tabs
 set-python_script() {
 	[[ $# == 1 ]] || abort-function "takes one arg, got $#" || return 1
