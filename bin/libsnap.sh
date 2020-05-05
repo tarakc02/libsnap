@@ -1009,7 +1009,7 @@ setup-df-data-from-fields() {
 	local fields=$*
 
 	[[ -b $drive || -d $drive ]] ||
-	    abort-function ": first arg must be device or directory"
+	    abort-function ": first arg must be device or directory (or $drive has I/O errors)"
 
 	set -f; set -- ${fields//,/ }; set +f
 	fields=$*
@@ -1208,7 +1208,7 @@ declare -A warning_level2tput_args=(
 declare -A warning_level2tput_args=(
          [ok]="setaf 2"
     [warning]="setaf 5"
-      [error]="setaf 1"
+      [error]="setab 1"			# setaf is less "striking"
       [stale]="setaf 3"
 )
 clear_tput_args="sgr0"
@@ -1226,6 +1226,10 @@ set-warning_string() {
 		tput ${warning_level2tput_args[$level]})}
 	: ${clear_escape_seq=$(tput $clear_tput_args |
 		sed 's/\x1B(B//')}	# need to toss leading ESC ( B
+	[[ ${terminfo_color_bytes-} ]] ||
+	   declare -g -r -i \
+		   terminfo_color_bytes=$(( ${#esc} + ${#clear_escape_seq} ))
+
 	warning_string=$esc$string$clear_escape_seq
 }
 
