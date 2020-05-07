@@ -940,7 +940,7 @@ header() {
 }
 
 # ----------------------------------------------------------------------------
-# funcs to highlight strings
+# funcs to highlight strings & workaround printf's lack of terminfo knowledge
 # ----------------------------------------------------------------------------
 
 # http://www.tldp.org/HOWTO/Bash-Prompt-HOWTO/x405.html
@@ -1001,6 +1001,37 @@ set-warning_string() {
 		   terminfo_color_bytes=$(( ${#esc} + ${#clear_escape_seq} ))
 
 	warning_string=$esc$string$clear_escape_seq
+}
+
+# ----------------------------------------------------------------------------
+
+# "printf %7s" doesn't handle terminfo escape sequence
+# printf strips trailing SPACES; so pad with '_', and replace them later
+set-padded_colorized_string--for-printf() {
+	[[ $# == [23] ]] || abort-function "need 2-3 args"
+	local string=$1 colorized_string=$2
+	declare -i field_width=${3-4} # default: dashboard strings <= 4B wide
+
+	padded_colorized_string=$colorized_string
+	declare -i pad_count=$terminfo_color_bytes
+	(( ${#string} + $pad_count <= $field_width )) ||
+	    pad_count=field_width-${#string}
+	declare -i n
+	for (( n=1; n <= pad_count; n+=1 ))
+	    do	padded_colorized_string+='_'
+	done
+}
+
+# -------------------
+
+fix-padded-colorized-string-vars() {
+
+	local var_name
+	for var_name
+	    do	local value=${!var_name}
+		value=${value//_/ }	# rewrite padding
+		eval "$var_name=\$value"
+	done
 }
 
 # ----------------------------------------------------------------------------
