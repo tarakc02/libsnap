@@ -940,6 +940,70 @@ header() {
 }
 
 # ----------------------------------------------------------------------------
+# funcs to highlight strings
+# ----------------------------------------------------------------------------
+
+# http://www.tldp.org/HOWTO/Bash-Prompt-HOWTO/x405.html
+print-string-colors() {
+
+	header "Coloring from arguments passed to 'tput' command, see man page"
+	local n
+	for n in {1..8}
+	    do	local line=
+		local capname
+		for capname in setab setb setaf setf
+		    do	line+="$(tput $capname $n)$capname $n$(tput sgr0)   "
+		done
+		echo "$line"
+	done
+}
+
+# ---------------------------------
+
+# main script can over-ride the following global variables after source us
+
+# the setb coloring stands out more, but fails under 'watch' on some OSs
+declare -A warning_level2tput_b_args=(
+         [ok]="setb 2"
+    [warning]="setb 6"
+      [error]="setb 4"
+      [stale]="setb 1"
+)
+declare -A warning_level2tput_args=(
+         [ok]="setf 2"
+    [warning]="setf 5"
+      [error]="setf 4"
+      [stale]="setf 3"
+)
+declare -A warning_level2tput_args=(
+         [ok]="setaf 2"
+    [warning]="setaf 5"
+      [error]="setab 1"			# setaf is less "striking"
+      [stale]="setaf 3"
+)
+clear_tput_args="sgr0"
+
+declare -A warning_level2escape_sequence
+
+set-warning_string() {
+	local level=$1; shift; local string=$*
+	is-arg1-in-arg2 $level ${!warning_level2tput_args[*]} ||
+	   abort-function "$level is unknown level"
+
+	[[ -t 1 || ${do_tput-} ]] || { warning_string=$string; return; }
+
+	local esc=${warning_level2escape_sequence[$level]=$(
+		tput ${warning_level2tput_args[$level]})}
+	: ${clear_escape_seq=$(tput $clear_tput_args |
+		sed 's/\x1B(B//')}	# need to toss leading ESC ( B
+	[[ ${terminfo_color_bytes-} ]] ||
+	   declare -g -r -i \
+		   terminfo_color_bytes=$(( ${#esc} + ${#clear_escape_seq} ))
+
+	warning_string=$esc$string$clear_escape_seq
+}
+
+# ----------------------------------------------------------------------------
 # miscellaneous functions
 # ----------------------------------------------------------------------------
 
@@ -1170,68 +1234,6 @@ set-division -2 10 60 ; [[ $division == 0.17 ]] || _abort "10/60 != $division"
 set-division -1 10 60 ; [[ $division == 0.2  ]] || _abort "10/60 != $division"
 set-division -1 59 60 ; [[ $division == 1.0  ]] || _abort "59/60 != $division"
 unset division
-
-# ----------------------------------------------------------------------------
-
-# http://www.tldp.org/HOWTO/Bash-Prompt-HOWTO/x405.html
-print-string-colors() {
-
-	header "Coloring from arguments passed to 'tput' command, see man page"
-	local n
-	for n in {1..8}
-	    do	local line=
-		local capname
-		for capname in setab setb setaf setf
-		    do	line+="$(tput $capname $n)$capname $n$(tput sgr0)   "
-		done
-		echo "$line"
-	done
-}
-
-# ---------------------------------
-
-# main script can over-ride the following global variables after source us
-
-# the setb coloring stands out more, but fails under 'watch' on some OSs
-declare -A warning_level2tput_b_args=(
-         [ok]="setb 2"
-    [warning]="setb 6"
-      [error]="setb 4"
-      [stale]="setb 1"
-)
-declare -A warning_level2tput_args=(
-         [ok]="setf 2"
-    [warning]="setf 5"
-      [error]="setf 4"
-      [stale]="setf 3"
-)
-declare -A warning_level2tput_args=(
-         [ok]="setaf 2"
-    [warning]="setaf 5"
-      [error]="setab 1"			# setaf is less "striking"
-      [stale]="setaf 3"
-)
-clear_tput_args="sgr0"
-
-declare -A warning_level2escape_sequence
-
-set-warning_string() {
-	local level=$1; shift; local string=$*
-	is-arg1-in-arg2 $level ${!warning_level2tput_args[*]} ||
-	   abort-function "$level is unknown level"
-
-	[[ -t 1 || ${do_tput-} ]] || { warning_string=$string; return; }
-
-	local esc=${warning_level2escape_sequence[$level]=$(
-		tput ${warning_level2tput_args[$level]})}
-	: ${clear_escape_seq=$(tput $clear_tput_args |
-		sed 's/\x1B(B//')}	# need to toss leading ESC ( B
-	[[ ${terminfo_color_bytes-} ]] ||
-	   declare -g -r -i \
-		   terminfo_color_bytes=$(( ${#esc} + ${#clear_escape_seq} ))
-
-	warning_string=$esc$string$clear_escape_seq
-}
 
 # ----------------------------------------------------------------------------
 
