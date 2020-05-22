@@ -1113,8 +1113,11 @@ setup-df-data-from-fields() {
 	local drive=$1; shift
 	local fields=$*
 
-	[[ -b $drive || -d $drive ]] ||
-	    abort-function ": first arg must be device or directory (or $drive has I/O errors)"
+	if ! [[ -b $drive || -d $drive ]]
+	    then local ls_msg=$(ls -ld $drive 2>&1)
+		 warn ": first arg must be device or directory:\n   $ls_msg"
+		 return 1
+	fi
 
 	set -f; set -- ${fields//,/ }; set +f
 	fields=$*
