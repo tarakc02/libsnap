@@ -323,7 +323,7 @@ umask 022				# caller can change it
 
 function set-FS_type--from-path() {
 	local  path=$1
-	[[ -e $path ]] || warn "path=$path doesn't exist"; return 1; }
+	[[ -e $path ]] || abort "path='$path' doesn't exist"
 
 	if [[ $(df --no-sync | fgrep -w $path) ]]
 	   then set -- $(df --output=fstype --no-sync $path)
@@ -339,7 +339,6 @@ function set-FS_type--from-path() {
 	fi
 
 	[[ $FS_type ]] || warn "$FUNCNAME: $path has no discernible filesystem"
-	return 0
 }
 
 # ----------------------------------------------------------------------------
@@ -506,11 +505,12 @@ set-OS_release_file-OS_release() {
 
 set-FS_device--from-path() {
 	local  path=$1
-	[[ -e $path ]] || abort "path=$path doesn't exist"
+	[[ -e $path ]] || { warn "path=$path doesn't exist"; return 1; }
 
 	set -- $(df --output=source --no-sync $path 2> /dev/null)
 	[[ $# != 0 ]] || abort-function "couldn't find device for path=$path"
 	FS_device=${!#}
+	return 0
 }
 
 # ----------------------------
