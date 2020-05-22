@@ -899,7 +899,7 @@ RunCmd true &&
 # Generic logging function, with customization globals that caller can set.
 # ----------------------------------------------------------------------------
 
-log_date_format="+%a %m/%d %H:%M:%S"	# caller can change
+: ${log_date_format:="+%a %m/%d %H:%M:%S"} # caller or environment can change
 
 file_for_logging=/dev/null		# append to it; caller can change
 
