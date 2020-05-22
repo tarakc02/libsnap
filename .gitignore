@@ -5,4 +5,5 @@
 .#*
 
 # force user to recompile
+src/lockpid/lockpid.o
 src/lockpid/lockpid

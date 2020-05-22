@@ -276,6 +276,7 @@ readonly homebrew_coreutils_bin=$homebrew_install_dir/coreutils/libexec/gnubin
 [[ -d $homebrew_coreutils_bin ]] ||
    _abort "you need to install a fairly complete set of GNU utilities with Homebrew; if they're already installed, symlink your Homebrew install directory to $homebrew_install_dir"
 
+prepend-to-PATH-var PATH /usr/local/Cellar/util-linux/*/bin # to grab 'setsid'
 prepend-to-PATH-var PATH $homebrew_install_dir/*/libexec/*bin
 
 }
