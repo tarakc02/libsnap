@@ -331,7 +331,8 @@ function set-FS_type--from-path() {
 	   else have-cmd lsblk ||
 		   abort "fix $FUNCNAME for '$path', email to ${coder-Scott}"
 		[[ ! -b $path ]] && local FS_device &&
-		   set-FS_device--from-path $path   && path=$FS_device
+		   set-FS_device--from-path $path   && path=$FS_device ||
+		       abort-function "$path is not accessible"
 		local cmd="lsblk --noheadings --nodeps --output=fstype $path"
 		FS_type=$($cmd)		; [[ $FS_type ]] ||
 		FS_type=$(sudo $cmd)
@@ -358,7 +359,7 @@ function set-inode_size-data_block_size-dir_block_size--from-path() {
 	case $FS_type in
 	   ( ext? )
 		local FS_device
-		set-FS_device--from-path $path
+		set-FS_device--from-path $path || return 1
 		set -- $(sudo tune2fs -l $FS_device |&
 				sed -n  -e 's/^Block size://p' \
 					-e 's/^Inode size://p'
@@ -381,6 +382,7 @@ function set-inode_size-data_block_size-dir_block_size--from-path() {
 		abort "fix $FUNCNAME for '$FS_type', email ${coder-}"
 		;;
 	esac || abort-function "$path (FS_type=$FS_type) returned $status"
+	return $?
 }
 
 # ----------------------------------------------------------------------------
@@ -1130,6 +1132,7 @@ setup-df-data-from-fields() {
 		fi
 		shift
 	done
+	return 0
 }
 
 # ----------------------------------------------------------------------------
