@@ -50,8 +50,8 @@
 ##   have names that start with an action verb like 'is' or 'do' or 'did';
 ##   vars are set by $true (t) or $false (null string), test with: [[ $is_OK ]]
 ##
-## A global variable/function that's only used by the following
-##   variable/function has a name prefixed by '_' (e.g. _chr, defined below);
+## A variable/function that's only used by nearby (or limited scope)
+##   variable/functions has a name prefixed by '_' (e.g. _chr, defined below);
 ## an exception is _set-foo, which can be a lightweight version of set-foo
 ##   (typically with fewer side-effects).
 ## A global variable/function that replaces an external version
@@ -593,7 +593,7 @@ print-call-stack() {
 	[[ ${1-} ==   -s  ]] && { stack_skip=$2+1; shift 2; }
 	[[ ${1-} == [0-9] ]] && { (( Trace_level >= $1 )) || return; shift; }
 
-	header -E "call stack"
+	header -E "call stack $*"	# include optional message
 	# declare -p BASH_ARGV BASH_ARGC	# uncomment to debug
 	local -i depth arg_i argv_i=0 max_args=$max_call_stack_args
 	for depth in ${!FUNCNAME[*]}
