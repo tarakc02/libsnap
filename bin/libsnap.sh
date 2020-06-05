@@ -1012,6 +1012,8 @@ set-padded_colorized_string--for-printf() {
 	local string=$1 colorized_string=$2
 	declare -i field_width=${3-4} # default: dashboard strings <= 4B wide
 
+	[[ -t 1 || ${do_tput-} ]] || { padded_colorized_string=$string; return; }
+
 	padded_colorized_string=$colorized_string
 	declare -i pad_count=$terminfo_color_bytes
 	(( ${#string} + $pad_count <= $field_width )) ||
