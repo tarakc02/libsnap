@@ -1199,7 +1199,7 @@ function set-is_FIFO() {
 # ---------------------------------
 
 # pop word off left side of named list; return non-0 if list was empty
-function set-popped_word--from-list() {
+function set-popped_word-is_last_word--from-list() {
 	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
 	set-is_FIFO ${1-} && shift
 	[[ $# == 1 ]] || abort-function ": pass name of list"
@@ -1207,6 +1207,7 @@ function set-popped_word--from-list() {
 	local  list_name=$1
 	[[ -v $list_name ]] || abort-function "$1: '$1' is not set"
 	set -f; set -- ${!list_name}; set +f # split words apart
+	[[ $# == 1 ]] && is_last_word=$true || is_last_word=$false
 	[[ $# == 0 ]] && popped_word= ||
 	if [[ $is_FIFO ]]
 	   then popped_word=${1-}; shift # pop left-most word
@@ -1219,24 +1220,28 @@ function set-popped_word--from-list() {
 
 _numbers="1 2 3"
   _input=$_numbers
- _output=
-while set-popped_word--from-list _input
-   do	_output+=" $popped_word"
+  _words=
+  _flags=
+while set-popped_word-is_last_word--from-list _input
+   do	_words+=" $popped_word"
+	_flags+=" $is_last_word"
 done
-_output=${_output# }
-[[ ! $_input && $_output == "$_numbers" ]] ||
-    _abort "set-popped_word--from-list failure: _input='$_input' _output='$_output'"
+_words=${_words# }
+_flags=${_flags// /}
+[[ ! $_input && $_words == "$_numbers" ]] ||
+    _abort "set-popped_word-is_last_word--from-list failure: _input='$_input' _words='$_words'"
+[[ $_flags == $true ]] || _abort "is_last_word should be set once: $_flags"
 
   _input=$_numbers
- _output=
-while set-popped_word--from-list -l _input
-   do	_output="$popped_word $_output"
+  _words=
+while set-popped_word-is_last_word--from-list -l _input
+   do	_words="$popped_word $_words"
 done
-_output=${_output% }
-[[ ! $_input && $_output == "$_numbers" ]] ||
-    _abort "set-popped_word--from-list failure: _input='$_input' _output='$_output'"
+ _words=${_words% }
+[[ ! $_input && $_words == "$_numbers" ]] ||
+    _abort "set-popped_word-is_last_word--from-list failure: _input='$_input' _words='$_words'"
 
-unset _numbers _input _output popped_word
+unset _numbers _input _words popped_word is_last_word
 
 # ----------------------------------------------------------------------------
 
