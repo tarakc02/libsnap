@@ -593,7 +593,9 @@ print-call-stack() {
 	[[ ${1-} ==   -s  ]] && { stack_skip=$2+1; shift 2; }
 	[[ ${1-} == [0-9] ]] && { (( Trace_level >= $1 )) || return; shift; }
 
-	header -E "call stack $*"	# include optional message
+	local  _date_time=$(date "$log_date_format")
+	_date_time=${_date_time#* }
+	header -E "$_date_time call stack $*"	# include optional message
 	# declare -p BASH_ARGV BASH_ARGC	# uncomment to debug
 	local -i depth arg_i argv_i=0 max_args=$max_call_stack_args
 	for depth in ${!FUNCNAME[*]}
