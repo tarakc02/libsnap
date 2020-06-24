@@ -1228,6 +1228,7 @@ while set-popped_word-is_last_word--from-list _input
    do	_words+=" $popped_word"
 	_flags+=" $is_last_word"
 done
+[[ $_flags == *" $true" ]] || _abort "is_last_word should be set last: $_flags"
 _words=${_words# }
 _flags=${_flags// /}
 [[ ! $_input && $_words == "$_numbers" ]] ||
