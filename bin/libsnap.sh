@@ -30,12 +30,12 @@
 # ----------------------------------------------------------------------------
 
 ##############################################################################
-## There are three kinds of syntax (not always followed) for routines:
+## There are three kinds of syntax (not always followed) for functions:
 ##    function func()	# returns status, takes arguments
 ##    function func	# returns status, doesn't take arguments
 ##    procedure()	# doesn't return status (exits on fatal error)
 ## Function names are words separated by '-' (not '_'), to facilitate ...
-## There are four kinds of naming for routines that set global variables:
+## There are four kinds of naming for functions that set global variables:
 ##    set-foo		# sets foo; 30x faster than foo=$(func), & side-effects
 ##    set-foo-foo_bar	# sets variable foo and also sets variable foo_bar
 ##    set-foo--from-xxx	# sets variable foo ... using method/variable xxx
@@ -129,7 +129,7 @@ rsync_temp_file_suffix="$_chr$_chr$_chr$_chr$_chr$_chr"; unset _chr
 #############################################################################
 
 # ----------------------------------------------------------------------------
-# routines to augment path-style variables
+# functions to augment path-style variables
 # ----------------------------------------------------------------------------
 
 # return non-0 if any of the passed variable names have not been set
