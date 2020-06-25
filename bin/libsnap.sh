@@ -1438,6 +1438,19 @@ merged-continuation-lines() {
 
 # ----------------------------------------------------------------------------
 
+set-cat_cmd() {
+	local filename=$1
+
+	case ${filename##*.} in
+	    ( bz2 ) cat_cmd=bzcat ;;
+	    ( gz  ) cat_cmd=zcat  ;;
+	    ( xz  ) cat_cmd=xzcat ;;
+	    ( *   ) cat_cmd=cat   ;;
+	esac
+}
+
+# ----------------------------------------------------------------------------
+
 # strip leading tabs (shell script's indent) from $1, and expand remaining tabs
 set-python_script() {
 	[[ $# == 1 ]] || abort-function "takes one arg, got $#" || return 1
