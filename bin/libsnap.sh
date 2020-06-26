@@ -1053,7 +1053,7 @@ is-an-FS-device-mounted / || _abort "can't find mounted root device"
 
 # ----------------------------------------------------------------------------
 
-set-absolute_dir() {
+function set-absolute_dir() {
 	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
 	[[ $# == 1 ]] || abort "Usage: $FUNCNAME filename" ||
 	    { $xtrace; return 1; }
@@ -1062,11 +1062,12 @@ set-absolute_dir() {
 	[[ -d "$name" ]] || name=$(dirname "$name")
 	absolute_dir=$(cd "$name" && /bin/pwd) # simpler than readlink(s)
 	$xtrace
+	[[ $absolute_dir && -d $absolute_dir ]]
 }
 
 # -------------------------------------------------------
 
-set-absolute_path() {
+function set-absolute_path() {
 	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
 	[[ $# == 1 ]] || abort "Usage: $FUNCNAME filename" ||
 	    { $xtrace; return 1; }
@@ -1081,6 +1082,7 @@ set-absolute_path() {
 	   else     absolute_path=$absolute_dir/$(basename "$name")
 	fi
 	$xtrace
+	[[ -e $absolute_path ]]
 }
 
 # ----------------------------------------------------------------------------
