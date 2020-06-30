@@ -40,8 +40,8 @@
 ##    set-foo-foo_bar	# sets variable foo and also sets variable foo_bar
 ##    set-foo--from-xxx	# sets variable foo ... using method/variable xxx
 ##    setup-foo-vars	# sets numerous variables related to foo
-## if set- is replaced by update- or {ap,pre}pend-, the (initialized)
-##    variable(s) are updated rather than set.
+## if "set-" is replaced by "update-" or "append-to-" or "prepend-to-",
+##    the (initialized) variable(s) are updated rather than set.
 ##
 ## An array (indexed or associative) that maps a_key to a_value is named:
 ##    a_key2a_value
