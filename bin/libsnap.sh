@@ -604,6 +604,7 @@ declare -i max_call_stack_args=6
 shopt -s extdebug			# enable BASH_ARGV and BASH_ARGC
 
 print-call-stack() {
+	set +x
 	declare -i stack_skip=1
 	[[ ${1-} ==   -s  ]] && { stack_skip=$2+1; shift 2; }
 	[[ ${1-} == [0-9] ]] && { (( Trace_level >= $1 )) || return; shift; }
@@ -1433,8 +1434,10 @@ function set-backup_suffix--for-emacs() {
 
 # this is for 'sed --in-place[=SUFFIX]' or 'perl -i[extension]'
 set-backup_suffix() {
+	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
 
 	set-backup_suffix--for-emacs "$@" || backup_suffix='~'
+	$xtrace
 }
 
 # ----------------------------------------------------------------------------
