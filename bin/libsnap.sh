@@ -165,8 +165,9 @@ is-var NoTeXiSt && _abort "don't have NoTeXiSt"
 append-to-PATH-var() {
 	local do_reverse_dirs=
 	[[ $1 == -r ]] && { do_reverse_dirs=1; shift; }
-	local   pathname=$1; shift
-	[[ -v $pathname ]] || abort-function "$1 ... : '$1' is not set"
+	local  pathname=$1; shift
+	[[ -v $pathname ]] ||
+	    abort-function "$pathname $1 ... : '$pathname' is not set"
 	local path=${!pathname}
 
 	local dirs=$* dir
@@ -195,8 +196,9 @@ append-to-PATH-var() {
 prepend-to-PATH-var() {
 	local do_reverse_dirs=
 	[[ $1 == -r ]] && { do_reverse_dirs=1; shift; }
-	local   pathname=$1; shift
-	[[ -v $pathname ]] || abort-function "$1 ... : '$1' is not set"
+	local  pathname=$1; shift
+	[[ -v $pathname ]] ||
+	    abort-function "$pathname $1 ... : '$pathname' is not set"
 	local path=${!pathname}
 
 	local dirs=$* dir
