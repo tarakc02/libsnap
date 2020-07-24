@@ -638,7 +638,7 @@ print-call-stack() {
 		echo -n "$src line ${BASH_LINENO[depth-1]}: "
 		echo    "${FUNCNAME[depth]} ${args% }"
 	done
-	echo >&2
+	echo # >&2			# should this go to stderr??
 }
 
 # --------------------------------------------
