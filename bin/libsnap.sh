@@ -698,7 +698,7 @@ abort-function() {
 	local opts= ; while [[ ${1-} == -* ]] ; do opts+=" $1"; shift; done
 
 	[[ $1 == ':'* ]] && local msg=$* || local msg=" $*"
-	abort -$stack_skip $opts ${FUNCNAME[$stack_skip]}$msg
+	abort -$stack_skip $opts "${FUNCNAME[$stack_skip]}$msg"
 }
 readonly -f abort-function
 
