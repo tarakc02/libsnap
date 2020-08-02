@@ -281,6 +281,8 @@ prepend-to-PATH-var PATH /usr/local/bin /usr/local/sbin
 
 [[ $OSTYPE == darwin* ]] && readonly is_darwin=$true || readonly is_darwin=
 
+[[ $OSTYPE == *bsd ]] && readonly is_BSD=$true || readonly is_BSD=$is_darwin
+
 [[ $is_darwin ]] && {
 
 readonly homebrew_install_dir=/usr/local/opt
