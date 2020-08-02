@@ -99,6 +99,7 @@ our_path=${0#-}
 
 # basename of calling script, we won't change caller's value
 : ${our_name:=${0##*/}}		# user can change before or after source us
+: ${our_name:=${our_name%.~*~}}
 
 readonly true=t True=t
 readonly false= False=
@@ -638,7 +639,7 @@ print-call-stack() {
 		echo -n "$src line ${BASH_LINENO[depth-1]}: "
 		echo    "${FUNCNAME[depth]} ${args% }"
 	done
-	echo # >&2			# should this go to stderr??
+	echo
 }
 
 # --------------------------------------------
@@ -1058,6 +1059,11 @@ fix-padded-colorized-string-vars() {
 
 # ----------------------------------------------------------------------------
 # miscellaneous functions
+# ----------------------------------------------------------------------------
+
+is-older() { [[ -e $1 && -e $2 && $1 -ot $2 ]] ; }
+is-newer() { [[ -e $1 && -e $2 && $1 -nt $2 ]] ; }
+
 # ----------------------------------------------------------------------------
 
 is-an-FS-device-mounted() {
