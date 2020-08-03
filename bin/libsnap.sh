@@ -143,13 +143,27 @@ rsync_temp_file_suffix="$_chr$_chr$_chr$_chr$_chr$_chr"; unset _chr
 # functions to augment path-style variables
 # ----------------------------------------------------------------------------
 
-# return non-0 if any of the passed variable names have not been set
-function is-set() { [[ -v $1 ]] ; }
+# return 0 if the passed variable name has been set
+function is-set() {
+	[[ -v $1 ]] && return 0
+	eval "local keys=\${!$1[*]}"
+	[[ $keys ]]
+}
 
 _foo=
+_arr[1]=one
+declare -A _map=([A]=1)
 is-set _foo || _abort "is-set _foo"
+is-set _arr || _abort "is-set _arr"
+is-set _map || _abort "is-set _map"
+
+declare -a _Arr
+declare -A _Map
 is-set _bar && _abort "is-set _bar"
-unset _foo
+is-set _Arr && _abort "is-set _Arr"
+is-set _Map && _abort "is-set _Map"
+
+unset _foo _arr _map _Arr _Map
 
 # ---------------------------------
 
