@@ -98,8 +98,11 @@ our_path=${0#-}
 [[ $our_path == */libsnap    ]] && set -u # for unit tests
 
 # basename of calling script, we won't change caller's value
-: ${our_name:=${0##*/}}		# user can change before or after source us
-: ${our_name:=${our_name%.~*~}}
+if [[ ! ${our_name-} ]]
+   then our_name=${0##*/}
+	our_name=${our_name%.~*~}
+	our_name=${our_name%%\~}
+fi				   # not marked readonly, caller can change it
 
 readonly true=t True=t
 readonly false= False=
