@@ -313,6 +313,18 @@ prepend-to-PATH-var PATH $homebrew_install_dir/*/libexec/*bin
 
 }
 
+# ps_opt_H: (h)ierarchy (forest); ps_opt_f: ASCII-art (f)orest
+# ps_opt_h: no (h)eader; ps_opt_g: all with PGID, i.e. process (g)roup ID
+setup-ps-options() {
+
+	# set variables that map Linux's 'ps' options to random OS's 'ps' opts
+	case $OSTYPE,$is_BSD in
+	    ( linux* ) ps_opt_H=-H  ps_opt_f=f   ps_opt_h=h  ps_opt_g=-g ;;
+	    (*,$true ) ps_opt_H=-d  ps_opt_f=-d  ps_opt_h=   ps_opt_g=-G ;;
+	    (   *    ) ps_opt_H=    ps_opt_f=    ps_opt_h=   ps_opt_g=-G ;;
+	esac; readonly ps_opt_H     ps_opt_f	 ps_opt_h    ps_opt_g
+}
+
 #############################################################################
 #############################################################################
 ### We now have a PATH that provides priority access to full GNU utilities.
