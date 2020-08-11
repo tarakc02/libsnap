@@ -1059,12 +1059,16 @@ set-warning_string() {
 
 # ----------------------------------------------------------------------------
 
+default_padded_colorized_string_field_width=
+
 # "printf %7s" doesn't handle terminfo escape sequence
 # printf strips trailing SPACES; so pad with '_', and replace them later
 set-padded_colorized_string--for-printf() {
 	[[ $# == [23] ]] || abort-function "need 2-3 args"
 	local string=$1 colorized_string=$2
-	declare -i field_width=${3-4} # default: dashboard strings <= 4B wide
+	local  default_width=$default_padded_colorized_string_field_width
+	local -i field_width=${3:-$default_width}
+	(( field_width > 0 )) || abort-function ": need \$3 as counting number"
 
 	[[ -t 1 || ${do_tput-} ]] || { padded_colorized_string=$string; return; }
 
