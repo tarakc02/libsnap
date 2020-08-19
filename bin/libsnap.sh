@@ -69,9 +69,9 @@
 
 _libsnap_exit() {
 
-	if [[ $(type -t exit_normally) == function ]]
-	   then exit_normally "$@"
-	   else        exit "$@"
+	if [[ $(type -t exit-normally) == function ]]
+	   then exit-normally "$@"
+	   else		 exit "$@"
 	fi
 }
 
