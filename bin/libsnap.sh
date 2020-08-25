@@ -713,9 +713,9 @@ abort() {
 
 	if [[ $master_PID != $BASHPID ]] # are we in a sub-shell?
 	   then trap '' TERM		 # don't kill ourself when ...
-		/bin/kill -15 -$master_PID # kill our parent and its children
+		kill -TERM -$master_PID	 # kill our parent and its children
 		sleep 1
-		/bin/kill  -9 -$master_PID
+		kill -KILL -$master_PID
 	fi
 	_libsnap_exit 1
 }
