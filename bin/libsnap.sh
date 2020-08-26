@@ -657,7 +657,7 @@ print-call-stack() {
 		local src=$(echo ${BASH_SOURCE[depth]} |
 				sed "s@^$HOME/@~/@; s@^/home/@~@; s@/.*/@ @")
 		local args=
-		local -i argc=${BASH_ARGC[depth]} number_args=0
+		local -i argc=${BASH_ARGC[depth]-0} number_args=0
 		for (( arg_i=argv_i+argc-1; arg_i >= argv_i; arg_i-- ))
 		    do	local arg=${BASH_ARGV[arg_i]}
 			[[ $arg == *[\	\ ]* ]] && arg="'$arg'"
