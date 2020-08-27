@@ -1417,6 +1417,19 @@ function pegrep() { grep --perl-regexp "$@"; }
 # create and rewrite files
 # ----------------------------------------------------------------------------
 
+# replace a file's contents atomically
+echo_to_file() {
+	[[ $1 == -p ]] && { shift; local do_perms=$true; } || local do_perms=
+	local string=$1 filename=$2
+
+	local new_filename="$filename.$BASHPID"
+	echo "$string" > "$new_filename" || abort-function $new_filename
+	[[ $do_perms ]] && copy-file-perms "$filename" "$new_filename"
+	mv "$new_filename" "$filename"
+}
+
+# ----------------------------------------------------------------------------
+
 copy-file-perms() {
 	[[ $1 == -D ]] && local mkdir_opt=-p
 	[[ $1 == -d ]] && local mkdir_opt=
