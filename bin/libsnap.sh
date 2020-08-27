@@ -808,16 +808,16 @@ is-integer  1.3 && _abort  "1.3 is not an integer"
 # ----------------------
 
 set-var_value--from-var_name() {
-	local var_name=$1
+	local _var_name_=$1
 
-	if is-set $var_name
-	   then var_value=${!var_name}
+	if is-set $_var_name_
+	   then var_value=${!_var_name_}
 	   else var_value='<unset>'
 	fi
 
 	[[ $var_value == *[\ \	]* ]] && var_value="'$var_value'"
 
-	is-integer-variable $var_name &&
+	is-integer-variable $_var_name_ &&
 	var_value="$var_value	# integer variable"
 }
 
@@ -830,11 +830,11 @@ echoEV() {
 	[[ $1 =~ ^-[0-9]+$ ]] && { stack_frame_to_show=${1#-}+1; shift; }
 	assert-not-option "${1-}"
 
-	local var_name var_value
-	for var_name
-	   do	set-var_value--from-var_name $var_name
+	local _var_name_ var_value
+	for _var_name_
+	   do	set-var_value--from-var_name $_var_name_
 
-		echoE -$stack_frame_to_show "$var_name=$var_value"
+		echoE -$stack_frame_to_show "$_var_name_=$var_value"
 	done >&2
 	$xtrace
 }
