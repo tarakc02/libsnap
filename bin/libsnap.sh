@@ -1315,6 +1315,47 @@ unset _numbers _input _words popped_word is_last_word
 
 # ----------------------------------------------------------------------------
 
+set-integer_product() {
+	[[ $# == 2 && ( ($1 =~ ^-?[0-9]*(\.[0-9]*)*$ && $2 =~ ^-?[0-9]+$) ||
+			($2 =~ ^-?[0-9]*(\.[0-9]*)*$ && $1 =~ ^-?[0-9]+$) ) ]] ||
+	    abort-function decimal integer
+	if [[ $1 == *.* ]]
+	   then local decimal=$1 integer=$2
+	   else local decimal=$2 integer=$1
+	fi
+
+	if [[ $decimal != *.?* ]]	# not a decimal??
+	   then integer_product=$(( ${decimal%.} * $integer ))
+		return
+	fi
+
+	local signs=
+	[[ $decimal == -* ]] && decimal=${decimal#-} signs+=-
+	[[ $integer == -* ]] && integer=${integer#-} signs+=-
+
+	local integral=${decimal%.*} fraction=${decimal#*.}
+	  [[ $integral ]] || integral=0
+	local -i scale_factor=10**${#fraction}
+	local -i scaled_decimal=$(( $integral*$scale_factor + $fraction ))
+	integer_product=$(( ( $scaled_decimal*$integer + $scale_factor/2 ) /
+			    $scale_factor ))
+	[[ $signs == - ]] && integer_product=-$integer_product
+}
+
+# test secs to msecs
+set-integer_product 1000  2.5 ; [[ $integer_product == 2500 ]] || _abort 2.5
+set-integer_product 2.5  1000 ; [[ $integer_product == 2500 ]] || _abort 2.5
+set-integer_product 2    1000 ; [[ $integer_product == 2000 ]] || _abort 2
+set-integer_product 2.   1000 ; [[ $integer_product == 2000 ]] || _abort 2.
+set-integer_product  .1  1000 ; [[ $integer_product ==  100 ]] || _abort  .1
+set-integer_product -.1  1000 ; [[ $integer_product == -100 ]] || _abort -.1
+set-integer_product -.1 -1000 ; [[ $integer_product ==  100 ]] || _abort -.1 -
+set-integer_product 0.1 -1000 ; [[ $integer_product == -100 ]] || _abort 0.1 -
+set-integer_product 0.01 1000 ; [[ $integer_product ==   10 ]] || _abort 0.01
+unset integer_product
+
+# ----------------------------------------------------------------------------
+
 set-division() {
 	[[ $# == 3 && $1 =~ ^-?[1-9]$ && $2$3 =~ ^[-0-9]+$ ]] || # -0 is hard
 	    abort-function \
