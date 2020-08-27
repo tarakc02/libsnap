@@ -1420,6 +1420,7 @@ function pegrep() { grep --perl-regexp "$@"; }
 # replace a file's contents atomically
 echo_to_file() {
 	[[ $1 == -p ]] && { shift; local do_perms=$true; } || local do_perms=
+	[[ $# ==  2 ]] || abort-function string filename
 	local string=$1 filename=$2
 
 	local new_filename="$filename.$BASHPID"
