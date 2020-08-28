@@ -1115,7 +1115,7 @@ strip-trailing-whitespace _var_1 _var_2
 [[ $_var_2 == '1 2 3' ]] || _abort _var_2
 
 # ----------------------------------------------------------------------------
-# miscellaneous functions
+# working with files and dirs (and processes)
 # ----------------------------------------------------------------------------
 
 is-older() { [[ -e $1 && -e $2 && $1 -ot $2 ]] ; }
@@ -1252,6 +1252,8 @@ function is-process-alive() {
 is-process-alive $$ $BASHPID || _abort "is-process-alive failure"
 
 # ----------------------------------------------------------------------------
+# working with lists
+# ----------------------------------------------------------------------------
 
 set-reversed_words() {
 
@@ -1334,6 +1336,8 @@ done
 unset _numbers _input _words popped_word is_last_word
 
 # ----------------------------------------------------------------------------
+# arithmetic functions
+# ----------------------------------------------------------------------------
 
 set-product() {
 	[[ $# == 2 && ( ($1 =~ ^-?[0-9]*(\.[0-9]*)*$ && $2 =~ ^-?[0-9]+$) ||
@@ -1404,6 +1408,8 @@ set-division -1 10 60 ; [[ $division == 0.2  ]] || _abort "10/60 != $division"
 set-division -1 59 60 ; [[ $division == 1.0  ]] || _abort "59/60 != $division"
 unset division
 
+# ----------------------------------------------------------------------------
+# miscellaneous functions
 # ----------------------------------------------------------------------------
 
 function confirm() {
