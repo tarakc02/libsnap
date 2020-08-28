@@ -1339,6 +1339,22 @@ unset _numbers _input _words popped_word is_last_word
 # arithmetic functions
 # ----------------------------------------------------------------------------
 
+set-average() {
+	[[ $# == 1 && ! $1 =~ ^[0-9]+$ && -s $1 ]] && set -- $(< $1)
+
+	local values=$*
+	local -i count=$#
+	average=$(( ( ${values// /+} + ($count/2) ) / $count ))
+}
+
+declare -i average
+set-average 1 2 3; [[ $average == 2 ]] || _abort avg-2
+set-average 1 2 9; [[ $average == 4 ]] || _abort avg-4
+set-average 1 4 9; [[ $average == 5 ]] || _abort avg-5
+unset average
+
+# ----------------------------------------------------------------------------
+
 set-product() {
 	[[ $# == 2 && ( ($1 =~ ^-?[0-9]*(\.[0-9]*)*$ && $2 =~ ^-?[0-9]+$) ||
 			($2 =~ ^-?[0-9]*(\.[0-9]*)*$ && $1 =~ ^-?[0-9]+$) ) ]] ||
@@ -1366,6 +1382,7 @@ set-product() {
 	[[ $signs == - ]] && product=-$product
 }
 
+declare -i product
 # test secs to msecs
 set-product 1000  2.5 ; [[ $product == 2500 ]] || _abort 2.5
 set-product 2.5  1000 ; [[ $product == 2500 ]] || _abort 2.5
