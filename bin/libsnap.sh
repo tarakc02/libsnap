@@ -1340,10 +1340,12 @@ unset _numbers _input _words popped_word is_last_word
 # ----------------------------------------------------------------------------
 
 set-average() {
-	[[ $# == 1 && ! $1 =~ ^[0-9]+$ && -s $1 ]] && set -- $(< $1)
+	[[ $# == 1 && ! $1 =~ ^[0-9]+$ && ( -e $1 || $1 == */* ) ]] && 
+	    set -- $(< $1)
 
 	local values=$*
 	local -i count=$#
+	[[ $count != 0 ]] || abort-function ": no numbers to everage"
 	average=$(( ( ${values// /+} + ($count/2) ) / $count ))
 }
 
