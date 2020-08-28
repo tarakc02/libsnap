@@ -1095,6 +1095,26 @@ fix-padded-colorized-string-vars() {
 }
 
 # ----------------------------------------------------------------------------
+
+strip-trailing-whitespace() {
+
+	local var_name
+	for var_name
+	    do	local value=${!var_name}
+		[[ $value =~ [\ \	]*$ ]]
+		local whitespace=${BASH_REMATCH[0]}
+		eval "$var_name=\${value%\$whitespace}"
+	done
+}
+
+_var_1='1 2 3 '
+_var_2='1 2 3	   		 '
+[[ $_var_1 != '1 2 3' ]] || _abort _var_1_
+strip-trailing-whitespace _var_1 _var_2
+[[ $_var_1 == '1 2 3' ]] || _abort _var_1
+[[ $_var_2 == '1 2 3' ]] || _abort _var_2
+
+# ----------------------------------------------------------------------------
 # miscellaneous functions
 # ----------------------------------------------------------------------------
 
