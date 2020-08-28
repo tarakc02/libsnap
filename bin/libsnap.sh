@@ -1505,6 +1505,7 @@ function pegrep() { grep --perl-regexp "$@"; }
 
 # replace a file's contents atomically
 echo_to_file() {
+	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
 	[[ $1 == -p ]] && { shift; local do_perms=$true; } || local do_perms=
 	[[ $# ==  2 ]] || abort-function string filename
 	local string=$1 filename=$2
@@ -1513,6 +1514,7 @@ echo_to_file() {
 	echo "$string" > "$new_filename" || abort-function $new_filename
 	[[ $do_perms ]] && copy-file-perms "$filename" "$new_filename"
 	mv "$new_filename" "$filename"
+	$xtrace
 }
 
 # ----------------------------------------------------------------------------
