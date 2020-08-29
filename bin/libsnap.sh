@@ -136,6 +136,8 @@ _chr='[a-zA-Z0-9]'
 rsync_temp_file_suffix="$_chr$_chr$_chr$_chr$_chr$_chr"; unset _chr
 					  readonly rsync_temp_file_suffix
 
+readonly dev_null=/dev/null
+
 #############################################################################
 #############################################################################
 ### First, create PATH that provides priority access to full GNU utilities.
@@ -239,6 +241,20 @@ prepend-to-PATH-var() {
 	eval "$pathname=\$path"
 }
 
+# -----------------------------------------------------------------------------
+
+if ! is-set BASH_LOADABLES_PATH
+   then export BASH_LOADABLES_PATH=
+	append-to-PATH-var BASH_LOADABLES_PATH /usr/local/lib/bash /usr/lib/bash
+fi
+
+bash_builtins="basename dirname head id mkdir realpath rmdir rm sleep tee uname"
+
+[[ $BASH_LOADABLES_PATH ]] &&
+for _builtin in $bash_builtins
+    do	enable -f $_builtin $_builtin
+done 2> $dev_null			# rm is only in bash-5.0, ignore error
+
 # ----------------------------------------------------------------------------
 # functions to make sure needed utilities are in the PATH
 # ----------------------------------------------------------------------------
@@ -330,8 +346,6 @@ setup-ps-options() {
 ### We now have a PATH that provides priority access to full GNU utilities.
 #############################################################################
 #############################################################################
-
-readonly dev_null=/dev/null
 
 # ----------------------------------------------------------------------------
 # provide a directory for temporary files that's safe from symlink attacks
@@ -1340,7 +1354,7 @@ done
 unset _numbers _input _words popped_word is_last_word
 
 # ----------------------------------------------------------------------------
-# arithmetic functions
+# (decimal) arithmetic functions
 # ----------------------------------------------------------------------------
 
 set-average() {
