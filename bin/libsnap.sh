@@ -248,7 +248,8 @@ if ! is-set BASH_LOADABLES_PATH
 	append-to-PATH-var BASH_LOADABLES_PATH /usr/local/lib/bash /usr/lib/bash
 fi
 
-bash_builtins="basename dirname head id mkdir realpath rmdir rm sleep tee uname"
+# the 'mkdir' builtin is buggy in bash-4.4.20
+bash_builtins="basename dirname head id realpath rmdir rm sleep tee uname"
 
 [[ $BASH_LOADABLES_PATH ]] &&
 for _builtin in $bash_builtins
