@@ -172,7 +172,7 @@ unset _foo _arr _map _Arr _Map
 
 # ---------------------------------
 
-function is-var() { declare -p $1 &> /dev/null ; }
+function is-var() { declare -p $1 &> $dev_null ; }
 
 function is-variable() { is-var "$@"; }
 
@@ -264,7 +264,7 @@ function have-cmd() {
 
 	local _cmd
 	for _cmd
-	   do	type -t $_cmd > /dev/null && return 0
+	   do	type -t $_cmd > $dev_null && return 0
 	done
 	return 1
 }
@@ -568,7 +568,7 @@ set-FS_device--from-path() {
 	local  path=$1
 	[[ -e $path ]] || { warn "path=$path doesn't exist"; return 1; }
 
-	set -- $(df --output=source --no-sync $path 2> /dev/null)
+	set -- $(df --output=source --no-sync $path 2> $dev_null)
 	[[ $# != 0 ]] || abort-function "couldn't find device for path=$path"
 	FS_device=${!#}
 	return 0
@@ -581,7 +581,7 @@ function set-mount_dir--from-FS-device() {
 	local  dev=$1
 	[[ -b $dev ]] || abort "$dev is not a device"
 
-	set -- $(df --output=target --no-sync $dev 2> /dev/null)
+	set -- $(df --output=target --no-sync $dev 2> $dev_null)
 	[[ $# == 0 ]] && mount_dir= || mount_dir=${!#}
 	[[ ! $mount_dir || $mount_dir == / || $mount_dir == /dev ]] ||
 	   return 0
@@ -723,7 +723,7 @@ abort() {
 	print-call-stack -s $stack_skip >&2
 
 	[[ ! $is_recursion ]] &&
-	   log "$(master_PID=$BASHPID abort -r $* 2>&1)" > /dev/null
+	   log "$(master_PID=$BASHPID abort -r $* 2>&1)" > $dev_null
 
 	if [[ $master_PID != $BASHPID ]] # are we in a sub-shell?
 	   then trap '' TERM		 # don't kill ourself when ...
@@ -963,7 +963,7 @@ RunCmd true &&
 
 : ${log_date_format:="+%a %m/%d %H:%M:%S"} # caller or environment can change
 
-file_for_logging=/dev/null		# append to it; caller can change
+file_for_logging=$dev_null		# append to it; caller can change
 
 declare -i log_level=0			# set by getopts or configure.sh
 
@@ -981,7 +981,7 @@ function log() {
 	[[ -e $file_for_logging ]] || $sudo mkdir -p ${file_for_logging%/*}
 
 	if [[ $IfRun ]]
-	   then local _file_for_logging=/dev/null
+	   then local _file_for_logging=$dev_null
 	   else local _file_for_logging=$file_for_logging
 	fi
 	local  _date_time=$(date "$log_date_format")
@@ -1140,7 +1140,7 @@ is-newer() { [[ -e $1 && -e $2 && $1 -nt $2 ]] ; }
 is-an-FS-device-mounted() {
 	local mount_dir=$1
 
-	set -- $(df --output=target --no-sync $mount_dir 2> /dev/null)
+	set -- $(df --output=target --no-sync $mount_dir 2> $dev_null)
 	[[ ${!#} == $mount_dir ]]
 }
 
@@ -1261,7 +1261,7 @@ function is-process-alive() {
 	    do	PID=${PID#-}		# in case passed PGID indicator
 		if have-proc
 		   then [[ -d /proc/$PID ]]  || return 1
-		   else ps $PID &> /dev/null || return 1
+		   else ps $PID &> $dev_null || return 1
 		fi
 	done
 	return 0
