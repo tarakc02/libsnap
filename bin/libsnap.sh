@@ -248,7 +248,7 @@ if ! is-set BASH_LOADABLES_PATH
 	append-to-PATH-var BASH_LOADABLES_PATH /usr/local/lib/bash /usr/lib/bash
 fi
 
-# the 'mkdir' builtin is buggy in bash-4.4.20
+# 'mkdir' buggy in bash-4.4.20: mkdir -p fails when exists & writable parent
 bash_builtins="basename dirname head id realpath rmdir rm sleep tee uname"
 
 [[ $BASH_LOADABLES_PATH ]] &&
