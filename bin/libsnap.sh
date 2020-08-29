@@ -248,7 +248,7 @@ prepend-to-PATH-var() {
 	eval "$pathname=\$path"
 }
 
-# -----------------------------------------------------------------------------
+# ----------------------------------------------------------------------------
 
 if ! is-set BASH_LOADABLES_PATH
    then export BASH_LOADABLES_PATH=
@@ -1405,6 +1405,7 @@ unset average
 
 # this is 5x faster than echo'ing into awk's printf
 set-product() {
+	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
 	[[ $# == 2 && ( ($1 =~ ^-?[0-9]*(\.[0-9]*)*$ && $2 =~ ^-?[0-9]+$) ||
 			($2 =~ ^-?[0-9]*(\.[0-9]*)*$ && $1 =~ ^-?[0-9]+$) ) ]] ||
 	    abort-function decimal integer
@@ -1415,7 +1416,7 @@ set-product() {
 
 	if [[ $decimal != *.?* ]]	# not a decimal??
 	   then product=$(( ${decimal%.} * $integer ))
-		return
+		$xtrace; return
 	fi
 
 	local signs=
@@ -1429,6 +1430,7 @@ set-product() {
 	product=$(( ( $scaled_decimal*$integer + $scale_factor/2 ) /
 		    $scale_factor ))
 	[[ $signs == - ]] && product=-$product
+	$xtrace
 }
 
 [[ $_do_run_unit_tests ]] && {
@@ -1450,6 +1452,7 @@ unset product
 
 # this is 5x faster than echo'ing into awk's printf
 set-division() {
+	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
 	[[ $# == 3 && $1 =~ ^-?[1-9]$ && $2$3 =~ ^[-0-9]+$ ]] || # -0 is hard
 	    abort-function \
 		 decimal-digits=${1-}  numerator=${2-} denominator=${3-} ${4-}
@@ -1469,6 +1472,7 @@ set-division() {
 	fi
 
 	printf -v division "$format" $whole_number $fraction
+	$xtrace
 }
 
 [[ $_do_run_unit_tests ]] && {
@@ -1481,6 +1485,28 @@ unset division
 
 # ----------------------------------------------------------------------------
 # miscellaneous functions
+# ----------------------------------------------------------------------------
+
+# like usleep, but takes milliseconds as its argument
+msleep() {
+	local -i msecs=$1
+
+	local division
+	set-division -3 $msecs 1000
+	sleep $division
+}
+
+# -------------------------------------------------------
+
+set-epoch_msecs() {
+
+	if [[ ${EPOCHREALTIME-} ]]
+	   then local epoch_usecs=${EPOCHREALTIME/./}
+		epoch_msecs=${epoch_usecs%???}
+	   else epoch_msecs=$(date +%s%3N)
+	fi
+}
+
 # ----------------------------------------------------------------------------
 
 function confirm() {
