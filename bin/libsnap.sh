@@ -67,7 +67,7 @@
 # not the calling script.
 ##############################################################################
 
-_libsnap_exit() {
+_libsnap-exit() {
 
 	if [[ $(type -t exit-normally) == function ]]
 	   then exit-normally "$@"
@@ -80,7 +80,7 @@ function _warn() { echo -e "\n$0: source libsnap.sh: $*\n" >&2; return 1; }
 _abort() {
 	_warn "$*"
 	[[ $is_sourced_by_interactive_shell ]] && return 1
-	_libsnap_exit 1
+	_libsnap-exit 1
 }
 
 # ----------------------------------------------------------------------------
@@ -301,7 +301,7 @@ need-cmds() {
 		is_cmd_missing=1
 	done
 
-	[[ $is_cmd_missing ]] && _libsnap_exit 2
+	[[ $is_cmd_missing ]] && _libsnap-exit 2
 	$xtrace
 }
 
@@ -434,7 +434,7 @@ function set-inode_size-data_block_size-dir_block_size--from-path() {
 		set -- $(sudo tune2fs -l $FS_device |&
 				sed -n  -e 's/^Block size://p' \
 					-e 's/^Inode size://p'
-				_libsnap_exit ${PIPESTATUS[0]})
+				_libsnap-exit ${PIPESTATUS[0]})
 		local status=$?
 		inode_size=${2-} data_block_size=${1-} dir_block_size=${1-}
 		[[ $status == 0 ]]
@@ -444,7 +444,7 @@ function set-inode_size-data_block_size-dir_block_size--from-path() {
 			 sed -n -r -e 's/.* isize=([0-9]+) .*/\1/p'	    \
 				   -e '  s/^data .* bsize=([0-9]+) .*/\1/p' \
 				   -e 's/^naming .* bsize=([0-9]+) .*/\1/p'
-				_libsnap_exit ${PIPESTATUS[0]})
+				_libsnap-exit ${PIPESTATUS[0]})
 		local status=$?
 		inode_size=${1-} data_block_size=${2-} dir_block_size=${3-}
 		[[ $status == 0 ]]
@@ -728,7 +728,7 @@ abort() {
 	if [[ $is_recursion ]]
 	   then echo "$@" ; let stack_skip+=1
 	elif [[ ${Usage-} && "$*" == "$Usage" ]]
-	   then echo "$@" >&2 ; _libsnap_exit 1
+	   then echo "$@" >&2 ; _libsnap-exit 1
 	   else	warn "$@"
 	fi
 
@@ -743,7 +743,7 @@ abort() {
 		sleep 1
 		kill -KILL -$master_PID
 	fi
-	_libsnap_exit 1
+	_libsnap-exit 1
 }
 
 # ---------------------------------
@@ -943,10 +943,10 @@ unset -f wont-trace will-trace
 
 print-or-egrep-Usage-then-exit() {
 	[[ ${1-} == -[hHk] ]] && shift	# strip help or keyword-search option
-	[[ $# == 0 ]] && echo -e "$Usage" && _libsnap_exit 0
+	[[ $# == 0 ]] && echo -e "$Usage" && _libsnap-exit 0
 
 	echo "$Usage" | egrep -i "$@"
-	_libsnap_exit 0
+	_libsnap-exit 0
 }
 
 # ---------------------------------
@@ -956,7 +956,7 @@ abort-with-action-Usage() {
 
 	echo -e "\nBad arguments; here's the usage for this action:"
 	echo "$Usage" | grep "^ *$_action" >&2; echo
-	_libsnap_exit 1
+	_libsnap-exit 1
 }
 
 # ---------------------------------
@@ -1556,7 +1556,7 @@ function pegrep() { grep --perl-regexp "$@"; }
 # ----------------------------------------------------------------------------
 
 # replace a file's contents atomically
-echo_to_file() {
+echo-to-file() {
 	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
 	[[ $1 == -p ]] && { shift; local do_perms=$true; } || local do_perms=
 	[[ $# ==  2 ]] || abort-function string filename
