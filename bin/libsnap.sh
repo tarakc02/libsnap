@@ -1555,7 +1555,7 @@ function pegrep() { grep --perl-regexp "$@"; }
 # create and rewrite files
 # ----------------------------------------------------------------------------
 
-# replace a file's contents atomically
+# replace a file's contents atomically (read from stdin if $1 == '-')
 echo-to-file() {
 	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
 	[[ $1 == -p ]] && { shift; local do_perms=$true; } || local do_perms=
@@ -1563,7 +1563,10 @@ echo-to-file() {
 	local string=$1 filename=$2
 
 	local new_filename="$filename.$BASHPID"
-	echo "$string" > "$new_filename" || abort-function $new_filename
+	if [[ $string == '-' ]]
+	   then cat
+	   else echo "$string"
+	fi > "$new_filename" || abort-function $new_filename
 	[[ $do_perms ]] && copy-file-perms "$filename" "$new_filename"
 	mv "$new_filename" "$filename"
 	$xtrace
