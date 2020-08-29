@@ -95,7 +95,13 @@ our_path=${0#-}
 # we might have been run as a script to create $tmp_dir (see above)
 [[ $our_path == */libsnap.sh ]] && exit 0
 
-[[ $our_path == */libsnap    ]] && set -u # for unit tests
+readonly true=t True=t
+readonly false= False=
+
+[[ $our_path == */libsnap ]] && set -u && # for unit tests
+    _do_run_unit_tests=$true || _do_run_unit_tests=$false
+#
+_do_run_unit_tests=$true		# no performance penalty for this
 
 # basename of calling script, we won't change caller's value
 if [[ ! ${our_name-} ]]
@@ -103,9 +109,6 @@ if [[ ! ${our_name-} ]]
 	our_name=${our_name%.~*~}
 	our_name=${our_name%%\~}
 fi				   # not marked readonly, caller can change it
-
-readonly true=t True=t
-readonly false= False=
 
 case $our_name in
     ( bash | csh | ksh | scsh | sh | tcsh | zsh )
@@ -155,6 +158,7 @@ function is-set() {
 	[[ $keys ]]
 }
 
+[[ $_do_run_unit_tests ]] && {
 _foo=
 _arr[1]=one
 declare -A _map=([A]=1)
@@ -169,6 +173,7 @@ is-set _Arr && _abort "is-set _Arr"
 is-set _Map && _abort "is-set _Map"
 
 unset _foo _arr _map _Arr _Map
+}
 
 # ---------------------------------
 
@@ -176,8 +181,10 @@ function is-var() { declare -p $1 &> $dev_null ; }
 
 function is-variable() { is-var "$@"; }
 
+[[ $_do_run_unit_tests ]] && {
 is-var our_path || _abort "have our_path"
 is-var NoTeXiSt && _abort "don't have NoTeXiSt"
+}
 
 # ----------------------------------------------------------------------------
 
@@ -272,8 +279,10 @@ function have-cmd() {
 
 function have-command() { have-cmd "$@"; }
 
+[[ $_do_run_unit_tests ]] && {
 have-cmd is-set   || _abort "have is-set"
 have-cmd our_path && _abort "don't have func our_path"
+}
 
 # --------------------------------------------
 
@@ -637,8 +646,10 @@ function is-arg1-in-arg2() {
 	return $status
 }
 
+[[ $_do_run_unit_tests ]] && {
 is-arg1-in-arg2 foo "" && _abort "null arg2 means false"
 is-arg1-in-arg2 foo    && _abort   "no arg2 means false"
+}
 
 # ----------------------------------------------------------------------------
 # simple error and warning and trace functions.
@@ -802,6 +813,7 @@ function is-integer-var() {
 
 function is-integer-variable() { is-integer-var "$@"; }
 
+[[ $_do_run_unit_tests ]] && {
 is-writable-var our_path && _abort "our_path is a readonly var"
 
 declare -i _int_var
@@ -811,14 +823,17 @@ is-writable-var _int_var &&
  is-integer-var _str_var && _abort "_str_var is not an int var"
 is-readonly-var _str_var && _abort "_str_var is not readonly var"
 unset _int_var _str_var
+}
 
 # --------------------------------
 
 is-integer() { [[ $1 =~ ^-?[0-9]+$ ]] ; }
 
+[[ $_do_run_unit_tests ]] && {
 is-integer -123 || _abort "-123 is an integer"
 is-integer  123 || _abort  "123 is an integer"
 is-integer  1.3 && _abort  "1.3 is not an integer"
+}
 
 # ----------------------
 
@@ -913,6 +928,7 @@ function restore-tracing {
 	return $status
 }
 
+[[ $_do_run_unit_tests ]] && {
 wont-trace() {         foo=2
 	       suspend-tracing; echo untraced; restore-tracing foo; }
 will-trace() { set -x; foo=1
@@ -921,6 +937,7 @@ will-trace() { set -x; foo=1
 [[ $(will-trace 2>&1) == *' echo untrac'* ]] && _abort "suspend-tracing failed"
 [[ $(will-trace 2>&1) == *' echo traced'* ]] || _abort "restore-tracing failed"
 unset -f wont-trace will-trace
+}
 
 # ----------------------------------------------------------------------------
 
@@ -953,10 +970,12 @@ RunCmd() {
 	$IfRun "$@" || $IfAbort abort -1 "'$*' returned $?$msg"
 }
 
+[[ $_do_run_unit_tests ]] && {
 RunCmd true &&
 [[ $(master_PID=$BASHPID \
      RunCmd -d -m "expected (non fatal)" false 2>&1) == *'(non fatal)'* ]] ||
    _abort "RunCmd error"
+}
 
 # ----------------------------------------------------------------------------
 # Generic logging function, with customization globals that caller can set.
@@ -1122,12 +1141,14 @@ strip-trailing-whitespace() {
 	done
 }
 
+[[ $_do_run_unit_tests ]] && {
 _var_1='1 2 3 '
 _var_2='1 2 3	   		 '
 [[ $_var_1 != '1 2 3' ]] || _abort _var_1_
 strip-trailing-whitespace _var_1 _var_2
 [[ $_var_1 == '1 2 3' ]] || _abort _var_1
 [[ $_var_2 == '1 2 3' ]] || _abort _var_2
+}
 
 # ----------------------------------------------------------------------------
 # working with files and dirs (and processes)
@@ -1284,9 +1305,11 @@ set-reversed_words() {
 	reversed_words=${reversed_words% }
 }
 
+[[ $_do_run_unit_tests ]] && {
 set-reversed_words     1 2 3
 [[ $reversed_words == "3 2 1" ]] || _abort "reversed_words='$reversed_words'"
 unset reversed_words
+}
 
 # ----------------------------------------------------------------------------
 
@@ -1328,6 +1351,7 @@ function set-popped_word-is_last_word--from-list() {
 	[[ $popped_word ]]
 }
 
+[[ $_do_run_unit_tests ]] && {
 _numbers="1 2 3"
   _input=$_numbers
   _words=
@@ -1353,6 +1377,7 @@ done
     _abort "set-popped_word-is_last_word--from-list failure: _input='$_input' _words='$_words'"
 
 unset _numbers _input _words popped_word is_last_word
+}
 
 # ----------------------------------------------------------------------------
 # (decimal) arithmetic functions
@@ -1368,14 +1393,17 @@ set-average() {
 	average=$(( ( ${values// /+} + ($count/2) ) / $count ))
 }
 
+[[ $_do_run_unit_tests ]] && {
 declare -i average
 set-average 1 2 3; [[ $average == 2 ]] || _abort avg-2
 set-average 1 2 9; [[ $average == 4 ]] || _abort avg-4
 set-average 1 4 9; [[ $average == 5 ]] || _abort avg-5
 unset average
+}
 
 # ----------------------------------------------------------------------------
 
+# this is 5x faster than echo'ing into awk's printf
 set-product() {
 	[[ $# == 2 && ( ($1 =~ ^-?[0-9]*(\.[0-9]*)*$ && $2 =~ ^-?[0-9]+$) ||
 			($2 =~ ^-?[0-9]*(\.[0-9]*)*$ && $1 =~ ^-?[0-9]+$) ) ]] ||
@@ -1403,6 +1431,7 @@ set-product() {
 	[[ $signs == - ]] && product=-$product
 }
 
+[[ $_do_run_unit_tests ]] && {
 declare -i product
 # test secs to msecs
 set-product 1000  2.5 ; [[ $product == 2500 ]] || _abort 2.5
@@ -1415,9 +1444,11 @@ set-product -.1 -1000 ; [[ $product ==  100 ]] || _abort -.1 -
 set-product 0.1 -1000 ; [[ $product == -100 ]] || _abort 0.1 -
 set-product 0.01 1000 ; [[ $product ==   10 ]] || _abort 0.01
 unset product
+}
 
 # ----------------------------------------------------------------------------
 
+# this is 5x faster than echo'ing into awk's printf
 set-division() {
 	[[ $# == 3 && $1 =~ ^-?[1-9]$ && $2$3 =~ ^[-0-9]+$ ]] || # -0 is hard
 	    abort-function \
@@ -1440,11 +1471,13 @@ set-division() {
 	printf -v division "$format" $whole_number $fraction
 }
 
+[[ $_do_run_unit_tests ]] && {
 # test minutes to hours
 set-division -2 10 60 ; [[ $division == 0.17 ]] || _abort "10/60 != $division"
 set-division -1 10 60 ; [[ $division == 0.2  ]] || _abort "10/60 != $division"
 set-division -1 59 60 ; [[ $division == 1.0  ]] || _abort "59/60 != $division"
 unset division
+}
 
 # ----------------------------------------------------------------------------
 # miscellaneous functions
@@ -1662,5 +1695,7 @@ set-python_script() {
 }
 
 # ----------------------------------------------------------------------------
+
+unset _do_run_unit_tests
 
 true					# we must return 0
