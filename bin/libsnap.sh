@@ -1187,6 +1187,8 @@ cd_() {
 
 # for each field, assign that field's value to a variable named for that field
 setup-df-data-from-fields() {
+	local df_opts=
+	while [[ $1 == -* ]]; do df_opts+="$1 "; shift; done
 	local drive=$1; shift
 	local fields=$*
 
@@ -1200,7 +1202,9 @@ setup-df-data-from-fields() {
 	fields=$*
 	local -i field_count=$#
 
-	set -f; set -- $(df --output=${fields// /,} --no-sync $drive/.); set +f
+	set -f
+	set -- $(df $df_opts --output=${fields// /,} --no-sync $drive/.)
+	set +f
 	[[ $# != 0 ]] || abort-function "'df $drive' failed"
 	while (( $# > $field_count )) ; do shift; done
 
