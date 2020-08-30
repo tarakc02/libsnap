@@ -1066,7 +1066,7 @@ declare -A warning_level2tput_args=(
 declare -A warning_level2tput_args=(
          [ok]="setaf 2"
     [warning]="setaf 5"
-      [error]="setab 1"			# setaf is less "striking"
+      [error]="setab 1"			# setaf is less "striking" than setab
       [stale]="setaf 3"
 )
 clear_tput_args="sgr0"
