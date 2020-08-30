@@ -981,7 +981,17 @@ RunCmd true &&
 # Generic logging function, with customization globals that caller can set.
 # ----------------------------------------------------------------------------
 
-: ${log_date_format:="+%a %m/%d %H:%M:%S"} # caller or environment can change
+: ${log_date_time_format:="+%a %m/%d %H:%M:%S"} # caller or env can over-ride
+
+set-log_date_time() {
+
+	if [[ ${debug_opt-} ]]
+	   then log_date_time="DoW Mo/Da Hr:Mn:Sc"
+	   else log_date_time=$(date "$log_date_time_format")
+	fi
+}
+
+# ----------------------
 
 file_for_logging=$dev_null		# append to it; caller can change
 
@@ -1004,11 +1014,12 @@ function log() {
 	   then local _file_for_logging=$dev_null
 	   else local _file_for_logging=$file_for_logging
 	fi
-	local  _date_time=$(date "$log_date_format")
+	local log_date_time
+	set-log_date_time
 	local _log_msg_prefix=$log_msg_prefix
 	eval "_log_msg_prefix=\"$_log_msg_prefix\""
 	_log_msg_prefix=$(echo "$_log_msg_prefix" | sed 's/ *$//')
-	echo "$_date_time$_log_msg_prefix: $_msg" |
+	echo "$log_date_time$_log_msg_prefix: $_msg" |
 	   $sudo tee -a $_file_for_logging
 	$xtrace
 	return 0
