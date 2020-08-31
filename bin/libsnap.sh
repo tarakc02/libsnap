@@ -1465,10 +1465,14 @@ set-division() {
 	    abort-function \
 		 decimal-digits=${1-}  numerator=${2-} denominator=${3-} ${4-}
 	local -i decimal_digits=${1#-} numerator=$2    denominator=$3
-	[[ $denominator =~ ^[1-9][0-9]*$ ]] ||
-	    abort-function "denominator must be a counting number"
+	[[ $denominator =~ ^-?[1-9][0-9]*$ ]] ||
+	    abort-function "denominator must be an integer"
 
 	local format="%s.%0${decimal_digits}d"
+
+	local signs=
+	[[   $numerator == -* ]] &&   numerator=${numerator#-}   signs+=-
+	[[ $denominator == -* ]] && denominator=${denominator#-} signs+=-
 
 	local -i multiplier=10**decimal_digits
 	local -i whole_number=$((numerator / denominator))
@@ -1480,10 +1484,13 @@ set-division() {
 	fi
 
 	printf -v division "$format" $whole_number $fraction
+	[[ $signs == - ]] && division=-$division
 	$xtrace
 }
 
 [[ $_do_run_unit_tests ]] && {
+set-division -1 -6  3 ; [[ $division == -2.0 ]] || _abort "-6/3  != $division"
+set-division -1 -6 -3 ; [[ $division ==  2.0 ]] || _abort "-6/-3 != $division"
 # test minutes to hours
 set-division -2 10 60 ; [[ $division == 0.17 ]] || _abort "10/60 != $division"
 set-division -1 10 60 ; [[ $division == 0.2  ]] || _abort "10/60 != $division"
@@ -1501,6 +1508,7 @@ msleep() {
 
 	local division
 	set-division -3 $msecs 1000
+	[[ $division != *-* ]] &&	# avoid negative values
 	sleep $division
 }
 
