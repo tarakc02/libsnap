@@ -87,20 +87,17 @@ _abort() {
 # setup global variables for calling script
 # ----------------------------------------------------------------------------
 
+readonly true=t false=
+
 our_path=${0#-}
 [[ $our_path == */* ]] || our_path=$(type -p $our_path)
 [[ $our_path == ./* ]] && our_path=${0#./}
-[[ $our_path ==  /* ]] || our_path=$PWD/$our_path	; readonly our_path
+[[ $our_path ==  /* ]] || our_path=$PWD/$our_path
 
 # we might have been run as a script to create $tmp_dir (see above)
 [[ $our_path == */libsnap.sh ]] && exit 0
-
-readonly true=t True=t
-readonly false= False=
-
-[[ $our_path == */libsnap ]] && set -u && # for unit tests
+[[ $our_path == */libsnap    ]] && set -u && # for unit tests
     _do_run_unit_tests=$true || _do_run_unit_tests=$false
-#
 _do_run_unit_tests=$true		# no performance penalty for this
 
 # basename of calling script, we won't change caller's value
@@ -112,8 +109,8 @@ fi				   # not marked readonly, caller can change it
 
 case $our_name in
     ( bash | csh | ksh | scsh | sh | tcsh | zsh )
-	  is_sourced_by_interactive_shell=$true  ;;
-    ( * ) is_sourced_by_interactive_shell=$false ;;
+	  is_sourced_by_interactive_shell=$true ;    unset our_path ;;
+    ( * ) is_sourced_by_interactive_shell=$false; readonly our_path ;;
 esac
 
 [[ ! $is_sourced_by_interactive_shell ]] &&
@@ -182,7 +179,7 @@ function is-var() { declare -p $1 &> $dev_null ; }
 function is-variable() { is-var "$@"; }
 
 [[ $_do_run_unit_tests ]] && {
-is-var our_path || _abort "have our_path"
+is-var our_name || _abort "have our_name"
 is-var NoTeXiSt && _abort "don't have NoTeXiSt"
 }
 
@@ -281,7 +278,7 @@ function have-command() { have-cmd "$@"; }
 
 [[ $_do_run_unit_tests ]] && {
 have-cmd is-set   || _abort "have is-set"
-have-cmd our_path && _abort "don't have func our_path"
+have-cmd our_name && _abort "don't have func our_name"
 }
 
 # --------------------------------------------
@@ -814,7 +811,7 @@ function is-integer-var() {
 function is-integer-variable() { is-integer-var "$@"; }
 
 [[ $_do_run_unit_tests ]] && {
-is-writable-var our_path && _abort "our_path is a readonly var"
+is-writable-var true && _abort "true is a readonly var"
 
 declare -i _int_var
 declare    _str_var
