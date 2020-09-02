@@ -98,7 +98,7 @@ our_path=${0#-}
 [[ $our_path == */libsnap.sh ]] && exit 0
 [[ $our_path == */libsnap    ]] && set -u && # for unit tests
     _do_run_unit_tests=$true || _do_run_unit_tests=$false
-_do_run_unit_tests=$true		# no performance penalty for this
+_do_run_unit_tests=$true		# no speed penalty for this
 
 # basename of calling script, we won't change caller's value
 if [[ ! ${our_name-} ]]
@@ -249,7 +249,8 @@ prepend-to-PATH-var() {
 
 if ! is-set BASH_LOADABLES_PATH
    then export BASH_LOADABLES_PATH=
-	append-to-PATH-var BASH_LOADABLES_PATH /usr/local/lib/bash /usr/lib/bash
+	append-to-PATH-var BASH_LOADABLES_PATH \
+			   /usr/local/lib/bash /usr/lib/bash
 fi
 
 # 'mkdir' buggy in bash-4.4.20: mkdir -p fails when exists & writable parent
@@ -1112,7 +1113,8 @@ set-padded_colorized_string--for-printf() {
 	local -i field_width=${3:-$default_width}
 	(( field_width > 0 )) || abort-function ": need \$3 as counting number"
 
-	[[ -t 1 || ${do_tput-} ]] || { padded_colorized_string=$string; return; }
+	[[ -t 1 || ${do_tput-} ]] ||
+	    { padded_colorized_string=$string; return; }
 
 	padded_colorized_string=$colorized_string
 	declare -i pad_count=$terminfo_color_bytes
@@ -1414,8 +1416,9 @@ unset average
 # this is 5x faster than echo'ing into awk's printf
 set-product() {
 	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
-	[[ $# == 2 && ( ($1 =~ ^-?[0-9]*(\.[0-9]*)*$ && $2 =~ ^-?[0-9]+$) ||
-			($2 =~ ^-?[0-9]*(\.[0-9]*)*$ && $1 =~ ^-?[0-9]+$) ) ]] ||
+	[[ $# == 2 &&
+	       ( ($1 =~ ^-?[0-9]*(\.[0-9]*)*$ && $2 =~ ^-?[0-9]+$) ||
+		 ($2 =~ ^-?[0-9]*(\.[0-9]*)*$ && $1 =~ ^-?[0-9]+$)    ) ]] ||
 	    abort-function decimal integer
 	if [[ $1 == *.* ]]
 	   then local decimal=$1 integer=$2
