@@ -247,7 +247,7 @@ prepend-to-PATH-var() {
 
 # ----------------------------------------------------------------------------
 
-if ! is-set BASH_LOADABLES_PATH
+if [[ ! -v BASH_LOADABLES_PATH ]]
    then export BASH_LOADABLES_PATH=
 	append-to-PATH-var BASH_LOADABLES_PATH \
 			   /usr/local/lib/bash /usr/lib/bash
@@ -341,7 +341,7 @@ prepend-to-PATH-var PATH $homebrew_install_dir/*/libexec/*bin
 # ps_opt_h: no (h)eader; ps_opt_g: all with PGID, i.e. process (g)roup ID
 setup-ps-options() {
 
-	is-set ps_opt_g && return
+	[[ -v ps_opt_g ]] && return
 
 	# set variables that map Linux's 'ps' options to random OS's 'ps' opts
 	case $OSTYPE,$is_BSD in
@@ -837,18 +837,25 @@ is-integer  1.3 && _abort  "1.3 is not an integer"
 
 # ----------------------
 
-set-var_value--from-var_name() {
+function set-var_value--from-var_name() {
 	local _var_name_=$1
 
-	if is-set $_var_name_
+	if [[ -v $_var_name_ ]]
 	   then var_value=${!_var_name_}
 	   else var_value='<unset>'
+		return 1
 	fi
 
 	[[ $var_value == *[\ \	]* ]] && var_value="'$var_value'"
 
-	is-integer-variable $_var_name_ &&
+	is-integer-var $_var_name_ &&
 	var_value="$var_value	# integer variable"
+	return 0
+}
+
+[[ $_do_run_unit_tests ]] && {
+set-var_value--from-var_name PATH || _abort "PATH is set"
+set-var_value--from-var_name PaTh && _abort "PaTh not set"
 }
 
 # ----------------------
@@ -1111,6 +1118,7 @@ default_padded_colorized_string_field_width=
 # "printf %7s" doesn't handle terminfo escape sequence
 # printf strips trailing SPACES; so pad with '_', and replace them later
 set-padded_colorized_string--for-printf() {
+	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
 	[[ $# == [23] ]] || abort-function "need 2-3 args"
 	local string=$1 colorized_string=$2
 	local  default_width=$default_padded_colorized_string_field_width
@@ -1118,7 +1126,7 @@ set-padded_colorized_string--for-printf() {
 	(( field_width > 0 )) || abort-function ": need \$3 as counting number"
 
 	[[ -t 1 || ${do_tput-} ]] ||
-	    { padded_colorized_string=$string; return; }
+	    { padded_colorized_string=$string; $xtrace; return; }
 
 	padded_colorized_string=$colorized_string
 	declare -i pad_count=$terminfo_color_bytes
@@ -1128,6 +1136,7 @@ set-padded_colorized_string--for-printf() {
 	for (( n=1; n <= pad_count; n+=1 ))
 	    do	padded_colorized_string+='_'
 	done
+	$xtrace
 }
 
 # -------------------
@@ -1136,7 +1145,9 @@ fix-padded-colorized-string-vars() {
 
 	local var_name
 	for var_name
-	    do	local value=${!var_name}
+	    do	[[ -v $var_name ]] ||
+		    abort-function ": '$var_name' is not a variable"
+		local value=${!var_name}
 		value=${value//_/ }	# rewrite padding
 		eval "$var_name=\$value"
 	done
@@ -1148,7 +1159,9 @@ strip-trailing-whitespace() {
 
 	local var_name
 	for var_name
-	    do	local value=${!var_name}
+	    do	[[ -v $var_name ]] ||
+		    abort-function ": '$var_name' is not a variable"
+		local value=${!var_name}
 		[[ $value =~ [\ \	]*$ ]]
 		local whitespace=${BASH_REMATCH[0]}
 		eval "$var_name=\${value%\$whitespace}"
@@ -1240,6 +1253,7 @@ function setup-df-data-from-fields() {
 	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
 	local df_opts=
 	while [[ $1 == -* ]]; do df_opts+="$1 "; shift; done
+	(( $# >= 2 )) || abort-function "[df-opts] drive df-column-name(s)"
 	local drive=$1; shift
 	local fields=$*
 
@@ -1277,8 +1291,6 @@ function set-file_KB() {
 	local _file=$1
 
 	set -- $(ls -sd $_file)
-	is-var file_KB ||
-	declare -g -i file_KB
 	file_KB=$1
 	$xtrace
 	[[ $file_KB ]]
@@ -1298,7 +1310,7 @@ function is-process-alive() {
 	local PID
 	for PID in $PIDs
 	    do	PID=${PID#-}		# in case passed PGID indicator
-		if have-proc
+		if [[ -e /proc/mounts ]]
 		   then [[ -d /proc/$PID ]]
 		   else ps $PID &> $dev_null
 		fi || { $xtrace; return 1; }
