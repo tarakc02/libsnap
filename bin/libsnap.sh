@@ -341,6 +341,8 @@ prepend-to-PATH-var PATH $homebrew_install_dir/*/libexec/*bin
 # ps_opt_h: no (h)eader; ps_opt_g: all with PGID, i.e. process (g)roup ID
 setup-ps-options() {
 
+	is-set ps_opt_g && return
+
 	# set variables that map Linux's 'ps' options to random OS's 'ps' opts
 	case $OSTYPE,$is_BSD in
 	    ( linux* ) ps_opt_H=-H  ps_opt_f=f   ps_opt_h=h  ps_opt_g=-g ;;
