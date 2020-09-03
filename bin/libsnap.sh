@@ -1085,11 +1085,12 @@ clear_tput_args="sgr0"
 declare -A warning_level2escape_sequence
 
 set-warning_string() {
+	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
 	local level=$1; shift; local string=$*
 	is-arg1-in-arg2 $level ${!warning_level2tput_args[*]} ||
 	   abort-function "$level is unknown level"
 
-	[[ -t 1 || ${do_tput-} ]] || { warning_string=$string; return; }
+	[[ -t 1 || ${do_tput-} ]] || { warning_string=$string;$xtrace;return; }
 
 	local esc=${warning_level2escape_sequence[$level]=$(
 		tput ${warning_level2tput_args[$level]})}
@@ -1100,6 +1101,7 @@ set-warning_string() {
 		   terminfo_color_bytes=$(( ${#esc} + ${#clear_escape_seq} ))
 
 	warning_string=$esc$string$clear_escape_seq
+	$xtrace
 }
 
 # ----------------------------------------------------------------------------
@@ -1234,7 +1236,8 @@ cd_() {
 # ----------------------------------------------------------------------------
 
 # for each field, assign that field's value to a variable named for that field
-setup-df-data-from-fields() {
+function setup-df-data-from-fields() {
+	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
 	local df_opts=
 	while [[ $1 == -* ]]; do df_opts+="$1 "; shift; done
 	local drive=$1; shift
@@ -1243,6 +1246,7 @@ setup-df-data-from-fields() {
 	if ! [[ -b $drive || -d $drive ]]
 	    then local ls_msg=$(ls -ld $drive 2>&1)
 		 warn ": first arg must be device or directory:\n   $ls_msg"
+		 $xtrace
 		 return 1
 	fi
 
@@ -1259,24 +1263,24 @@ setup-df-data-from-fields() {
 	local name
 	for name in $fields
 	    do	local value=${1%\%}	# remove any trailing '%'
-		if is-integer $value && ! is-var $name
-		   then eval "declare -g -i $name=\$value"
-		   else eval		   "$name=\$value"
-		fi
+		eval "$name=\$value"
 		shift
 	done
+	$xtrace
 	return 0
 }
 
 # ----------------------------------------------------------------------------
 
 function set-file_KB() {
+	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
 	local _file=$1
 
 	set -- $(ls -sd $_file)
 	is-var file_KB ||
 	declare -g -i file_KB
 	file_KB=$1
+	$xtrace
 	[[ $file_KB ]]
 }
 
@@ -1288,16 +1292,18 @@ function have-proc { [[ -e /proc/mounts ]] ; }
 
 # return 0 if all processes alive, else 1; unlike 'kill -0', works without sudo
 function is-process-alive() {
+	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
 	local PIDs=$*
 
 	local PID
 	for PID in $PIDs
 	    do	PID=${PID#-}		# in case passed PGID indicator
 		if have-proc
-		   then [[ -d /proc/$PID ]]  || return 1
-		   else ps $PID &> $dev_null || return 1
-		fi
+		   then [[ -d /proc/$PID ]]
+		   else ps $PID &> $dev_null
+		fi || { $xtrace; return 1; }
 	done
+	$xtrace
 	return 0
 }
 
@@ -1308,6 +1314,7 @@ is-process-alive $$ $BASHPID || _abort "is-process-alive failure"
 # ----------------------------------------------------------------------------
 
 set-reversed_words() {
+	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
 
 	reversed_words=
 	local word
@@ -1315,6 +1322,7 @@ set-reversed_words() {
 	   do	reversed_words="$word $reversed_words"
 	done
 	reversed_words=${reversed_words% }
+	$xtrace
 }
 
 [[ $_do_run_unit_tests ]] && {
@@ -1396,6 +1404,7 @@ unset _numbers _input _words popped_word is_last_word
 # ----------------------------------------------------------------------------
 
 set-average() {
+	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
 	[[ $# == 1 && ! $1 =~ ^[0-9]+$ && ( -e $1 || $1 == */* ) ]] && 
 	    set -- $(< $1)
 
@@ -1403,6 +1412,7 @@ set-average() {
 	local -i count=$#
 	[[ $count != 0 ]] || abort-function ": no numbers to everage"
 	average=$(( ( ${values// /+} + ($count/2) ) / $count ))
+	$xtrace
 }
 
 [[ $_do_run_unit_tests ]] && {
