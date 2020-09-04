@@ -47,7 +47,8 @@ Boston, MA 02111-1307, USA.
 // miscellaneous typedefs/constants/defines/etc
 // ===========================================================================
 
-char *lock_dir = "/var/lock";
+char *default_lock_dir = "/var/lock";
+char *lock_dir;
 pid_t pid, new_pid;
 
 // exit status is one byte wide; bash exit is >= 128 when died from signal
@@ -163,20 +164,22 @@ show_usage_and_exit(int option)
 {
     fprintf(stderr, "\n\
 Usage: %s [-d dir] [-p pid] [-P npid] [-w] [-r]  [-q] [-v] file\n\
-   cd dir (default '%s'), put 'pid' (default npid else caller PID)\n\
+   cd 'dir' (default %s), put 'pid' (default npid, else caller PID)\n\
 	 into 'file', then exit with 0; but,\n\
       if 'file' already holds PID of another active process, exit with %d;\n\
       if there's any (other) kind of error, exit with errno (typically).\n\
+   To over-ride the default lock directory, use -d (--directory).\n\
    To change the PID in a lock (i.e. borrow lock), use -P (--new-pid).\n\
    To wait for the lock to become available, use -w (--wait);\n\
       this checks every %s millisecs, change it with -s (--sleep-msecs);\n\
       if this waits longer than -W (--wait-expiration) seconds (optionally\n\
       followed by s, m, h, d [for secs, mins, hours, days]), exit with %d.\n\
-   If -H (--not-hold) and we hold the lock, exit with %d\n\
-   If failed kernel call, exit with errno.\n\
+   If -H (--not-hold) and we hold the lock, exit with %d.\n\
    To release a lock only if you own it, use -r (--release).\n\
    To not announce when the lock is busy, use the -q (--quiet) option.\n\
    To announce when acquire the lock, use the -v (--verbose) option.\n\
+\n\
+   If failed kernel call, exit with errno.\n\
 \n\
    NOTE: This command is only suitable for local locks, not networked locks.\n\
 \n\
@@ -226,6 +229,7 @@ parse_argv_setup_globals(int argc, char * const argv[])
     const char *wait_expiration_string = NULL;
     // see getopt(3) for semantics of getopt_long and its arguments
     static const char Opt_string[] = "d:p:P:s:W:wqvHrh";
+    lock_dir = default_lock_dir;
     while (True)
     {
 	int option = getopt_long(argc, argv, Opt_string, Long_opts, NULL);
@@ -447,10 +451,12 @@ main(int argc, char *argv[])
 
     parse_argv_setup_globals(argc, (char * const *)argv);
 
-    if (chdir(lock_dir) < 0)
-	show_errno_and_exit("chdir");
-
     lock_file = lock_fileV[0];
+
+    // don't chdir if caller's lock_file contains a '/', unless --directory
+    if ( ( !strchr(lock_file, '/') || strcmp(lock_dir, default_lock_dir) ) &&
+	 chdir(lock_dir) < 0 )
+	show_errno_and_exit("chdir");
 
     while (True) {
 	fd = open_lock_file();
