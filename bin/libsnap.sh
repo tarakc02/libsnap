@@ -1492,7 +1492,7 @@ set-division() {
 	    abort-function \
 		 decimal-digits=${1-}  numerator=${2-} denominator=${3-} ${4-}
 	local -i decimal_digits=${1#-} numerator=$2    denominator=$3
-	[[ $denominator =~ ^-?[1-9][0-9]*$ ]] ||
+	[[ $denominator =~ ^-?[1-9][0-9]*$ ]] || # can't divide-by-0
 	    abort-function "denominator must be an integer"
 
 	local format="%s.%0${decimal_digits}d"
@@ -1630,6 +1630,9 @@ echo-to-file() {
 	[[ $1 == -p ]] && { shift; local do_perms=$true; } || local do_perms=
 	[[ $# ==  2 ]] || abort-function string filename
 	local string=$1 filename=$2
+
+	[[ $IfRun ]] && echo "echo '$string' > $filename" &&
+	    { $xtrace; return; }
 
 	local new_filename="$filename.$BASHPID"
 	if [[ $string == '-' ]]
