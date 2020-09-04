@@ -1632,8 +1632,10 @@ echo-to-file() {
 	[[ $# ==  2 ]] || abort-function string filename
 	local string=$1 filename=$2
 
-	[[ $IfRun ]] && echo "echo '$string' > $filename" &&
-	    { $xtrace; return; }
+	if [[ $IfRun ]]
+	   then [[ $string == *[\ \"\`$]* ]] && string="'$string'"
+		echo "echo $string > $filename"; $xtrace; return;
+	fi
 
 	local new_filename="$filename.$BASHPID"
 	if [[ $string == '-' ]]
