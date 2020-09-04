@@ -254,6 +254,7 @@ if [[ ! -v BASH_LOADABLES_PATH ]]
 fi
 
 # 'mkdir' buggy in bash-4.4.20: mkdir -p fails when exists & writable parent
+# 'head' speed is proportional to value of -n
 bash_builtins="basename dirname head id realpath rmdir rm sleep tee uname"
 
 [[ $BASH_LOADABLES_PATH ]] &&
