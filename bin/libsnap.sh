@@ -1,5 +1,7 @@
 #! /usr/bin/env bash
 
+readonly libsnap_version=1
+
 #     libsnap.sh is a library used by snap aka snapshot, snapback, & snapcrypt
 #
 #     Copyright (C) 2018-2019, Human Rights Data Analysis Group (HRDAG)
