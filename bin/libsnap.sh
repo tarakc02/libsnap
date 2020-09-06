@@ -1328,6 +1328,23 @@ is-process-alive $$ $BASHPID || _abort "is-process-alive failure"
 # working with lists
 # ----------------------------------------------------------------------------
 
+set-uniques() {
+
+	local -A unique2true
+	local value
+	for value
+	    do	unique2true[$value]=$true
+	done
+	uniques=${!unique2true[@]}
+	[[ $uniques ]]
+}
+
+set-uniques 1 2 2 3 3 3
+[[ $uniques == "1 2 3" ]] || _abort "(maybe order changed?): uniques=$uniques"
+unset uniques
+
+# ----------------------------------------------------------------------------
+
 set-reversed_words() {
 	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
 
