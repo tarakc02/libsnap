@@ -720,7 +720,7 @@ function warn() {
 
 # ---------------------------------
 
-: ${master_PID=$BASHPID}
+: ${master_PID=$BASHPID} # clear to prevent child's abort's attempt to kill us
 
 abort() {
 	set +x
@@ -740,12 +740,12 @@ abort() {
 	[[ ! $is_recursion ]] &&
 	   log "$(master_PID=$BASHPID abort -r $* 2>&1)" > $dev_null
 
-	if [[ $master_PID != $BASHPID ]] # are we in a sub-shell?
+	if [[ ${master_PID-} && $master_PID != $BASHPID ]] # in a sub-shell?
 	   then trap '' TERM		 # don't kill ourself when ...
 		kill -TERM -$master_PID	 # kill our parent and its children
 		sleep 1
 		kill -KILL -$master_PID
-	fi
+	fi 2>&1 | fgrep -v 'No such process'
 	_libsnap-exit 1
 }
 
