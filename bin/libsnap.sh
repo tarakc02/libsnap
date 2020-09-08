@@ -39,6 +39,9 @@ readonly libsnap_version=1
 ## Function names are words separated by '-' (not '_'), to facilitate ...
 ## There are four kinds of naming for functions that set global variables:
 ##    set-foo		# sets foo; 30x faster than foo=$(func), & side-effects
+##    set-foo-		# ... minus checks (already done); fewer side-effects?
+##    set-foo-alias	# ...... alias, uses in-scope variables for its work
+##    set-foo-a		# ......... alternative naming, to keep name short
 ##    set-foo-foo_bar	# sets variable foo and also sets variable foo_bar
 ##    set-foo--from-xxx	# sets variable foo ... using method/variable xxx
 ##    setup-foo-vars	# sets numerous variables related to foo
@@ -56,8 +59,6 @@ readonly libsnap_version=1
 ##
 ## A variable/function that's only used by nearby (or limited scope)
 ##   variable/functions has a name prefixed by '_' (e.g. _chr, defined below);
-## an exception is _set-foo, which can be a lightweight version of set-foo
-##   (typically with fewer side-effects).
 ## A global variable/function that replaces an external version
 ##   has a name that ends in '_' (e.g. cd_, defined below).
 ##############################################################################
