@@ -1343,7 +1343,8 @@ set-uniques() {
 }
 
 set-uniques 1 2 2 3 3 3
-[[ $uniques == "1 2 3" ]] || _abort "(maybe order changed?): uniques=$uniques"
+[[ $uniques == "1 2 3" ||
+   $uniques == "3 2 1" ]] || _abort "(maybe order changed?): uniques=$uniques"
 unset uniques
 
 # ----------------------------------------------------------------------------
