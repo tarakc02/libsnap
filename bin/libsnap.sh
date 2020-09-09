@@ -98,10 +98,12 @@ our_path=${0#-}
 [[ $our_path ==  /* ]] || our_path=$PWD/$our_path
 
 # we might have been run as a script to create $tmp_dir (see above)
-[[ $our_path == */libsnap.sh ]] && exit 0
-[[ $our_path == */libsnap    ]] && set -u && # for unit tests
-    _do_run_unit_tests=$true || _do_run_unit_tests=$false
-_do_run_unit_tests=$true		# no speed penalty for this
+[[    $our_path == */libsnap.sh ]] && exit 0
+if [[ $our_path == */libsnap    ]]	# want to run unit tests?
+   then set -u				# for unit tests
+	_do_run_unit_tests=$true	# 90 milliseconds
+   else _do_run_unit_tests=$false	# 10 milliseconds
+fi
 
 # basename of calling script, we won't change caller's value
 if [[ ! ${our_name-} ]]
