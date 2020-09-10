@@ -1242,6 +1242,7 @@ cd_() {
 	(( $# <= 1 )) || abort-function "$*: wrong number args"
 	local _dir=${1-$HOME}
 
+	[[ $PWD == $_dir ]] && { $xtrace; return; }
 	cd "$_dir" || abort "cd $_dir"
 	# -n and -z needed here for buggy 2.04 version of bash (in RHL 7.1)
 	if [[ ( -n $IfRun || -n ${do_show_cd-} ) && -z ${Trace-} ]]
