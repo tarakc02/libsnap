@@ -1,4 +1,5 @@
 #! /usr/bin/env bash
+# shellcheck disable=SC1007,SC2004,SC2015,SC2034,SC2126,SC2128,SC2196,SC2197
 
 readonly libsnap_version=1
 
@@ -93,17 +94,12 @@ _abort() {
 readonly true=t false=
 
 our_path=${0#-}
-[[ $our_path == */* ]] || our_path=$(type -p $our_path)
+[[ $our_path == */* ]] || our_path=$(type -p "$our_path")
 [[ $our_path == ./* ]] && our_path=${0#./}
 [[ $our_path ==  /* ]] || our_path=$PWD/$our_path
 
 # we might have been run as a script to create $tmp_dir (see above)
 [[    $our_path == */libsnap.sh ]] && exit 0
-if [[ $our_path == */libsnap    ]]	# want to run unit tests?
-   then set -u				# for unit tests
-	_do_run_unit_tests=$true	# 90 milliseconds
-   else _do_run_unit_tests=$false	# 10 milliseconds
-fi
 
 # basename of calling script, we won't change caller's value
 if [[ ! ${our_name-} ]]
@@ -118,6 +114,7 @@ case $our_name in
     ( * ) is_sourced_by_interactive_shell=$false; readonly our_path ;;
 esac
 
+# shellcheck disable=SC2072
 [[ ! $is_sourced_by_interactive_shell ]] &&
 [[     $BASH_VERSION <  4.4 ]] &&
 _abort "bash version >= 4.4 must appear earlier in the PATH than an older bash"
@@ -133,7 +130,7 @@ PS4+=' line ${LINENO-}, in ${FUNCNAME-}(): '
 export PS4
 
 # put $IfRun in front of cmds w/side-effects, so -d means: debug only, simulate
-: ${IfRun=}
+[[ -v IfRun ]] || IfRun=
 
 readonly lockpid_busy_exit_status=125
 
@@ -142,6 +139,13 @@ rsync_temp_file_suffix="$_chr$_chr$_chr$_chr$_chr$_chr"; unset _chr
 					  readonly rsync_temp_file_suffix
 
 readonly dev_null=/dev/null
+
+if [[ $our_path == */libsnap    ]]	# want to run unit tests?
+   then ! type -t shellcheck > $dev_null || shellcheck "$our_path" || exit 1
+	set -u				# for unit tests
+	_do_run_unit_tests=$true	# 90 milliseconds
+   else _do_run_unit_tests=$false	# 10 milliseconds
+fi
 
 #############################################################################
 #############################################################################
@@ -157,6 +161,7 @@ readonly dev_null=/dev/null
 function is-set() {
 	[[ -v $1 ]] && return 0
 	eval "local keys=\${!$1[*]}"
+	# shellcheck disable=SC2154
 	[[ $keys ]]
 }
 
@@ -179,11 +184,14 @@ unset _foo _arr _map _Arr _Map
 
 # ---------------------------------
 
-function is-var() { declare -p $1 &> $dev_null ; }
+# [[ -v $1 ]] requires $1 to be set, is-var just requires a declaration
+function is-var() { declare -p "$1" &> $dev_null ; }
 
 function is-variable() { is-var "$@"; }
 
 [[ $_do_run_unit_tests ]] && {
+declare -i _foobar_
+is-var _foobar_ || _abort "have _foobar_"
 is-var our_name || _abort "have our_name"
 is-var NoTeXiSt && _abort "don't have NoTeXiSt"
 }
@@ -264,7 +272,8 @@ bash_builtins="basename dirname head id realpath rmdir rm sleep tee uname"
 
 [[ $BASH_LOADABLES_PATH ]] &&
 for _builtin in $bash_builtins
-    do	enable -f $_builtin $_builtin
+    do	# shellcheck disable=SC2086
+	enable -f $_builtin $_builtin
 done 2> $dev_null			# rm is only in bash-5.0, ignore error
 
 # ----------------------------------------------------------------------------
@@ -276,7 +285,7 @@ function have-cmd() {
 
 	local _cmd
 	for _cmd
-	   do	type -t $_cmd > $dev_null && return 0
+	   do	type -t "$_cmd" > $dev_null && return 0
 	done
 	return 1
 }
@@ -299,7 +308,7 @@ need-cmds() {
 
 	local _cmd is_cmd_missing=
 	for _cmd
-	    do	have-cmd $_cmd && continue
+	    do	have-cmd "$_cmd" && continue
 
 		echo "$our_name: command '$_cmd' is not in current path."
 		is_cmd_missing=1
@@ -374,9 +383,10 @@ TMPDIR=$tmp_dir				# used by bash
 
 # the root filesystem is read-only while booting, don't get into infinite loop!
 # GNU mkdir will fail if $tmp_dir is a symlink
+# shellcheck disable=SC2174,SC2086
 until [[ ! -w /tmp || -d $tmp_dir ]] || mkdir -m 0700 -p $tmp_dir
-   do	_warn "deleting $(ls -ld $tmp_dir)"
-	rm -f $tmp_dir
+   do	# shellcheck disable=SC2086
+	_warn "deleting $(ls -ld $tmp_dir)"; rm -f $tmp_dir
 done
 
 export TMP=$tmp_dir TMP_DIR=$tmp_dir	# caller can change these
@@ -401,18 +411,22 @@ function set-FS_type--from-path() {
 	local  path=$1
 	[[ -e $path ]] || abort "path='$path' doesn't exist"
 
-	if [[ $(df --no-sync | fgrep -w $path) ]]
-	   then set -- $(df --output=fstype --no-sync $path)
+	if df --no-sync | fgrep -q -w "$path"
+	   then # shellcheck disable=SC2046
+		set -- $(df --output=fstype --no-sync "$path")
 		FS_type=${!#}
 	   else have-cmd lsblk ||
 		   abort "fix $FUNCNAME for '$path', email to ${coder-Scott}"
-		[[ ! -b $path ]] && local FS_device &&
-		    set-FS_device--from-path $path && path=$FS_device
-		[[ ! -b $path ]] &&
-		    abort-function "$path is not accessible"
+		[[ ! -b "$path" ]] && local FS_device &&
+		    set-FS_device--from-path "$path" && path=$FS_device
+		[[ ! -b "$path" ]] &&
+		    abort-function "'$path' is not accessible"
 		local cmd="lsblk --noheadings --nodeps --output=fstype $path"
-		FS_type=$($cmd)		; [[ $FS_type ]] ||
-		FS_type=$(sudo $cmd)
+		FS_type=$($cmd)
+		if [[ ! $FS_type ]]
+		   then # shellcheck disable=SC2086
+			FS_type=$(sudo $cmd)
+		fi
 	fi
 
 	[[ $FS_type ]] || warn "$FUNCNAME: $path has no discernible filesystem"
@@ -425,32 +439,28 @@ function set-inode_size-data_block_size-dir_block_size--from-path() {
 	[[ -e $path ]] || abort-function "$path: path doesn't exist"
 
 	local FS_type
-	set-FS_type--from-path $path || return $?
-
-	local var_name
-	for var_name in inode_size data_block_size dir_block_size
-	    do	is-var $var_name ||
-		declare -g -i $var_name
-	done
+	set-FS_type--from-path "$path" || return $?
 
 	case $FS_type in
 	   ( ext? )
 		local FS_device
-		set-FS_device--from-path $path || return 1
-		set -- $(sudo tune2fs -l $FS_device |&
+		set-FS_device--from-path "$path" || return 1
+		# shellcheck disable=SC2046
+		set -- $(sudo tune2fs -l "$FS_device" |&
 				sed -n  -e 's/^Block size://p' \
 					-e 's/^Inode size://p'
-				_libsnap-exit ${PIPESTATUS[0]})
+				_libsnap-exit "${PIPESTATUS[0]}")
 		local status=$?
 		inode_size=${2-} data_block_size=${1-} dir_block_size=${1-}
 		[[ $status == 0 ]]
 		;;
 	   ( xfs  )
-		set -- $(xfs_growfs -n $path |
+		# shellcheck disable=SC2046
+		set -- $(xfs_growfs -n "$path" |
 			 sed -n -r -e 's/.* isize=([0-9]+) .*/\1/p'	    \
 				   -e '  s/^data .* bsize=([0-9]+) .*/\1/p' \
 				   -e 's/^naming .* bsize=([0-9]+) .*/\1/p'
-				_libsnap-exit ${PIPESTATUS[0]})
+				_libsnap-exit "${PIPESTATUS[0]}")
 		local status=$?
 		inode_size=${1-} data_block_size=${2-} dir_block_size=${3-}
 		[[ $status == 0 ]]
@@ -474,10 +484,9 @@ function set-device_KB--from-block-device() {
 	device_KB=0
 	have-cmd lsblk || return 1
 
+	# shellcheck disable=SC2046,SC2086
 	set -- $(lsblk --noheadings --bytes --output=SIZE $dev)
 	[[ $# == 1 ]] || abort-function ": specify a partition not whole drive"
-	is-var device_KB ||
-	declare -g -i device_KB
 	device_KB=$(( $1/1024 ))
 }
 
@@ -488,9 +497,11 @@ set-FS_label--from-FS-device() {
 	local  dev=$1
 	[[ -b $dev ]] || abort "$dev is not a device"
 
+	# shellcheck disable=SC1014,SC2053
 	[[ set-mount_dir--from-FS-device != ${FUNCNAME[1]} ]] && {
-	   set-mount_dir--from-FS-device $dev
-	set -- $(grep "[[:space:]]$mount_dir[[:space:]]" /etc/fstab)
+	   set-mount_dir--from-FS-device "$dev"
+	# shellcheck disable=SC2046
+	set -- $(grep "^[^#]*[[:space:]]$mount_dir[[:space:]]" /etc/fstab)
 	[[ ${1-} == LABEL=* ]] && FS_label=${1#*=} || FS_label=	; }
 
 	# don't use lsblk, it sometimes returns very old labels
@@ -512,13 +523,13 @@ label-drive() {
 	[[ -b $device ]] || abort "$device is not a device"
 
 	local FS_type FS_label
-	set-FS_type--from-path $device
+	set-FS_type--from-path "$device"
 
-	set-FS_label--from-mount_dir $mount_dir
+	set-FS_label--from-mount_dir "$mount_dir"
 
 	case $FS_type in
-	   ( ext? ) $IfRun sudo e2label $device $FS_label ;;
-	   ( xfs  ) $IfRun sudo xfs_admin -L $FS_label $device ;;
+	   ( ext? ) $IfRun sudo e2label "$device" "$FS_label" ;;
+	   ( xfs  ) $IfRun sudo xfs_admin -L "$FS_label" "$device" ;;
 	   (  *   ) abort "fix $FUNCNAME for '$FS_type', email ${coder-}" ;;
 	esac || abort-function "$device $mount_dir: returned $? ($FS_type)"
 }
@@ -529,7 +540,7 @@ set-FS_device--from-FS-label() {
 	local label=$1
 
 	if [[ -d /Volumes ]]		# Darwin?
-	   then set-FS_device--from-path /Volumes/$label
+	   then set-FS_device--from-path "/Volumes/$label"
 		return
 	fi
 
@@ -538,11 +549,14 @@ set-FS_device--from-FS-label() {
 
 	# -L has a different meaning in older versions, so use old method
 	local cmd="blkid -l -o device -t LABEL=$label"
-	FS_device=$($cmd)		; [[ $FS_device ]] ||
-	FS_device=$(sudo $cmd)
+	FS_device=$($cmd)
+	if [[ ! $FS_device ]]
+	   then # shellcheck disable=SC2086
+		FS_device=$(sudo $cmd)
+	fi
 
-	set-FS_label--from-FS-device $FS_device
-	[[ $FS_label == $label ]] ||
+	set-FS_label--from-FS-device "$FS_device"
+	[[ $FS_label == "$label" ]] ||
 	  abort "'blkid' lies: pass device to '$our_name' by-hand"
 
 	[[ $FS_device ]] || abort "couldn't find device for $label"
@@ -555,7 +569,7 @@ set-OS_release_file-OS_release() {
 	set -- /usr/lib/*-release /etc/*-release
 	while (( $# > 1 ))
 	   do	[[ -s $1 ]] || { shift; continue; }
-		case $(basename $1) in
+		case $(basename "$1") in
 		   ( lsb-release ) [[ $# != 0 ]] && shift; continue ;;
 		esac
 		break
@@ -563,9 +577,9 @@ set-OS_release_file-OS_release() {
 	[[ -s $1 ]] || abort "fix $FUNCNAME and email it to ${coder-Scott}"
 	OS_release_file=$1
 
-	case $(basename  $OS_release_file) in
-	   ( os-release ) OS_release=$(sed -n 's/^PRETTY_NAME=//p' $1) ;;
-	   ( * )	  OS_release=$(< $1) ;;
+	case $(basename "$OS_release_file") in
+	   ( os-release ) OS_release=$(sed -n 's/^PRETTY_NAME=//p' "$1") ;;
+	   ( * )	  OS_release=$(< "$1") ;;
 	esac
 }
 
@@ -584,7 +598,8 @@ set-FS_device--from-path() {
 	local  path=$1
 	[[ -e $path ]] || { warn "path=$path doesn't exist"; return 1; }
 
-	set -- $(df --output=source --no-sync $path 2> $dev_null)
+	# shellcheck disable=SC2046
+	set -- $(df --output=source --no-sync "$path" 2> $dev_null)
 	[[ $# != 0 ]] || abort-function "couldn't find device for path=$path"
 	FS_device=${!#}
 	return 0
@@ -597,17 +612,20 @@ function set-mount_dir--from-FS-device() {
 	local  dev=$1
 	[[ -b $dev ]] || abort "$dev is not a device"
 
-	set -- $(df --output=target --no-sync $dev 2> $dev_null)
+	# shellcheck disable=SC2046
+	set -- $(df --output=target --no-sync "$dev" 2> $dev_null)
 	[[ $# == 0 ]] && mount_dir= || mount_dir=${!#}
 	[[ ! $mount_dir || $mount_dir == / || $mount_dir == /dev ]] ||
 	   return 0
 
+	# shellcheck disable=SC2046
 	set -- $(grep "^[[:space:]]*$dev[[:space:]]" /etc/fstab)
 	mount_dir=${2-}
 	[[ $mount_dir ]] && return 0
 
 	local FS_label
-	set-FS_label--from-FS-device $dev
+	set-FS_label--from-FS-device "$dev"
+	# shellcheck disable=SC2046
 	set -- $(grep "^[[:space:]]*LABEL=$FS_label[[:space:]]" /etc/fstab)
 	mount_dir=${2-}
 
@@ -686,6 +704,7 @@ print-call-stack() {
 	   do	(( depth < stack_skip )) && 
 		    { argv_i+=${BASH_ARGC[depth]}; continue; } # skip ourself
 		# this logic is duplicated in PS4
+		# shellcheck disable=SC2086,SC2155
 		local src=$(echo ${BASH_SOURCE[depth]} |
 				sed "s@^$HOME/@~/@; s@^/home/@~@; s@/.*/@ @")
 		local args=
@@ -697,8 +716,8 @@ print-call-stack() {
 			(( argc > max_args+1 )) || continue
 			# we never want to say "<1 more args>"
 			(( ++number_args == max_args-2 )) &&
-			   arg_i=argv_i+2 &&
-			   args+="<$((argc-max_args)) more args> "
+			   arg_i=$(( argv_i + 2 )) &&
+			   args+="<$(( argc - max_args )) more args> "
 		done
 		let argv_i+=argc
 		echo -n "$src line ${BASH_LINENO[depth-1]}: "
@@ -723,7 +742,8 @@ function warn() {
 
 # ---------------------------------
 
-: ${master_PID=$BASHPID} # clear to prevent child's abort's attempt to kill us
+# clear master_PID to prevent child's abort's attempt to kill us
+[[ -v master_PID ]] || master_PID=$BASHPID
 
 abort() {
 	set +x
@@ -740,10 +760,12 @@ abort() {
 
 	print-call-stack -s $stack_skip >&2
 
-	[[ ! $is_recursion ]] &&
-	   log "$(master_PID=$BASHPID abort -r $* 2>&1)" > $dev_null
+	if [[ ! $is_recursion ]]
+	   then # shellcheck disable=SC2048,SC2086
+		log "$(master_PID=$BASHPID abort -r $* 2>&1)" > $dev_null
+	fi
 
-	if [[ ${master_PID-} && $master_PID != $BASHPID ]] # in a sub-shell?
+	if [[ ${master_PID-} && $master_PID != "$BASHPID" ]] # in a sub-shell?
 	   then trap '' TERM		 # don't kill ourself when ...
 		kill -TERM -$master_PID	 # kill our parent and its children
 		sleep 1
@@ -761,6 +783,7 @@ abort-function() {
 	local opts= ; while [[ ${1-} == -* ]] ; do opts+=" $1"; shift; done
 
 	[[ $1 == ':'* ]] && local msg=$* || local msg=" $*"
+	# shellcheck disable=SC2086
 	abort -$stack_skip $opts "${FUNCNAME[$stack_skip]}$msg"
 }
 readonly -f abort-function
@@ -791,14 +814,14 @@ echoE () {
 	[[   $func_name ]] && func_name="line $line_no, in $func_name():"
 
 	[[ $show_name ]] && local name="$our_name:" || local name=
-	echo -e $name $func_name "$@" >&2
+	echo -e $name "$func_name" "$@" >&2
 	$xtrace
 }
 
 # ----------------------
 
 function is-readonly-var() {
-	is-var $1 && [[ $(declare -p $1) =~ ' '-[a-zA-Z]*r ]]
+	is-var "$1" && [[ $(declare -p "$1") =~ ' '-[a-zA-Z]*r ]]
 }
 
 function is-readonly-variable() { is-readonly-var "$@"; }
@@ -806,7 +829,7 @@ function is-readonly-variable() { is-readonly-var "$@"; }
 # ----------------------
 
 function is-writable-var() {
-	is-var $1 && ! is-readonly-var $1
+	is-var "$1" && ! is-readonly-var "$1"
 }
 
 function is-writable-variable() { is-writable-var "$@"; }
@@ -814,7 +837,8 @@ function is-writable-variable() { is-writable-var "$@"; }
 # ----------------------
 
 function is-integer-var() {
-	is-var $1 && [[ $(declare -p $1) =~ ' '-[a-zA-Z]*i ]]
+	# shellcheck disable=SC2086
+	is-var "$1" && [[ $(declare -p "$1") =~ ' '-[a-zA-Z]*i ]]
 }
 
 function is-integer-variable() { is-integer-var "$@"; }
@@ -854,7 +878,7 @@ function set-var_value--from-var_name() {
 
 	[[ $var_value == *[\ \	]* ]] && var_value="'$var_value'"
 
-	is-integer-var $_var_name_ &&
+	is-integer-var "$_var_name_" &&
 	var_value="$var_value	# integer variable"
 	return 0
 }
@@ -875,9 +899,9 @@ echoEV() {
 
 	local _var_name_ var_value
 	for _var_name_
-	   do	set-var_value--from-var_name $_var_name_
+	   do	set-var_value--from-var_name "$_var_name_"
 
-		echoE -$stack_frame_to_show "$_var_name_=$var_value"
+		echoE -"$stack_frame_to_show" "$_var_name_=$var_value"
 	done >&2
 	$xtrace
 }
@@ -887,8 +911,15 @@ echoEV() {
 declare -i Trace_level=0		# default to none (probably)
 
 _isnum() { [[ $1 =~ ^[0-9]+$ ]] ||abort -2 "Trace* first arg is (min) level"; }
-Trace () { _isnum $1; (($1 <= Trace_level)) ||return 1;shift; echoE  -1 "$@"; }
-TraceV() { _isnum $1; (($1 <= Trace_level)) ||return 1;shift; echoEV -1 "$@"; }
+_Trace () {
+	local echo_cmd=$1; shift
+	_isnum "$1"
+	(( $1 <= $Trace_level )) || return 1
+	shift
+	$echo_cmd -1 "$@"
+}
+Trace () { _Trace echoE  "$@"; }
+TraceV() { _Trace echoEV "$@"; }
 
 # ----------------------------------------------------------------------------
 
@@ -925,7 +956,7 @@ function suspend-tracing {
 function restore-tracing {
 
 	local status=$?			# status from caller's previous command
-	is-arg1-in-arg2 ${FUNCNAME[1]} ${!funcname2was_tracing[*]} ||
+	is-arg1-in-arg2 "${FUNCNAME[1]}" ${!funcname2was_tracing[*]} ||
 	   abort-function "was called without a suspend-tracing"
 	[[ ${funcname2was_tracing[ ${FUNCNAME[1]} ]} ]] || return $status
 
@@ -994,7 +1025,8 @@ RunCmd true &&
 # Generic logging function, with customization globals that caller can set.
 # ----------------------------------------------------------------------------
 
-: ${log_date_time_format:="+%a %m/%d %H:%M:%S"} # caller or env can over-ride
+[[ ${log_date_time_format-} ]] ||
+     log_date_time_format="+%a %m/%d %H:%M:%S" # caller or env can over-ride
 
 set-log_date_time() {
 
@@ -1029,9 +1061,9 @@ function log() {
 	fi
 	local log_date_time
 	set-log_date_time
-	local _log_msg_prefix=$log_msg_prefix
-	eval "_log_msg_prefix=\"$_log_msg_prefix\""
-	_log_msg_prefix=$(echo "$_log_msg_prefix" | sed 's/ *$//')
+	local  _log_msg_prefix=$log_msg_prefix
+	eval  "_log_msg_prefix=\"$_log_msg_prefix\""
+	strip-trailing-whitespace _log_msg_prefix
 	echo "$log_date_time$_log_msg_prefix: $_msg" |
 	   $sudo tee -a $_file_for_logging
 	$xtrace
@@ -1100,15 +1132,18 @@ declare -A warning_level2escape_sequence
 set-warning_string() {
 	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
 	local level=$1; shift; local string=$*
-	is-arg1-in-arg2 $level ${!warning_level2tput_args[*]} ||
+	# shellcheck disable=SC2086
+	is-arg1-in-arg2 "$level" ${!warning_level2tput_args[*]} ||
 	   abort-function "$level is unknown level"
 
 	[[ -t 1 || ${do_tput-} ]] || { warning_string=$string;$xtrace;return; }
 
 	local esc=${warning_level2escape_sequence[$level]=$(
+		# shellcheck disable=SC2086
 		tput ${warning_level2tput_args[$level]})}
-	: ${clear_escape_seq=$(tput $clear_tput_args |
-		sed 's/\x1B(B//')}	# need to toss leading ESC ( B
+	[[ ${clear_escape_seq-} ]] ||
+	     clear_escape_seq=$(tput $clear_tput_args |
+				    sed 's/\x1B(B//') # toss leading ESC ( B
 	[[ ${terminfo_color_bytes-} ]] ||
 	   declare -g -r -i \
 		   terminfo_color_bytes=$(( ${#esc} + ${#clear_escape_seq} ))
@@ -1195,8 +1230,9 @@ is-newer() { [[ -e $1 && -e $2 && $1 -nt $2 ]] ; }
 is-an-FS-device-mounted() {
 	local mount_dir=$1
 
+	# shellcheck disable=SC2046,SC2086
 	set -- $(df --output=target --no-sync $mount_dir 2> $dev_null)
-	[[ ${!#} == $mount_dir ]]
+	[[ ${!#} == "$mount_dir" ]]
 }
 
 is-an-FS-device-mounted / || _abort "can't find mounted root device"
@@ -1204,34 +1240,14 @@ is-an-FS-device-mounted / || _abort "can't find mounted root device"
 # ----------------------------------------------------------------------------
 
 function set-absolute_dir() {
-	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
-	[[ $# == 1 ]] || abort "Usage: $FUNCNAME filename" ||
-	    { $xtrace; return 1; }
-	local name=$1
-
-	[[ -d "$name" ]] || name=$(dirname "$name")
-	absolute_dir=$(cd "$name" && /bin/pwd) # simpler than readlink(s)
-	$xtrace
+	absolute_dir=$(realpath "$1")
 	[[ $absolute_dir && -d $absolute_dir ]]
 }
 
 # -------------------------------------------------------
 
 function set-absolute_path() {
-	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
-	[[ $# == 1 ]] || abort "Usage: $FUNCNAME filename" ||
-	    { $xtrace; return 1; }
-	local name=$1
-
-	local absolute_dir
-	set-absolute_dir "$name"
-	  if [[ -d "$name" ]]
-	   then absolute_path=$absolute_dir
-	elif [[ -L "$name" ]]
-	   then set-absolute_path $absolute_dir/$(readlink "$name")
-	   else     absolute_path=$absolute_dir/$(basename "$name")
-	fi
-	$xtrace
+	absolute_path=$(realpath "$1")
 	[[ -e $absolute_path ]]
 }
 
@@ -1242,7 +1258,7 @@ cd_() {
 	(( $# <= 1 )) || abort-function "$*: wrong number args"
 	local _dir=${1-$HOME}
 
-	[[ $PWD == $_dir ]] && { $xtrace; return; }
+	[[ $PWD == "$_dir" ]] && { $xtrace; return; }
 	cd "$_dir" || abort "cd $_dir"
 	# -n and -z needed here for buggy 2.04 version of bash (in RHL 7.1)
 	if [[ ( -n $IfRun || -n ${do_show_cd-} ) && -z ${Trace-} ]]
@@ -1265,17 +1281,20 @@ function setup-df-data-from-fields() {
 	local fields=$*
 
 	if ! [[ -b $drive || -d $drive ]]
-	    then local ls_msg=$(ls -ld $drive 2>&1)
+	   then # shellcheck disable=SC2155
+		local ls_msg=$(ls -ld "$drive" 2>&1)
 		 warn ": first arg must be device or directory:\n   $ls_msg"
 		 $xtrace
 		 return 1
 	fi
 
-	set -f; set -- ${fields//,/ }; set +f
+	set -f
+	# shellcheck disable=SC2086
+	set -- ${fields//,/ }
 	fields=$*
 	local -i field_count=$#
-
-	set -f
+	#
+	# shellcheck disable=SC2046,SC2086
 	set -- $(df $df_opts --output=${fields// /,} --no-sync $drive/.)
 	set +f
 	[[ $# != 0 ]] || abort-function "'df $drive' failed"
@@ -1297,7 +1316,8 @@ function set-file_KB() {
 	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
 	local _file=$1
 
-	set -- $(ls -sd $_file)
+	# shellcheck disable=SC2046
+	set -- $(ls -sd "$_file")
 	file_KB=$1
 	$xtrace
 	[[ $file_KB ]]
@@ -1319,7 +1339,7 @@ function is-process-alive() {
 	    do	PID=${PID#-}		# in case passed PGID indicator
 		if [[ -e /proc/mounts ]]
 		   then [[ -d /proc/$PID ]]
-		   else ps $PID &> $dev_null
+		   else ps "$PID" &> $dev_null
 		fi || { $xtrace; return 1; }
 	done
 	$xtrace
@@ -1339,7 +1359,7 @@ set-uniques() {
 	for value
 	    do	unique2true[$value]=$true
 	done
-	uniques=${!unique2true[@]}
+	uniques=${!unique2true[*]}
 	[[ $uniques ]]
 }
 
@@ -1391,17 +1411,25 @@ function set-is_FIFO() {
 # pop word off left side of named list; return non-0 if list was empty
 function set-popped_word-is_last_word--from-list() {
 	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
+	# shellcheck disable=SC2086
 	set-is_FIFO ${1-} && shift
 	[[ $# == 1 ]] || abort-function ": pass name of list"
 
 	local  list_name=$1
 	[[ -v $list_name ]] || abort-function "$1: '$1' is not set"
-	set -f; set -- ${!list_name}; set +f # split words apart
+	set -f
+	# shellcheck disable=SC2086
+	set -- ${!list_name}		# split words apart
+	set +f
 	[[ $# == 1 ]] && is_last_word=$true || is_last_word=$false
 	[[ $# == 0 ]] && popped_word= ||
 	if [[ $is_FIFO ]]
 	   then popped_word=${1-}; shift # pop left-most word
-	   else popped_word=${!#}; set -f; set -- ${*%$popped_word}; set +f
+	   else popped_word=${!#}
+		set -f
+		# shellcheck disable=SC2068,SC2086
+		set -- ${@: 1: $#-1}
+		set +f
 	fi
 	eval "$list_name=\$*"		# retain the rest of the words
 	$xtrace
@@ -1422,7 +1450,7 @@ _words=${_words# }
 _flags=${_flags// /}
 [[ ! $_input && $_words == "$_numbers" ]] ||
     _abort "set-popped_word-is_last_word--from-list failure: _input='$_input' _words='$_words'"
-[[ $_flags == $true ]] || _abort "is_last_word should be set once: $_flags"
+[[ $_flags == "$true" ]] || _abort "is_last_word should be set once: $_flags"
 
   _input=$_numbers
   _words=
@@ -1442,8 +1470,10 @@ unset _numbers _input _words popped_word is_last_word
 
 set-average() {
 	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
-	[[ $# == 1 && ! $1 =~ ^[0-9]+$ && ( -e $1 || $1 == */* ) ]] && 
-	    set -- $(< $1)
+	if [[ $# == 1 && ! $1 =~ ^[0-9]+$ && ( -e $1 || $1 == */* ) ]]
+	   then # shellcheck disable=SC2046,SC2086
+		set -- $(< "$1")
+	fi
 
 	local values=$*
 	local -i count=$#
@@ -1485,7 +1515,7 @@ set-product() {
 
 	local integral=${decimal%.*} fraction=${decimal#*.}
 	  [[ $integral ]] || integral=0
-	local -i scale_factor=10**${#fraction}
+	local -i scale_factor=$(( 10**${#fraction} ))
 	local -i scaled_decimal=$(( $integral*$scale_factor + $fraction ))
 	product=$(( ( $scaled_decimal*$integer + $scale_factor/2 ) /
 		    $scale_factor ))
@@ -1513,9 +1543,11 @@ unset product
 # this is 5x faster than echo'ing into awk's printf
 set-division() {
 	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
-	[[ $# == 3 && $1 =~ ^-?[1-9]$ && $2$3 =~ ^[-0-9]+$ ]] || # -0 is hard
-	    abort-function \
-		 decimal-digits=${1-}  numerator=${2-} denominator=${3-} ${4-}
+	if ! [[ $# == 3 && $1 =~ ^-?[1-9]$ && $2$3 =~ ^[-0-9]+$ ]] # -0 is hard
+	   then # shellcheck disable=SC2086
+		abort-function \
+		  decimal-digits=${1-}  numerator=${2-} denominator=${3-} ${4-}
+	fi
 	local -i decimal_digits=${1#-} numerator=$2    denominator=$3
 	[[ $denominator =~ ^-?[1-9][0-9]*$ ]] || # can't divide-by-0
 	    abort-function "denominator must be an integer"
@@ -1526,7 +1558,7 @@ set-division() {
 	[[   $numerator == -* ]] &&   numerator=${numerator#-}   signs+=-
 	[[ $denominator == -* ]] && denominator=${denominator#-} signs+=-
 
-	local -i multiplier=10**decimal_digits
+	local -i multiplier=$(( 10**decimal_digits ))
 	local -i whole_number=$((numerator / denominator))
 	local -i fraction=$(( ( multiplier*(numerator % denominator)
 				+ (denominator / 2) ) / denominator ))
@@ -1535,6 +1567,7 @@ set-division() {
 		fraction=0
 	fi
 
+	# shellcheck disable=SC2059
 	printf -v division "$format" $whole_number $fraction
 	[[ $signs == - ]] && division=-$division
 	$xtrace
@@ -1559,9 +1592,9 @@ msleep() {
 	local -i msecs=$1
 
 	local division
-	set-division -3 $msecs 1000
+	set-division -3 "$msecs" 1000
 	[[ $division != *-* ]] &&	# avoid negative values
-	sleep $division
+	sleep "$division"
 }
 
 # -------------------------------------------------------
@@ -1595,7 +1628,7 @@ function confirm() {
 	_prompt+=" ($y_n)? "
 
 	local key
-	while read -n 1 -p "$_prompt" key
+	while read -r -n 1 -p "$_prompt" key
 	   do	# $xtrace
 		case $key in
 		   [yY]* ) status=0 && break ;;
@@ -1617,9 +1650,10 @@ function confirm() {
 assert-sha1sum() {
 	local sha1sum=$1 file=${2-}
 
-	set --  $(sha1sum $file)
-	[[ $1 == $sha1sum ]] && return
-	abort    "sha1sum($file) != $sha1sum"
+	# shellcheck disable=SC2046,SC2086
+	set --   $(sha1sum "$file")
+	[[ $1 == "$sha1sum" ]] && return
+	abort     "sha1sum($file) != $sha1sum"
 }
 
 # ----------------------------------------------------------------------------
@@ -1632,7 +1666,7 @@ function run-function() {
 	[[ $1 == -v ]] && { local var_names=$2; shift 2; } || local var_names=
 	assert-not-option -o "${1-}"
 
-	have-cmd $1 || abort "function '$1' doesn't exist"
+	have-cmd "$1" || abort "function '$1' doesn't exist"
 
 	"$@"
 	local status=$?
@@ -1665,7 +1699,7 @@ echo-to-file() {
 	if [[ $string == '-' ]]
 	   then cat
 	   else echo "$string"
-	fi > "$new_filename" || abort-function $new_filename
+	fi > "$new_filename" || abort-function "$new_filename"
 	[[ $do_perms ]] && copy-file-perms "$filename" "$new_filename"
 	mv "$new_filename" "$filename"
 	$xtrace
@@ -1748,7 +1782,7 @@ function does-file-end-in-newline() {
 	local file
 	for file
 	    do	[[ -f $file && -s $file ]] || return 1
-		[[ $(tail -c 1 $file) ]] && return 1
+		[[ $(tail -c 1 "$file") ]] && return 1
 	done
 	return 0
 }
@@ -1782,11 +1816,13 @@ set-python_script() {
 	python_script=$1
 
 	local leading_tabs='						'
-	local    line_count=$(echo "$python_script" | grep '[a-z]' | wc -l)
+	# shellcheck disable=SC2155
+	local line_count=$(echo "$python_script" | grep '[a-z]' | wc -l)
 	while [[ ${#leading_tabs} != 0 ]]
-	   do	local count=$(echo "$python_script" | grep '[a-z]' |
+	   do	# shellcheck disable=SC2155
+		local count=$(echo "$python_script" | grep '[a-z]' |
 				 grep -c "^$leading_tabs")
-		[[ $count == $line_count ]] && break
+		[[ $count == "$line_count" ]] && break
 		leading_tabs=${leading_tabs#?}
 	done
 	true || [[ ${#leading_tabs} != 0 ]] || # allow this
