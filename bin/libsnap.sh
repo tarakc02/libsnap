@@ -500,7 +500,7 @@ set-FS_label--from-FS-device() {
 	# shellcheck disable=SC1014,SC2053
 	[[ set-mount_dir--from-FS-device != ${FUNCNAME[1]} ]] && {
 	   set-mount_dir--from-FS-device "$dev"
-	# shellcheck disable=SC2046
+	# shellcheck disable=SC1087,SC2046
 	set -- $(grep "^[^#]*[[:space:]]$mount_dir[[:space:]]" /etc/fstab)
 	[[ ${1-} == LABEL=* ]] && FS_label=${1#*=} || FS_label=	; }
 
@@ -618,14 +618,14 @@ function set-mount_dir--from-FS-device() {
 	[[ ! $mount_dir || $mount_dir == / || $mount_dir == /dev ]] ||
 	   return 0
 
-	# shellcheck disable=SC2046
+	# shellcheck disable=SC1087,SC2046
 	set -- $(grep "^[[:space:]]*$dev[[:space:]]" /etc/fstab)
 	mount_dir=${2-}
 	[[ $mount_dir ]] && return 0
 
 	local FS_label
 	set-FS_label--from-FS-device "$dev"
-	# shellcheck disable=SC2046
+	# shellcheck disable=SC1087,SC2046
 	set -- $(grep "^[[:space:]]*LABEL=$FS_label[[:space:]]" /etc/fstab)
 	mount_dir=${2-}
 
@@ -719,6 +719,7 @@ print-call-stack() {
 			   arg_i=$(( argv_i + 2 )) &&
 			   args+="<$(( argc - max_args )) more args> "
 		done
+		# shellcheck disable=SC2219
 		let argv_i+=argc
 		echo -n "$src line ${BASH_LINENO[depth-1]}: "
 		echo    "${FUNCNAME[depth]} ${args% }"
@@ -752,7 +753,9 @@ abort() {
 	[[ ${1-} =~ ^-[0-9]+$ ]] && { stack_skip=${1#-}+1; shift; }
 
 	if [[ $is_recursion ]]
-	   then echo "$@" ; let stack_skip+=1
+	   then # shellcheck disable=SC2219
+		let stack_skip+=1
+		echo "$@"
 	elif [[ ${Usage-} && "$*" == "$Usage" ]]
 	   then echo "$@" >&2 ; _libsnap-exit 1
 	   else	warn "$@"
@@ -1563,7 +1566,8 @@ set-division() {
 	local -i fraction=$(( ( multiplier*(numerator % denominator)
 				+ (denominator / 2) ) / denominator ))
 	if (( fraction >= multiplier ))	# fraction rounded up to whole number?
-	   then let whole_number+=1
+	   then # shellcheck disable=SC2219
+		let whole_number+=1
 		fraction=0
 	fi
 
@@ -1751,7 +1755,7 @@ function set-backup_suffix--for-emacs() {
 
 	local -i max_num=0
 	local backup
-	for backup in $path.~[1-9]*~
+	for backup in "$path".~[1-9]*~
 	   do	[[ $backup =~ ~([1-9][0-9]*)~$ ]] || continue
 		local -i num=${BASH_REMATCH[1]}
 		(( max_num < num )) &&
@@ -1759,6 +1763,7 @@ function set-backup_suffix--for-emacs() {
 	done
 
 	(( max_num == 0 )) && local status=1 || local status=0
+	# shellcheck disable=SC2219
 	let max_num+=1
 	backup_suffix=.~$max_num~
 
@@ -1801,10 +1806,10 @@ set-cat_cmd() {
 	local filename=$1
 
 	case ${filename##*.} in
-	    ( bz2 ) cat_cmd=bzcat ;;
-	    ( gz  ) cat_cmd=zcat  ;;
-	    ( xz  ) cat_cmd=xzcat ;;
-	    ( *   ) cat_cmd=cat   ;;
+	    ( bz2 ) cat_cmd="bzcat" ;;
+	    ( gz  ) cat_cmd="zcat"  ;;
+	    ( xz  ) cat_cmd="xzcat" ;;
+	    ( *   ) cat_cmd="cat"   ;;
 	esac
 }
 
