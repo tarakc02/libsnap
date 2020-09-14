@@ -138,6 +138,7 @@ _chr='[a-zA-Z0-9]'
 rsync_temp_file_suffix="$_chr$_chr$_chr$_chr$_chr$_chr"; unset _chr
 					  readonly rsync_temp_file_suffix
 
+[[ -v dev_null ]] ||
 readonly dev_null=/dev/null
 
 if [[ $our_path == */libsnap    ]]	# want to run unit tests?
