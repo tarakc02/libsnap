@@ -1257,21 +1257,29 @@ function set-absolute_path() {
 
 # ----------------------------------------------------------------------------
 
-cd_() {
+_chdir() {
 	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
+	local cmd=$1; shift
+	[[ ${1-} == -q ]] && { shift;local is_quiet=$true; } || local is_quiet=
 	(( $# <= 1 )) || abort-function "$*: wrong number args"
 	local _dir=${1-$HOME}
 
-	[[ $PWD == "$_dir" ]] && { $xtrace; return; }
-	cd "$_dir" || abort "cd $_dir"
-	# -n and -z needed here for buggy 2.04 version of bash (in RHL 7.1)
-	if [[ ( -n $IfRun || -n ${do_show_cd-} ) && -z ${Trace-} ]]
-	   then local _msg="cd $PWD"
+	if [[ $cmd == popd ]]
+	   then popd	      || abort       "popd -> $?"	; cmd="popd to"
+	   else $cmd "$_dir"  || abort "$cmd $_dir -> $?"
+	fi > $dev_null	    # suppress output of 'dirs' when run pushd or popd
+
+	if [[ ! $is_quiet && ( $IfRun || ${do_show_cd-} ) && ! ${Trace-} ]]
+	   then local _msg="$cmd $PWD"
 		[[ $_dir == */.* && $_dir != /* ]] && _msg="$_msg # $_dir"
 		echo "$_msg"
 	fi
 	$xtrace
 }
+
+cd_   () { _chdir    cd "$@"; }
+pushd_() { _chdir pushd "$@"; }
+popd_ () { _chdir  popd "$@"; }
 
 # ----------------------------------------------------------------------------
 
