@@ -47,7 +47,8 @@ readonly libsnap_version=1
 ##    set-foo--from-xxx	# sets variable foo ... using method/variable xxx
 ##    setup-foo-vars	# sets numerous variables related to foo
 ## if "set-" is replaced by "update-" or "append-to-" or "prepend-to-",
-##    the (initialized) variable(s) are updated rather than set.
+##    the (initialized) variable(s) are updated rather than set;
+## the included function 'run-function' will display these variables.
 ##
 ## An array (indexed or associative) that maps a_key to a_value is named:
 ##    a_key2a_value
@@ -1679,12 +1680,32 @@ function run-function() {
 	[[ $1 == -v ]] && { local var_names=$2; shift 2; } || local var_names=
 	assert-not-option -o "${1-}"
 
-	have-cmd "$1" || abort "function '$1' doesn't exist"
+	local function=$1
+	have-cmd "$function" || abort "function '$function' doesn't exist"
 
 	"$@"
 	local status=$?
 	[[ $var_names ]] && echoEV -1 ${var_names//,/ }
 	[[ $status == 0 || $is_procedure ]] || abort -1 "'$*' returned $status"
+
+	[[ $function =~ ^_?(set|update|(append|prepend)-to)- ]] ||
+	    return $status
+	local function_prefix=${BASH_REMATCH[0]}
+
+	header "variables set by $function"
+	var_names=${function#$function_prefix} ; var_names=${var_names%%--*}
+	var_names=${var_names//-/ }
+	declare -i max_name_width=0
+	for var_name in $var_names
+	    do	(( max_name_width <= ${#var_name} )) || continue
+		   max_name_width=${#var_name}
+	done
+	for var_name in $var_names
+	    do	set-var_value--from-var_name "$var_name"
+		# shellcheck disable=SC2154
+		printf "%${max_name_width}s=%s\n" "$var_name" "$var_value"
+	done
+
 	return $status
 }
 
