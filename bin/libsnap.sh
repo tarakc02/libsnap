@@ -99,8 +99,21 @@ our_path=${0#-}
 [[ $our_path == ./* ]] && our_path=${0#./}
 [[ $our_path ==  /* ]] || our_path=$PWD/$our_path
 
+[[ -v dev_null ]] ||
+readonly dev_null=/dev/null
+
 # we might have been run as a script to create $tmp_dir (see above)
-[[    $our_path == */libsnap.sh ]] && exit 0
+if [[ $our_path == */libsnap.sh ]]
+   then [[ $# == 0 ]] && exit 0
+	# shellcheck disable=SC2048
+	[[ $* == -r ]] || _abort "only -r (run regression tests) is supported"
+
+	! type -t shellcheck > $dev_null || shellcheck "$our_path" || exit 1
+	set -u				# for unit tests
+	_do_run_unit_tests=$true	# 90 milliseconds
+   else _do_run_unit_tests=$false	# 10 milliseconds
+fi
+
 
 # basename of calling script, we won't change caller's value
 if [[ ! ${our_name-} ]]
@@ -134,20 +147,6 @@ export PS4
 [[ -v IfRun ]] || IfRun=
 
 readonly lockpid_busy_exit_status=125
-
-_chr='[a-zA-Z0-9]'
-rsync_temp_file_suffix="$_chr$_chr$_chr$_chr$_chr$_chr"; unset _chr
-					  readonly rsync_temp_file_suffix
-
-[[ -v dev_null ]] ||
-readonly dev_null=/dev/null
-
-if [[ $our_path == */libsnap    ]]	# want to run unit tests?
-   then ! type -t shellcheck > $dev_null || shellcheck "$our_path" || exit 1
-	set -u				# for unit tests
-	_do_run_unit_tests=$true	# 90 milliseconds
-   else _do_run_unit_tests=$false	# 10 milliseconds
-fi
 
 #############################################################################
 #############################################################################
