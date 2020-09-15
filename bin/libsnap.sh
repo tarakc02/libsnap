@@ -767,10 +767,10 @@ abort() {
 
 	if [[ ! $is_recursion ]]
 	   then # shellcheck disable=SC2048,SC2086
-		log "$(master_PID=$BASHPID abort -r $* 2>&1)" > $dev_null
+		log "$(master_PID=$$ abort -r $* 2>&1)" > $dev_null
 	fi
 
-	if [[ ${master_PID-} && $master_PID != "$BASHPID" ]] # in a sub-shell?
+	if [[ ${master_PID-} && $master_PID != "$$" ]] # in a sub-shell?
 	   then trap '' TERM		 # don't kill ourself when ...
 		kill -TERM -$master_PID	 # kill our parent and its children
 		sleep 1
