@@ -1001,10 +1001,12 @@ print-or-egrep-Usage-then-exit() {
 # ---------------------------------
 
 abort-with-action-Usage() {
+	local opts= ; while [[ ${1-} == -* ]] ; do opts+=" $1"; shift; done
 	local _action=${*:-$action}
 
 	echo -e "\nBad arguments; here's the usage for this action:"
-	echo "$Usage" | grep "^ *$_action" >&2; echo
+	# shellcheck disable=SC2086
+	echo "$Usage" | grep $opts "^ *$_action" >&2; echo
 	_libsnap-exit 1
 }
 
