@@ -1491,7 +1491,7 @@ set-average() {
 
 	local values=$*
 	local -i count=$#
-	[[ $count != 0 ]] || abort-function ": no numbers to everage"
+	[[ $count != 0 ]] || abort-function ": no numbers to average"
 	average=$(( ( ${values// /+} + ($count/2) ) / $count ))
 	$xtrace
 }
