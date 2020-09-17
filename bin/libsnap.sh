@@ -273,8 +273,7 @@ bash_builtins="basename dirname head id realpath rmdir rm sleep tee uname"
 
 [[ $BASH_LOADABLES_PATH ]] &&
 for _builtin in $bash_builtins
-    do	# shellcheck disable=SC2086
-	enable -f $_builtin $_builtin
+    do	enable -f "$_builtin" "$_builtin"
 done 2> $dev_null			# rm is only in bash-5.0, ignore error
 
 # ----------------------------------------------------------------------------
@@ -386,8 +385,7 @@ TMPDIR=$tmp_dir				# used by bash
 # GNU mkdir will fail if $tmp_dir is a symlink
 # shellcheck disable=SC2174,SC2086
 until [[ ! -w /tmp || -d $tmp_dir ]] || mkdir -m 0700 -p $tmp_dir
-   do	# shellcheck disable=SC2086
-	_warn "deleting $(ls -ld $tmp_dir)"; rm -f $tmp_dir
+   do	_warn "deleting $(ls -ld "$tmp_dir")"; rm -f "$tmp_dir"
 done
 
 export TMP=$tmp_dir TMP_DIR=$tmp_dir	# caller can change these
@@ -425,7 +423,7 @@ function set-FS_type--from-path() {
 		local cmd="lsblk --noheadings --nodeps --output=fstype $path"
 		FS_type=$($cmd)
 		if [[ ! $FS_type ]]
-		   then # shellcheck disable=SC2086
+		   then # shellcheck disable=SC2086 # $cmd has its arguments
 			FS_type=$(sudo $cmd)
 		fi
 	fi
@@ -552,7 +550,7 @@ set-FS_device--from-FS-label() {
 	local cmd="blkid -l -o device -t LABEL=$label"
 	FS_device=$($cmd)
 	if [[ ! $FS_device ]]
-	   then # shellcheck disable=SC2086
+	   then # shellcheck disable=SC2086 # $cmd contains its arguments
 		FS_device=$(sudo $cmd)
 	fi
 
@@ -705,9 +703,10 @@ print-call-stack() {
 	   do	(( depth < stack_skip )) && 
 		    { argv_i+=${BASH_ARGC[depth]}; continue; } # skip ourself
 		# this logic is duplicated in PS4
-		# shellcheck disable=SC2086,SC2155
-		local src=$(echo ${BASH_SOURCE[depth]} |
-				sed "s@^$HOME/@~/@; s@^/home/@~@; s@/.*/@ @")
+		local src
+		src=$(echo "${BASH_SOURCE[depth]}" |
+			  sed "s@^$HOME/@~/@; s@^/home/@~@; s@/.*/@ @") ||
+		    abort src=
 		local args=
 		local -i argc=${BASH_ARGC[depth]-0} number_args=0
 		for (( arg_i=argv_i+argc-1; arg_i >= argv_i; arg_i-- ))
@@ -762,7 +761,7 @@ abort() {
 	   else	warn "$@"
 	fi
 
-	print-call-stack -s $stack_skip >&2
+	print-call-stack -s "$stack_skip" >&2
 
 	if [[ ! $is_recursion ]]
 	   then # shellcheck disable=SC2048,SC2086
@@ -787,8 +786,8 @@ abort-function() {
 	local opts= ; while [[ ${1-} == -* ]] ; do opts+=" $1"; shift; done
 
 	[[ $1 == ':'* ]] && local msg=$* || local msg=" $*"
-	# shellcheck disable=SC2086
-	abort -$stack_skip $opts "${FUNCNAME[$stack_skip]}$msg"
+	# shellcheck disable=SC2086 # $opts may be null or multi
+	abort -"$stack_skip" $opts "${FUNCNAME[$stack_skip]}$msg"
 }
 readonly -f abort-function
 
@@ -818,7 +817,7 @@ echoE () {
 	[[   $func_name ]] && func_name="line $line_no, in $func_name():"
 
 	[[ $show_name ]] && local name="$our_name:" || local name=
-	echo -e $name "$func_name" "$@" >&2
+	echo -e "$name $func_name" "$@" >&2
 	$xtrace
 }
 
@@ -841,7 +840,6 @@ function is-writable-variable() { is-writable-var "$@"; }
 # ----------------------
 
 function is-integer-var() {
-	# shellcheck disable=SC2086
 	is-var "$1" && [[ $(declare -p "$1") =~ ' '-[a-zA-Z]*i ]]
 }
 
@@ -960,7 +958,7 @@ function suspend-tracing {
 function restore-tracing {
 
 	local status=$?			# status from caller's previous command
-	is-arg1-in-arg2 "${FUNCNAME[1]}" ${!funcname2was_tracing[*]} ||
+	is-arg1-in-arg2 "${FUNCNAME[1]}" "${!funcname2was_tracing[*]}" ||
 	   abort-function "was called without a suspend-tracing"
 	[[ ${funcname2was_tracing[ ${FUNCNAME[1]} ]} ]] || return $status
 
@@ -1004,7 +1002,7 @@ abort-with-action-Usage() {
 	local _action=${*:-$action}
 
 	echo -e "\nBad arguments; here's the usage for this action:"
-	# shellcheck disable=SC2086
+	# shellcheck disable=SC2086 # $opts may be null or multi
 	echo "$Usage" | grep $opts "^ *$_action" >&2; echo
 	_libsnap-exit 1
 }
@@ -1102,7 +1100,8 @@ print-string-colors() {
 	    do	local line=
 		local capname
 		for capname in setab setb setaf setf
-		    do	line+="$(tput $capname $n)$capname $n$(tput sgr0)   "
+		    do	# shellcheck disable=SC2086
+			line+="$(tput $capname $n)$capname $n$(tput sgr0)   "
 		done
 		echo "$line"
 	done
@@ -1138,14 +1137,13 @@ declare -A warning_level2escape_sequence
 set-warning_string() {
 	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
 	local level=$1; shift; local string=$*
-	# shellcheck disable=SC2086
-	is-arg1-in-arg2 "$level" ${!warning_level2tput_args[*]} ||
+	is-arg1-in-arg2 "$level" "${!warning_level2tput_args[*]}" ||
 	   abort-function "$level is unknown level"
 
 	[[ -t 1 || ${do_tput-} ]] || { warning_string=$string;$xtrace;return; }
 
 	local esc=${warning_level2escape_sequence[$level]=$(
-		# shellcheck disable=SC2086
+		# shellcheck disable=SC2086 # variable contains multiple values
 		tput ${warning_level2tput_args[$level]})}
 	[[ ${clear_escape_seq-} ]] ||
 	     clear_escape_seq=$(tput $clear_tput_args |
@@ -1303,13 +1301,13 @@ function setup-df-data-from-fields() {
 	fi
 
 	set -f
-	# shellcheck disable=SC2086
+	# shellcheck disable=SC2086 # variable contains multiple values
 	set -- ${fields//,/ }
 	fields=$*
 	local -i field_count=$#
 	#
-	# shellcheck disable=SC2046,SC2086
-	set -- $(df $df_opts --output=${fields// /,} --no-sync $drive/.)
+	# shellcheck disable=SC2046,SC2086 # *_opts may be null or multi
+	set -- $(df $df_opts --output="${fields// /,}" --no-sync "$drive"/.)
 	set +f
 	[[ $# != 0 ]] || abort-function "'df $drive' failed"
 	while (( $# > $field_count )) ; do shift; done
@@ -1425,14 +1423,14 @@ function set-is_FIFO() {
 # pop word off left side of named list; return non-0 if list was empty
 function set-popped_word-is_last_word--from-list() {
 	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
-	# shellcheck disable=SC2086
+	# shellcheck disable=SC2086 # variable may be null
 	set-is_FIFO ${1-} && shift
 	[[ $# == 1 ]] || abort-function ": pass name of list"
 
 	local  list_name=$1
 	[[ -v $list_name ]] || abort-function "$1: '$1' is not set"
 	set -f
-	# shellcheck disable=SC2086
+	# shellcheck disable=SC2086 # variable contains multiple values
 	set -- ${!list_name}		# split words apart
 	set +f
 	[[ $# == 1 ]] && is_last_word=$true || is_last_word=$false
@@ -1558,9 +1556,8 @@ unset product
 set-division() {
 	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
 	if ! [[ $# == 3 && $1 =~ ^-?[1-9]$ && $2$3 =~ ^[-0-9]+$ ]] # -0 is hard
-	   then # shellcheck disable=SC2086
-		abort-function \
-		  decimal-digits=${1-}  numerator=${2-} denominator=${3-} ${4-}
+	   then abort-function \
+	   decimal-digits="${1-}" numerator="${2-}" denominator="${3-}" "${4-}"
 	fi
 	local -i decimal_digits=${1#-} numerator=$2    denominator=$3
 	[[ $denominator =~ ^-?[1-9][0-9]*$ ]] || # can't divide-by-0
@@ -1583,7 +1580,7 @@ set-division() {
 	fi
 
 	# shellcheck disable=SC2059
-	printf -v division "$format" $whole_number $fraction
+	printf -v division "$format" "$whole_number" "$fraction"
 	[[ $signs == - ]] && division=-$division
 	$xtrace
 }
@@ -1638,7 +1635,7 @@ function confirm() {
 	   *     ) y_n="y/n" status=  ;;
 	esac
 
-	[[ -t 0 ]] || { $xtrace; return $status; }
+	[[ -t 0 ]] || { $xtrace; return "$status"; }
 
 	_prompt+=" ($y_n)? "
 
@@ -1686,6 +1683,7 @@ function run-function() {
 
 	"$@"
 	local status=$?
+	# shellcheck disable=SC2086 # variable contains multiple values
 	[[ $var_names ]] && echoEV -1 ${var_names//,/ }
 	[[ $status == 0 || $is_procedure ]] || abort -1 "'$*' returned $status"
 
@@ -1763,6 +1761,7 @@ copy-file-perms() {
 			   then [[ -w "$path" ]] || sudo=sudo
 				[[ -d "$path" ]] || abort "'$path' not a dir"
 			   else [[ -w "${path%/*}" ]] || sudo=sudo
+				# shellcheck disable=SC2086 # *_opt may be null
 				$IfRun $sudo mkdir $mkdir_opt "$path"
 			fi
 		elif [[ ! -e "$path" ]]
