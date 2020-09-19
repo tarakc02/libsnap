@@ -940,13 +940,16 @@ function remember-tracing {
 
 # ----------------------
 
+# pass -l if used in a loop, and the restore-tracing is outside the loop
 function suspend-tracing {
+	[[ ${1-} == -l ]] && { shift; local in_loop=$true; } || local in_loop=
 
 	local status=$?			# status from caller's previous command
 	if [[ -o xtrace ]]
 	   then set +x
 		local was_tracing=$true
 	   else local was_tracing=$false
+		[[ $in_loop ]] && return $status
 	fi
 	funcname2was_tracing[ ${FUNCNAME[1]} ]=$was_tracing
 	return $status
