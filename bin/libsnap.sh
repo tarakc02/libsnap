@@ -1118,18 +1118,21 @@ print-string-colors() {
 # the setb coloring stands out more, but fails under 'watch' on some OSs
 declare -A highlight_level2tput_b_args=(
          [ok]="setb 2"
-    [warning]="setb 6"
+     [notice]="setb 6"
+    [warning]="setb 5"
       [error]="setb 4"
       [stale]="setb 1"
 )
 declare -A highlight_level2tput_args=(
          [ok]="setf 2"
+     [notice]="setf 6"
     [warning]="setf 5"
       [error]="setf 4"
       [stale]="setf 3"
 )
 declare -A highlight_level2tput_args=(
          [ok]="setaf 2"
+     [notice]="setaf 6"
     [warning]="setaf 5"
       [error]="setab 1"			# setaf is less "striking" than setab
       [stale]="setaf 3"
