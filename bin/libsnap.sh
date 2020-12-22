@@ -1558,6 +1558,10 @@ unset product
 # this is 5x faster than echo'ing into awk's printf
 set-division() {
 	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
+	local -i width=0
+	[[ $1 == -w? ]] && { width=${1#-w}; shift; }
+	[[ $1 == -z  ]] && { local zero_pad=$true; shift; } || local zero_pad=
+	[[ $1 == -u? ]] && { local units=${1#-u} ; shift; } || local units=
 	if ! [[ $# == 3 && $1 =~ ^-?[1-9]$ && $2$3 =~ ^[-0-9]+$ ]] # -0 is hard
 	   then abort-function \
 	   decimal-digits="${1-}" numerator="${2-}" denominator="${3-}" "${4-}"
