@@ -736,7 +736,8 @@ function warn() {
 	   then local level=error
 	   else local level=warning
 	fi
-	[[ -t 2 ]] && set-warning_string $level "$msg" && msg=$warning_string
+	[[ -t 2 ]] && set-highlighted_string $level "$msg" &&
+	    msg=$highlighted_string
 	echo -e "\n$msg\n" >&2
 	return 1
 }
@@ -1115,19 +1116,19 @@ print-string-colors() {
 # main script can over-ride the following global variables after source us
 
 # the setb coloring stands out more, but fails under 'watch' on some OSs
-declare -A warning_level2tput_b_args=(
+declare -A highlight_level2tput_b_args=(
          [ok]="setb 2"
     [warning]="setb 6"
       [error]="setb 4"
       [stale]="setb 1"
 )
-declare -A warning_level2tput_args=(
+declare -A highlight_level2tput_args=(
          [ok]="setf 2"
     [warning]="setf 5"
       [error]="setf 4"
       [stale]="setf 3"
 )
-declare -A warning_level2tput_args=(
+declare -A highlight_level2tput_args=(
          [ok]="setaf 2"
     [warning]="setaf 5"
       [error]="setab 1"			# setaf is less "striking" than setab
@@ -1135,19 +1136,20 @@ declare -A warning_level2tput_args=(
 )
 clear_tput_args="sgr0"
 
-declare -A warning_level2escape_sequence
+declare -A highlight_level2escape_sequence
 
-set-warning_string() {
+set-highlighted_string() {
 	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
 	local level=$1; shift; local string=$*
-	is-arg1-in-arg2 "$level" "${!warning_level2tput_args[*]}" ||
+	is-arg1-in-arg2 "$level" "${!highlight_level2tput_args[*]}" ||
 	   abort-function "$level is unknown level"
 
-	[[ -t 1 || ${do_tput-} ]] || { warning_string=$string;$xtrace;return; }
+	[[ -t 1 || ${do_tput-} ]] ||
+	    { highlighted_string=$string; $xtrace; return; }
 
-	local esc=${warning_level2escape_sequence[$level]=$(
+	local esc=${highlight_level2escape_sequence[$level]=$(
 		# shellcheck disable=SC2086 # variable contains multiple values
-		tput ${warning_level2tput_args[$level]})}
+		tput ${highlight_level2tput_args[$level]})}
 	[[ ${clear_escape_seq-} ]] ||
 	     clear_escape_seq=$(tput $clear_tput_args |
 				    sed 's/\x1B(B//') # toss leading ESC ( B
@@ -1155,7 +1157,7 @@ set-warning_string() {
 	   declare -g -r -i \
 		   terminfo_color_bytes=$(( ${#esc} + ${#clear_escape_seq} ))
 
-	warning_string=$esc$string$clear_escape_seq
+	highlighted_string=$esc$string$clear_escape_seq
 	$xtrace
 }
 
