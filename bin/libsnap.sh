@@ -1616,6 +1616,14 @@ set-division -d1 -6 -3 ; [[ $division ==  2.0 ]] || _abort "-6/-3 != $division"
 set-division -d2 10 60 ; [[ $division == 0.17 ]] || _abort "10/60 != $division"
 set-division -d1 10 60 ; [[ $division == 0.2  ]] || _abort "10/60 != $division"
 set-division -d1 59 60 ; [[ $division == 1.0  ]] || _abort "59/60 != $division"
+# test error handling
+sd() { set-division "$@"; }
+sd -d1    1 0 |& fgrep -q libsnap.sh: || _abort "1/0 should fail"
+sd -d1  1.1 1 |& fgrep -q libsnap.sh: || _abort "didn't catch non-integer"
+sd -d1  1 1 1 |& fgrep -q libsnap.sh: || _abort "didn't catch too many args"
+sd        1 1 |& fgrep -q libsnap.sh: || _abort "didn't catch missing -d#"
+sd -d1 -q 1 1 |& fgrep -q libsnap.sh: || _abort "didn't catch erroneous opt"
+sd -d1      1 |& fgrep -q libsnap.sh: || _abort "missing numerator"
 # test -w and -z
 sd() { set-division -w5 -z -d2 "$@"; }
 sd    9 2; [[ $division == 04.50 ]] || _abort    "9/2 != $division"
