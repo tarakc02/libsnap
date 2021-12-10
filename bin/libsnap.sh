@@ -1560,15 +1560,14 @@ unset product
 
 # ----------------------------------------------------------------------------
 
-# this is 5x faster than echo'ing into awk's printf
+# this is 5x faster than echo'ing into awk's printf (before added -w & -z)
 set-division() {
 	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
 	local -i width=0
 	[[ $1 == -w? ]] && { width=${1#-w}; shift; }
 	[[ $1 == -z  ]] && { local zero_pad=$true; shift; } || local zero_pad=
-	[[ $1 == -u? ]] && { local units=${1#-u} ; shift; } || local units=
 	if ! [[ $# == 3 && $1 =~ ^-?[1-9]$ && $2$3 =~ ^[-0-9]+$ ]] # -0 is hard
-	   then abort-function \
+	   then abort-function "[-w# [-z]]" \
 	   decimal-digits="${1-}" numerator="${2-}" denominator="${3-}" "${4-}"
 	fi
 	local -i decimal_digits=${1#-} numerator=$2    denominator=$3
@@ -1594,6 +1593,19 @@ set-division() {
 	# shellcheck disable=SC2059
 	printf -v division "$format" "$whole_number" "$fraction"
 	[[ $signs == - ]] && division=-$division
+
+	(( $width != 0 )) && {
+	while (( ${#division} > $width ))
+	   do	[[ $division == *.* ]] || break
+		division=${division%?}
+		[[ $division != *. ]] ||
+		division=${division%?}
+	done
+	[[ $zero_pad && $division == *.* ]] && # only if fractional
+	while (( ${#division} < $width ))
+	   do	division=0$division
+	done
+	}
 	$xtrace
 }
 
@@ -1604,6 +1616,12 @@ set-division -1 -6 -3 ; [[ $division ==  2.0 ]] || _abort "-6/-3 != $division"
 set-division -2 10 60 ; [[ $division == 0.17 ]] || _abort "10/60 != $division"
 set-division -1 10 60 ; [[ $division == 0.2  ]] || _abort "10/60 != $division"
 set-division -1 59 60 ; [[ $division == 1.0  ]] || _abort "59/60 != $division"
+# test -w and -z
+sd() { set-division -w5 -z -2 "$@"; }
+sd    9 2; [[ $division == 04.50 ]] || _abort    "9/2 != $division"
+sd  900 2; [[ $division == 450.0 ]] || _abort  "900/2 != $division"
+sd 9000 2; [[ $division == 4500  ]] || _abort "9000/2 != $division"
+unset -f sd
 unset division
 }
 
@@ -1704,7 +1722,7 @@ function run-function() {
 	local function_prefix=${BASH_REMATCH[0]}
 
 	header "variables set by $function"
-	var_names=${function#$function_prefix} ; var_names=${var_names%%--*}
+	var_names=${function#"$function_prefix"} ; var_names=${var_names%%--*}
 	var_names=${var_names//-/ }
 	declare -i max_name_width=0
 	for var_name in $var_names
