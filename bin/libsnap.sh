@@ -1563,16 +1563,16 @@ unset product
 # this is 5x faster than echo'ing into awk's printf (before added -w & -z)
 set-division() {
 	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
-	local -i width=0
+	local -i width=0 decimal_digits
 	[[ $1 == -w? ]] && { width=${1#-w}; shift; }
 	[[ $1 == -z  ]] && { local zero_pad=$true; shift; } || local zero_pad=
-	if ! [[ $# == 3 && $1 =~ ^-?[1-9]$ && $2$3 =~ ^[-0-9]+$ ]] # -0 is hard
-	   then abort-function "[-w# [-z]]" \
-	   decimal-digits="${1-}" numerator="${2-}" denominator="${3-}" "${4-}"
-	fi
-	local -i decimal_digits=${1#-} numerator=$2    denominator=$3
+	[[ $1 == -d? ]] && { decimal_digits=${1#-d}; shift; }
+	[[ $# == 2 && ${decimal_digits-} == [1-9]* && $1$2 =~ ^[-0-9]+$ ]] ||
+	  abort-function "[-w# [-z]] -d#" numerator="${1-}" denominator="${2-}"
+
+	local -i numerator=$1 denominator=$2
 	[[ $denominator =~ ^-?[1-9][0-9]*$ ]] || # can't divide-by-0
-	    abort-function "denominator must be an integer"
+	    abort-function "denominator must be non-0 integer"
 
 	local format="%s.%0${decimal_digits}d"
 
@@ -1610,14 +1610,14 @@ set-division() {
 }
 
 [[ $_do_run_unit_tests ]] && {
-set-division -1 -6  3 ; [[ $division == -2.0 ]] || _abort "-6/3  != $division"
-set-division -1 -6 -3 ; [[ $division ==  2.0 ]] || _abort "-6/-3 != $division"
+set-division -d1 -6  3 ; [[ $division == -2.0 ]] || _abort "-6/3  != $division"
+set-division -d1 -6 -3 ; [[ $division ==  2.0 ]] || _abort "-6/-3 != $division"
 # test minutes to hours
-set-division -2 10 60 ; [[ $division == 0.17 ]] || _abort "10/60 != $division"
-set-division -1 10 60 ; [[ $division == 0.2  ]] || _abort "10/60 != $division"
-set-division -1 59 60 ; [[ $division == 1.0  ]] || _abort "59/60 != $division"
+set-division -d2 10 60 ; [[ $division == 0.17 ]] || _abort "10/60 != $division"
+set-division -d1 10 60 ; [[ $division == 0.2  ]] || _abort "10/60 != $division"
+set-division -d1 59 60 ; [[ $division == 1.0  ]] || _abort "59/60 != $division"
 # test -w and -z
-sd() { set-division -w5 -z -2 "$@"; }
+sd() { set-division -w5 -z -d2 "$@"; }
 sd    9 2; [[ $division == 04.50 ]] || _abort    "9/2 != $division"
 sd  900 2; [[ $division == 450.0 ]] || _abort  "900/2 != $division"
 sd 9000 2; [[ $division == 4500  ]] || _abort "9000/2 != $division"
@@ -1634,7 +1634,7 @@ msleep() {
 	local -i msecs=$1
 
 	local division
-	set-division -3 "$msecs" 1000
+	set-division -d3 "$msecs" 1000
 	[[ $division != *-* ]] &&	# avoid negative values
 	sleep "$division"
 }
