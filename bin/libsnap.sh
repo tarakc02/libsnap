@@ -1521,7 +1521,7 @@ unset average
 
 # ----------------------------------------------------------------------------
 
-# this is 5x faster than echo'ing into awk's printf
+# takes ~150 usec, 10x faster than: awk '{print $1 * $2}' <<<"$num_1 $num_2"
 set-product() {
 	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
 	[[ $# == 2 &&
@@ -1569,7 +1569,7 @@ unset product
 
 # ----------------------------------------------------------------------------
 
-# this is 5x faster than echo'ing into awk's printf (before added -w & -z)
+# takes ~150 usec, 10x faster than: awk '{printf "%0.2f\n" $1/$2}' <<<"$n $d"
 set-division() {
 	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
 	local -i width=0 decimal_digits
