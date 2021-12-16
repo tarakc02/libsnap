@@ -27,14 +27,11 @@ all: lockpid
 lockpid: lockpid.c
 	$(CC) $(TRACE) -Wall -Wno-unknown-pragmas -g -o $@ $@.c
 
- DESTDIR := /usr/local/martus/bin
-DEST2DIR := /usr/local/bookshare/bin
+DESTDIR := /usr/local/bin
 
 install: lockpid
-	@[[ lockpid -ot $(DESTDIR)/lockpid ]] && exit 0; \
+	@[ lockpid -ot $(DESTDIR)/lockpid ] && exit 0; \
 	 install --verbose lockpid $(DESTDIR)
-	@[[ $(DESTDIR)/lockpid -ef $(DEST2DIR)/lockpid ]] && exit 0; \
-	 [[ ! -d $(DEST2DIR) ]] || ln --force $(DESTDIR)/lockpid $(DEST2DIR)
 
 clean:
 	rm -f a.out core *.o lockpid
