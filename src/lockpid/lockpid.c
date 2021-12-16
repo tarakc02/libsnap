@@ -316,16 +316,23 @@ int
 open_lock_file(void)
 {
     int fd;
+    bool did_retry = False;
 
     int flags = O_RDWR | O_NOFOLLOW;
     if (! do_release)
 	flags |= O_CREAT;
 
+retry:
     // let umask control who can reclaim a stale lock
     fd = open(lock_file, flags, 0666);
-
-    if (fd < 0)
+    if (fd < 0) {
+	if (! did_retry && errno == EACCES && getuid() == 0) { // FUSE or NFS?
+	    chown(lock_file, 0, 0);
+	    did_retry = True;
+	    goto retry;
+	}
 	show_errno_and_exit("open");
+    }
 
     return(fd);
 }
