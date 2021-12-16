@@ -56,6 +56,7 @@ static const int   unknown_exit_status = 127;
 static const int     usage_exit_status = 126;
 static const int lock_busy_exit_status = 125; /* copied into libsnap.sh */
 static const int hold_lock_exit_status = 124;
+static const int no_locker_process_exit_status = 124;
 
 typedef int bool;
 enum bool { False = 0, True = 1 };
@@ -471,6 +472,8 @@ main(int argc, char *argv[])
 	if ( ! did_lock_file(fd) || does_file_hold_active_pid(fd) ) {
 	    if (do_wait) {
 		close_file(fd);
+		if (kill(pid, 0) < 0 && errno == ESRCH)
+		    exit(no_locker_process_exit_status); // process died
 		usleep(sleep_microsecs);
 		if (end_wait_time != 0 && time(NULL) > end_wait_time)
 		    exit_for_busy_lock();
