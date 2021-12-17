@@ -161,9 +161,7 @@ readonly lockpid_busy_exit_status=125
 # return 0 if the passed variable name has been set
 function is-set() {
 	[[ -v $1 ]] && return 0
-	eval "local keys=\${!$1[*]}"
-	# shellcheck disable=SC2154
-	[[ $keys ]]
+	eval "[[ \${!$1[*]} ]]"
 }
 
 [[ $_do_run_unit_tests ]] && {
