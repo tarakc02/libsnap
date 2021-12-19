@@ -878,24 +878,28 @@ is-integer  1.3 && _abort  "1.3 is not an integer"
 # ----------------------
 
 function set-var_value--from-var_name() {
-	local _var_name_=$1
+	local _var_name_=$1 declare_output
 
 	if [[ -v $_var_name_ ]]
 	   then var_value=${!_var_name_}
+		if [[ $var_value == *' '* ||
+		      $var_value == *'	'*  ]]
+		   then var_value="'$var_value'"
+		elif is-integer-var "$_var_name_"
+		   then var_value="$var_value   # integer variable"
+		fi
+	elif declare_output=$(declare -p "$_var_name_" 2>/dev/null)
+	   then var_value=${declare_output#*=}
 	   else var_value='<unset>'
 		return 1
 	fi
 
-	[[ $var_value == *[\ \	]* ]] && var_value="'$var_value'"
-
-	is-integer-var "$_var_name_" &&
-	var_value="$var_value	# integer variable"
 	return 0
 }
 
 [[ $_do_run_unit_tests ]] && {
 set-var_value--from-var_name PATH || _abort "PATH is set"
-set-var_value--from-var_name PaTh && _abort "PaTh not set"
+set-var_value--from-var_name Nope && _abort "Nope not set"
 }
 
 # ----------------------
