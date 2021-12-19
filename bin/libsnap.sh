@@ -676,7 +676,7 @@ is-arg1-in-arg2 foo    && _abort   "no arg2 means false"
 # ----------------------------------------------------------------------------
 # simple error and warning and trace functions.
 # don't assign these until all the environment setup is finished, otherwise
-#   a login shell might source it and be terminated by abort's exit. 
+#   a login shell might source it and be terminated by abort's exit.
 # ----------------------------------------------------------------------------
 
 declare -i max_call_stack_args=6
@@ -699,7 +699,7 @@ print-call-stack() {
 	# declare -p BASH_ARGV BASH_ARGC	 # uncomment to debug
 	local -i depth arg_i argv_i=0 max_args=$max_call_stack_args
 	for depth in ${!FUNCNAME[*]}
-	   do	(( depth < stack_skip )) && 
+	   do	(( depth < stack_skip )) &&
 		    { argv_i+=${BASH_ARGC[depth]}; continue; } # skip ourself
 		# this logic is duplicated in PS4
 		local src
@@ -910,26 +910,28 @@ function set-var_value--from-var_name() {
 }
 
 [[ $_do_run_unit_tests ]] && {
-declare -a  mapa=(one two)
-declare -A  mapA=([one]=1 [two]=two)
-declare -ai mpai=(1 2)
-declare -iA mpAi=([one]=1 [two]=2)
-declare -A mapn
-declare    sets=set
-declare -i seti=1
-declare    nots
-declare -i noti
+declare -a  mapa=(1 two)		; mapa_val='([0]="1" [1]="two")'
+declare -A  mapA=([one]=1 [two]=two)	; mapA_val='([two]="two" [one]="1" )'
+declare -ai mpai=(1 2)			; mpai_val='([0]=1 [1]=2)'
+declare -iA mpAi=([one]=1 [two]=2)	; mpAi_val='([two]=2 [one]=1 )'
+declare -A mapn				; mapn_val='<unset>'
+declare    sets=set			; sets_val='"set"'
+declare -i seti=1			; seti_val='1'
+declare    nots				; nots_val='<unset>'
+declare -i noti				; noti_val='<unset>'
+declare					  Nope_val='<non-existent>'
 # replace ':' with ';' to debug
-set-var_value--from-var_name sets || _abort "sets is set" : echo "$var_value"
-set-var_value--from-var_name seti || _abort "seti is set" : echo "$var_value"
-set-var_value--from-var_name mapa || _abort "mapa is set" : echo "$var_value"
-set-var_value--from-var_name mapA || _abort "mapA is set" : echo "$var_value"
-set-var_value--from-var_name mpai || _abort "mpai is set" : echo "$var_value"
-set-var_value--from-var_name mpAi || _abort "mpAi is set" : echo "$var_value"
-set-var_value--from-var_name mapn && _abort "mapn unset"  : echo "$var_value"
-set-var_value--from-var_name nots && _abort "nots unset"  : echo "$var_value"
-set-var_value--from-var_name noti && _abort "noti unset"  : echo "$var_value"
-set-var_value--from-var_name Nope && _abort "Nope isn't"  : echo "$var_value"
+d() { set-var_value--from-var_name "$@"; }
+  d sets && [[ $var_value == "$sets_val" ]] || _abort "sets is set: $var_value"
+  d seti && [[ $var_value == "$seti_val" ]] || _abort "seti is set: $var_value"
+  d mapa && [[ $var_value == "$mapa_val" ]] || _abort "mapa is set: $var_value"
+  d mapA && [[ $var_value == "$mapA_val" ]] || _abort "mapA is set: $var_value"
+  d mpai && [[ $var_value == "$mpai_val" ]] || _abort "mpai is set: $var_value"
+  d mpAi && [[ $var_value == "$mpAi_val" ]] || _abort "mpAi is set: $var_value"
+! d mapn && [[ $var_value == "$mapn_val" ]] || _abort "mapn  unset: $var_value"
+! d nots && [[ $var_value == "$nots_val" ]] || _abort "nots  unset: $var_value"
+! d noti && [[ $var_value == "$noti_val" ]] || _abort "noti  unset: $var_value"
+! d Nope && [[ $var_value == "$Nope_val" ]] || _abort "Nope  isn't: $var_value"
 }
 
 # ----------------------
