@@ -808,7 +808,7 @@ has_echoE_been_called=$false
 
 # echo to stdError, include the line and function from which we're called
 echoE() {
-#	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
+	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
 	[[ $1 == -n ]] && { local show_name=$true; shift; } || local show_name=
 	declare -i stack_frame_to_show=1 # default to our caller's stack frame
 	[[ $1 =~ ^-[0-9]+$ ]] && { stack_frame_to_show=${1#-}+1; shift; }
@@ -902,7 +902,7 @@ set-var_value--from-var_name PaTh && _abort "PaTh not set"
 
 # like echoE, but also show the values of the variable names passed to us
 echoEV() {
-#	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
+	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
 	declare -i stack_frame_to_show=1 # default to our caller's stack frame
 	[[ $1 =~ ^-[0-9]+$ ]] && { stack_frame_to_show=${1#-}+1; shift; }
 	assert-not-option "${1-}"
