@@ -808,7 +808,7 @@ has_echoE_been_called=$false
 
 # echo to stdError, include the line and function from which we're called
 echoE() {
-	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
+#	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
 	[[ $1 == -n ]] && { local show_name=$true; shift; } || local show_name=
 	declare -i stack_frame_to_show=1 # default to our caller's stack frame
 	[[ $1 =~ ^-[0-9]+$ ]] && { stack_frame_to_show=${1#-}+1; shift; }
@@ -823,10 +823,9 @@ echoE() {
 	   then  has_echoE_been_called=$true
 		[[ ${Trace_log-} && -s $Trace_log ]] && true > "$Trace_log"
 	fi
-	local file
-	for file in /dev/stderr ${Trace_log-}
-	    do	echo -e "$name $func_name" "$@" >> "$file"
-	done
+	[[ ${Trace_log-} ]] &&
+	echo -e "$name $func_name" "$@" >> "$Trace_log"
+	echo -e "$name $func_name" "$@" >&2
 	$xtrace
 }
 
@@ -903,7 +902,7 @@ set-var_value--from-var_name PaTh && _abort "PaTh not set"
 
 # like echoE, but also show the values of the variable names passed to us
 echoEV() {
-	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
+#	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
 	declare -i stack_frame_to_show=1 # default to our caller's stack frame
 	[[ $1 =~ ^-[0-9]+$ ]] && { stack_frame_to_show=${1#-}+1; shift; }
 	assert-not-option "${1-}"
@@ -927,7 +926,7 @@ _Trace () {
 	_isnum "$1"
 	(( $1 <= $Trace_level )) || return 1
 	shift
-	$echo_cmd -1 "$@"
+	$echo_cmd -2 "$@"
 }
 Trace () { _Trace echoE  "$@"; }
 TraceV() { _Trace echoEV "$@"; }
