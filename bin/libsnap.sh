@@ -922,11 +922,13 @@ declare -i Trace_level=0		# default to none (probably)
 
 _isnum() { [[ $1 =~ ^[0-9]+$ ]] ||abort -2 "Trace* first arg is (min) level"; }
 _Trace () {
+	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
 	local echo_cmd=$1; shift
 	_isnum "$1"
-	(( $1 <= $Trace_level )) || return 1
+	(( $1 <= $Trace_level )) || { $xtrace; return 1; }
 	shift
 	$echo_cmd -2 "$@"
+	$xtrace
 }
 Trace () { _Trace echoE  "$@"; }
 TraceV() { _Trace echoEV "$@"; }
