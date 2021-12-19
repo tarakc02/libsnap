@@ -920,7 +920,6 @@ declare -i seti=1			; seti_val='1'
 declare    nots				; nots_val='<unset>'
 declare -i noti				; noti_val='<unset>'
 declare					  Nope_val='<non-existent>'
-# replace ':' with ';' to debug
 d() { set-var_value--from-var_name "$@"; }
   d sets && [[ $var_value == "$sets_val" ]] || _abort "sets is set: $var_value"
   d seti && [[ $var_value == "$seti_val" ]] || _abort "seti is set: $var_value"
