@@ -880,17 +880,29 @@ is-integer  1.3 && _abort  "1.3 is not an integer"
 function set-var_value--from-var_name() {
 	local _var_name_=$1 declare_output
 
-	if [[ -v $_var_name_ ]]
-	   then var_value=${!_var_name_}
-		if [[ $var_value == *' '* ||
-		      $var_value == *'	'*  ]]
-		   then var_value="'$var_value'"
-		elif is-integer-var "$_var_name_"
-		   then var_value="$var_value   # integer variable"
+	# echo -n "$_var_name_; " ; declare -p "$_var_name_"
+	if declare_output=$(declare -p "$_var_name_" 2>/dev/null)
+	   then declare_output=${declare_output#*-}
+		if [[ $declare_output != [aA]* ]]
+		   then local is_array=$false
+		   else local is_array=$true
+			declare_output=${declare_output#?}
 		fi
-	elif declare_output=$(declare -p "$_var_name_" 2>/dev/null)
-	   then var_value=${declare_output#*=}
-	   else var_value='<unset>'
+		if [[ $declare_output == i* ]]
+		   then local is_int=$true
+		   else local is_int=$false
+		fi
+		if [[ $declare_output == *=* ]]
+		   then if [[ $is_array ]]
+			   then var_value=${declare_output#*=}
+				[[ $is_int ]] && var_value=${var_value//\"/}
+			   else var_value=${!_var_name_}
+				[[ $is_int ]] || var_value="\"$var_value\""
+			fi
+		   else var_value='<unset>'
+			return 1
+		fi
+	   else var_value='<non-existent>'
 		return 1
 	fi
 
@@ -898,8 +910,26 @@ function set-var_value--from-var_name() {
 }
 
 [[ $_do_run_unit_tests ]] && {
-set-var_value--from-var_name PATH || _abort "PATH is set"
-set-var_value--from-var_name Nope && _abort "Nope not set"
+declare -a  mapa=(one two)
+declare -A  mapA=([one]=1 [two]=two)
+declare -ai mpai=(1 2)
+declare -iA mpAi=([one]=1 [two]=2)
+declare -A mapn
+declare    sets=set
+declare -i seti=1
+declare    nots
+declare -i noti
+# replace ':' with ';' to debug
+set-var_value--from-var_name sets || _abort "sets is set" : echo "$var_value"
+set-var_value--from-var_name seti || _abort "seti is set" : echo "$var_value"
+set-var_value--from-var_name mapa || _abort "mapa is set" : echo "$var_value"
+set-var_value--from-var_name mapA || _abort "mapA is set" : echo "$var_value"
+set-var_value--from-var_name mpai || _abort "mpai is set" : echo "$var_value"
+set-var_value--from-var_name mpAi || _abort "mpAi is set" : echo "$var_value"
+set-var_value--from-var_name mapn && _abort "mapn unset"  : echo "$var_value"
+set-var_value--from-var_name nots && _abort "nots unset"  : echo "$var_value"
+set-var_value--from-var_name noti && _abort "noti unset"  : echo "$var_value"
+set-var_value--from-var_name Nope && _abort "Nope isn't"  : echo "$var_value"
 }
 
 # ----------------------
