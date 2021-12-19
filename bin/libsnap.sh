@@ -136,6 +136,7 @@ _abort "bash version >= 4.4 must appear earlier in the PATH than an older bash"
 # 4.4: executing RHS of && or || won't cause shell to fork (lose side-effects)
 
 shopt -s globasciiranges		# so weird locales don't mess us up
+shopt -s lastpipe			# don't fork last cmd of pipeline
 
 # set -x: if command in /home/, precede by ~ (yourself) else ~other-user .
 # this logic for the first-half of PS4 is duplicated in print-call-stack
@@ -576,7 +577,7 @@ set-OS_release_file-OS_release() {
 
 	case $(basename "$OS_release_file") in
 	   ( os-release ) OS_release=$(sed -n 's/^PRETTY_NAME=//p' "$1") ;;
-	   ( * )	  OS_release=$(< "$1") ;;
+	   ( * )  read -r OS_release < "$1" ;;
 	esac
 }
 
@@ -1498,8 +1499,10 @@ unset _numbers _input _words popped_word is_last_word
 set-average() {
 	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
 	if [[ $# == 1 && ! $1 =~ ^[0-9]+$ && ( -e $1 || $1 == */* ) ]]
-	   then # shellcheck disable=SC2046,SC2086
-		set -- $(< "$1")
+	   then local numbers
+		read -r -d '\0' numbers < "$1"
+		# shellcheck disable=SC2046,SC2086
+		set -- $numbers
 	fi
 
 	local values=$*
