@@ -896,8 +896,9 @@ function set-var_value--from-var_name() {
 		   then if [[ $is_array ]]
 			   then var_value=${declare_output#*=}
 				[[ $is_int ]] && var_value=${var_value//\"/}
-			   else var_value=${!_var_name_}
-				[[ $is_int ]] || var_value="\"$var_value\""
+			elif [[ $is_int ]]
+			     then var_value=${!_var_name_}
+			     else var_value=${declare_output#*=}
 			fi
 		   else var_value='<unset>'
 			return 1
