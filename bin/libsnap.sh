@@ -48,6 +48,7 @@ readonly libsnap_version=1
 ##    setup-foo-vars	# sets numerous variables related to foo
 ## if "set-" is replaced by "update-" or "append-to-" or "prepend-to-",
 ##    the (initialized) variable(s) are updated rather than set;
+##    the designator might be preceded by "did-" (returm 1 of already set);
 ## the included function 'run-function' will display these variables.
 ##
 ## An array (indexed or associative) that maps a_key to a_value is named:
@@ -1772,7 +1773,7 @@ function run-function() {
 	[[ $var_names ]] && echoEV -1 ${var_names//,/ }
 	[[ $status == 0 || $is_procedure ]] || abort -1 "'$*' returned $status"
 
-	[[ $function =~ ^_?(set|update|(append|prepend)-to)- ]] ||
+	[[ $function =~ ^_?(did-)?(set|update|(append|prepend)-to)- ]] ||
 	    return $status
 	local function_prefix=${BASH_REMATCH[0]}
 
