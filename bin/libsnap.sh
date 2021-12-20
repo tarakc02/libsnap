@@ -877,7 +877,7 @@ is-integer  1.3 && _abort  "1.3 is not an integer"
 
 # ----------------------
 
-function set-var_value--from-var_name() {
+function set-var_value--for-debugger() {
 	local _var_name_=$1 declare_output
 
 	# echo -n "$_var_name_; " ; declare -p "$_var_name_"
@@ -921,7 +921,7 @@ declare -i seti=1			; seti_val='1'
 declare    nots				; nots_val='<unset>'
 declare -i noti				; noti_val='<unset>'
 declare					  Nope_val='<non-existent>'
-d() { set-var_value--from-var_name "$@"; }
+d() { set-var_value--for-debugger "$@"; }
   d sets && [[ $var_value == "$sets_val" ]] || _abort "sets is set: $var_value"
   d seti && [[ $var_value == "$seti_val" ]] || _abort "seti is set: $var_value"
   d mapa && [[ $var_value == "$mapa_val" ]] || _abort "mapa is set: $var_value"
@@ -945,7 +945,7 @@ echoEV() {
 
 	local _var_name_ var_value
 	for _var_name_
-	   do	set-var_value--from-var_name "$_var_name_"
+	   do	set-var_value--for-debugger "$_var_name_"
 
 		echoE -"$stack_frame_to_show" "$_var_name_=$var_value"
 	done
@@ -1785,7 +1785,7 @@ function run-function() {
 		   max_name_width=${#var_name}
 	done
 	for var_name in $var_names
-	    do	set-var_value--from-var_name "$var_name"
+	    do	set-var_value--for-debugger "$var_name"
 		# shellcheck disable=SC2154
 		printf "%${max_name_width}s=%s\n" "$var_name" "$var_value"
 	done
