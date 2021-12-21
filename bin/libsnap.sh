@@ -917,22 +917,31 @@ declare -A  mapA=([one]=1 [two]=two)	; mapA_val='([two]="two" [one]="1" )'
 declare -ai mpai=(1 2)			; mpai_val='([0]=1 [1]=2)'
 declare -iA mpAi=([one]=1 [two]=2)	; mpAi_val='([two]=2 [one]=1 )'
 declare -A mapn				; mapn_val='<unset>'
-declare    sets=set			; sets_val='"set"'
+declare    sets='set"set'		; sets_val='"set\"set"'
 declare -i seti=1			; seti_val='1'
 declare    nots				; nots_val='<unset>'
 declare -i noti				; noti_val='<unset>'
 declare					  Nope_val='<non-existent>'
-d() { set-var_value--for-debugger "$@"; }
-  d sets && [[ $var_value == "$sets_val" ]] || _abort "sets is set: $var_value"
-  d seti && [[ $var_value == "$seti_val" ]] || _abort "seti is set: $var_value"
-  d mapa && [[ $var_value == "$mapa_val" ]] || _abort "mapa is set: $var_value"
-  d mapA && [[ $var_value == "$mapA_val" ]] || _abort "mapA is set: $var_value"
-  d mpai && [[ $var_value == "$mpai_val" ]] || _abort "mpai is set: $var_value"
-  d mpAi && [[ $var_value == "$mpAi_val" ]] || _abort "mpAi is set: $var_value"
-! d mapn && [[ $var_value == "$mapn_val" ]] || _abort "mapn  unset: $var_value"
-! d nots && [[ $var_value == "$nots_val" ]] || _abort "nots  unset: $var_value"
-! d noti && [[ $var_value == "$noti_val" ]] || _abort "noti  unset: $var_value"
-! d Nope && [[ $var_value == "$Nope_val" ]] || _abort "Nope  isn't: $var_value"
+tst_func() {
+	local test=$1
+
+	set-var_value--for-debugger "$test"
+	local status=$? correct_value
+	eval "correct_value=\$${1}_val"
+	[[ $var_value == "$correct_value" ]] ||
+	    _abort "test $test: $var_value != $correct_value"
+	return $status
+}
+tst_func sets || _abort "sets is set"
+tst_func seti || _abort "seti is set"
+tst_func mapa || _abort "mapa is set"
+tst_func mapA || _abort "mapA is set"
+tst_func mpai || _abort "mpai is set"
+tst_func mpAi || _abort "mpAi is set"
+tst_func mapn && _abort "mapn  unset"
+tst_func nots && _abort "nots  unset"
+tst_func noti && _abort "noti  unset"
+tst_func Nope && _abort "Nope  isn't"
 }
 
 # ----------------------
