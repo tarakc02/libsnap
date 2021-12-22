@@ -805,6 +805,29 @@ assert-not-option() {
 
 # ----------------------------------------------------------------------------
 
+# this doesn't fork, so way-faster than $(< )
+read-all() {
+	local var_name=$1 file_name=$2
+
+	read -d '\0' -r "$var_name" < "$file_name"
+	[[ -v $var_name ]] && return
+	[[ -e $file_name ]] || abort-function "$file_name doesn't exist"
+	[[ -f $file_name || -p $file_name ]] ||
+	    abort-function "$file_name not a file"
+	[[ -r $file_name ]] || abort-function "$file_name not readable file"
+	abort-function "failed to read $file_name"
+}
+
+[[ $_do_run_unit_tests ]] && {
+read-all record /etc/passwd
+# shellcheck disable=SC2154
+[[ $record == root* ]] || _abort "read-all failed"
+( read-all record /etc/shadow 2>/dev/null ) || _abort "can't read /etc/shadow"
+( read-all record /etc        2>/dev/null ) || _abort "can't read /etc/"
+}
+
+# ----------------------------------------------------------------------------
+
 has_echoE_been_called=$false
 
 # echo to stdError, include the line and function from which we're called
