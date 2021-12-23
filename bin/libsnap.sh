@@ -95,7 +95,7 @@ _abort() {
 
 readonly true=t false=
 
-our_path=${0#-}
+our_path=${BASH_ARGV0-${0#-}}
 [[ $our_path == */* ]] || our_path=$(type -p "$our_path")
 [[ $our_path == ./* ]] && our_path=${0#./}
 [[ $our_path ==  /* ]] || our_path=$PWD/$our_path
@@ -124,7 +124,7 @@ if [[ ! ${our_name-} ]]
 fi				   # not marked readonly, caller can change it
 
 case $our_name in
-    ( bash | csh | ksh | scsh | sh | tcsh | zsh )
+    ( bash | csh | dash | ksh | scsh | sh | tcsh | zsh )
 	  is_sourced_by_interactive_shell=$true ;    unset our_path ;;
     ( * ) is_sourced_by_interactive_shell=$false; readonly our_path ;;
 esac
