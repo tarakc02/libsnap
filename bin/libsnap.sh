@@ -507,6 +507,7 @@ set-FS_label--from-FS-device() {
 	if [[ ! ${FS_label-} ]] && have-cmd blkid
 	   then local cmd="blkid $dev |
 			   sed -n -r 's@.* LABEL=\"?([^ \"]*)\"? .*@\1@p'"
+		# have to eval because cmd contains a pipeline
 		eval "FS_label=\$($cmd)"	; [[ $FS_label ]] ||
 		eval "FS_label=\$(sudo $cmd)"
 	fi
@@ -950,8 +951,8 @@ tst_func() {
 	local test=$1
 
 	set-var_value--for-debugger "$test"
-	local status=$? correct_value
-	declare -n correct_value=${1}_val
+	local status=$?
+	local -n correct_value=${1}_val
 	[[ $var_value == "$correct_value" ]] ||
 	    _abort "test $test: $var_value != $correct_value"
 	return $status
@@ -1149,7 +1150,7 @@ function log() {
 	local log_date_time
 	set-log_date_time
 	local  _log_msg_prefix=$log_msg_prefix
-	eval  "_log_msg_prefix=\"$_log_msg_prefix\""
+	eval  "_log_msg_prefix=\"$_log_msg_prefix\"" # can hold variables
 	strip-trailing-whitespace _log_msg_prefix
 	echo "$log_date_time$_log_msg_prefix: $_msg" |
 	   $sudo tee -a $_file_for_logging
@@ -1278,10 +1279,10 @@ fix-padded-colorized-string-vars() {
 	local var_name
 	for var_name
 	    do	[[ -v $var_name ]] ||
-		    abort-function ": '$var_name' is not a variable"
-		local value=${!var_name}
-		value=${value//_/ }	# rewrite padding
-		eval "$var_name=\$value"
+		    abort-function ": '$var_name' is not set"
+		local -n var=$var_name
+		local  value=$var
+		var=${value//_/ }	# rewrite padding
 	done
 }
 
@@ -1293,10 +1294,10 @@ strip-trailing-whitespace() {
 	for var_name
 	    do	[[ -v $var_name ]] ||
 		    abort-function ": '$var_name' is not a variable"
-		local value=${!var_name}
-		[[ $value =~ [\ \	]*$ ]]
+		local -n var=$var_name
+		[[ $var =~ [\ \	]*$ ]]
 		local whitespace=${BASH_REMATCH[0]}
-		eval "$var_name=\${value%\$whitespace}"
+		var=${var%"$whitespace"}
 	done
 }
 
@@ -1401,8 +1402,8 @@ function setup-df-data-from-fields() {
 
 	local name
 	for name in $fields
-	    do	local value=${1%\%}	# remove any trailing '%'
-		eval "$name=\$value"
+	    do	local -n field=$name
+		field=${1%\%}		# remove any trailing '%'
 		shift
 	done
 	$xtrace
@@ -1516,9 +1517,10 @@ function set-popped_word-is_last_word--from-list() {
 
 	local  list_name=$1
 	[[ -v $list_name ]] || abort-function "$1: '$1' is not set"
+	local -n list=$list_name
 	set -f
 	# shellcheck disable=SC2086 # variable contains multiple values
-	set -- ${!list_name}		# split words apart
+	set -- $list			# split words apart
 	set +f
 	[[ $# == 1 ]] && is_last_word=$true || is_last_word=$false
 	[[ $# == 0 ]] && popped_word= ||
@@ -1530,7 +1532,7 @@ function set-popped_word-is_last_word--from-list() {
 		set -- ${@: 1: $#-1}
 		set +f
 	fi
-	eval "$list_name=\$*"		# retain the rest of the words
+	list=$*				# retain the rest of the words
 	$xtrace
 	[[ $popped_word ]]
 }
