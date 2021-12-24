@@ -376,7 +376,7 @@ setup-ps-options() {
 # provide a directory for temporary files that's safe from symlink attacks
 # ----------------------------------------------------------------------------
 
-tmp_dir=${tmp_dir:-/tmp/$(id -nu)}	# caller is allowed to change tmp_dir
+tmp_dir=${tmp_dir:-/tmp/${USER-${LOGNAME-$(id -nu)}}} # caller can change
 [[ -w ${TMP-}     ]] && tmp_dir=$TMP
 [[ -w ${TMP_DIR-} ]] && tmp_dir=$TMP_DIR
 TMPDIR=$tmp_dir				# used by bash
@@ -563,6 +563,7 @@ set-FS_device--from-FS-label() {
 
 # ----------------------------------------------------------------------------
 
+# you might try to use $OSTYPE instead of this function
 set-OS_release_file-OS_release() {
 
 	set -- /usr/lib/*-release /etc/*-release
