@@ -916,11 +916,11 @@ function set-var_value--for-debugger() {
 	fi
 
 	local -n var=$_var_name_
-	if [[  ${var@a} = [aA]* ]]
+	if [[  ${var@a} = *[aA]* ]]
 	   then local is_array=$true
 	   else local is_array=$false
 	fi
-	if [[  ${var@a} == *i ]]
+	if [[  ${var@a} == *i* ]]
 	   then local is_int=$true
 	   else local is_int=$false
 	fi
