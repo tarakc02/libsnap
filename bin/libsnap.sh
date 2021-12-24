@@ -382,9 +382,8 @@ tmp_dir=${tmp_dir:-/tmp/${USER-${LOGNAME-$(id -nu)}}} # caller can change
 TMPDIR=$tmp_dir				# used by bash
 
 # the root filesystem is read-only while booting, don't get into infinite loop!
-# GNU mkdir will fail if $tmp_dir is a symlink
-# shellcheck disable=SC2174,SC2086
-until [[ ! -w /tmp || -d $tmp_dir ]] || mkdir -m 0700 -p $tmp_dir
+# GNU mkdir will fail if  $tmp_dir is a symlink
+until [[ ! -w /tmp || -d "$tmp_dir" ]] || mkdir -m 0700 -p "$tmp_dir"
    do	_warn "deleting $(ls -ld "$tmp_dir")"; rm -f "$tmp_dir"
 done
 
