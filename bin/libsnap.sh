@@ -951,7 +951,7 @@ tst_func() {
 
 	set-var_value--for-debugger "$test"
 	local status=$? correct_value
-	eval "correct_value=\$${1}_val"
+	declare -n correct_value=${1}_val
 	[[ $var_value == "$correct_value" ]] ||
 	    _abort "test $test: $var_value != $correct_value"
 	return $status
