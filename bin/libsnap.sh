@@ -906,31 +906,30 @@ is-integer  1.3 && _abort  "1.3 is not an integer"
 function set-var_value--for-debugger() {
 	local _var_name_=$1 declare_output
 
-	# echo -n "$_var_name_; " ; declare -p "$_var_name_"
-	if declare_output=$(declare -p "$_var_name_" 2>/dev/null)
-	   then declare_output=${declare_output#*-}
-		if [[ $declare_output != [aA]* ]]
-		   then local is_array=$false
-		   else local is_array=$true
-			declare_output=${declare_output#?}
-		fi
-		if [[ $declare_output == i* ]]
-		   then local is_int=$true
-		   else local is_int=$false
-		fi
-		if [[ $declare_output == *=* ]]
-		   then if [[ $is_array ]]
-			   then var_value=${declare_output#*=}
-				[[ $is_int ]] && var_value=${var_value//\"/}
-			elif [[ $is_int ]]
-			     then var_value=${!_var_name_}
-			     else var_value=${declare_output#*=}
-			fi
-		   else var_value='<unset>'
-			return 1
-		fi
-	   else var_value='<non-existent>'
+	if ! declare_output=$(declare -p "$_var_name_" 2>/dev/null)
+	   then var_value='<non-existent>'
 		return 1
+	fi
+	if [[ $declare_output != *=* ]]
+	   then var_value='<unset>'
+		return 1
+	fi
+
+	local -n var=$_var_name_
+	if [[  ${var@a} = [aA]* ]]
+	   then local is_array=$true
+	   else local is_array=$false
+	fi
+	if [[  ${var@a} == *i ]]
+	   then local is_int=$true
+	   else local is_int=$false
+	fi
+	if [[ $is_array ]]
+	   then var_value=${declare_output#*=}
+		[[ $is_int ]] && var_value=${var_value//\"/}
+	elif [[ $is_int ]]
+	     then var_value=${!_var_name_}
+	     else var_value=${var@Q}
 	fi
 
 	return 0
@@ -942,7 +941,7 @@ declare -A  mapA=([one]=1 [two]=two)	; mapA_val='([two]="two" [one]="1" )'
 declare -ai mpai=(1 2)			; mpai_val='([0]=1 [1]=2)'
 declare -iA mpAi=([one]=1 [two]=2)	; mpAi_val='([two]=2 [one]=1 )'
 declare -A mapn				; mapn_val='<unset>'
-declare    sets='set"set'		; sets_val='"set\"set"'
+declare    sets='set"set'		; sets_val="'set\"set'"
 declare -i seti=1			; seti_val='1'
 declare    nots				; nots_val='<unset>'
 declare -i noti				; noti_val='<unset>'
