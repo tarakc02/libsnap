@@ -1726,7 +1726,27 @@ msleep() {
 	local division
 	set-division -d3 "$msecs" 1000
 	[[ $division != *-* ]] &&	# avoid negative values
-	sleep "$division"
+	sleep "$division"		# sleep is a loadable, so fast
+}
+
+# ---------------------------------
+
+sleep-exe() {
+
+	enable -n sleep
+	sleep "$@"
+	enable -f sleep sleep
+}
+
+[[ $_do_run_unit_tests ]] && {
+SID=$(ps -o sid= $$ | tr -d ' ')
+sleep     1 &
+ps -s "$SID" | fgrep    sleep && _abort "sleep is a builtin"
+sleep-exe 1 &
+ps -s "$SID" | fgrep -q sleep || _abort "sleep-exe is not a builtin"
+wait
+sleep     1 &
+ps -s "$SID" | fgrep    sleep && _abort "sleep is a (restored) builtin"
 }
 
 # -------------------------------------------------------
