@@ -148,7 +148,7 @@ export PS4
 # put $IfRun in front of cmds w/side-effects, so -d means: debug only, simulate
 [[ -v IfRun ]] || IfRun=
 
-readonly lockpid_busy_exit_status=125
+readonly lockpid_busy_exit_status=123
 
 #############################################################################
 #############################################################################
