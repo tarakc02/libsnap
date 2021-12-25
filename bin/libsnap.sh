@@ -1963,10 +1963,12 @@ set-cat_cmd() {
 	local filename=$1
 
 	case ${filename##*.} in
-	    ( bz2 ) cat_cmd="bzcat" ;;
-	    ( gz  ) cat_cmd="zcat"  ;;
-	    ( xz  ) cat_cmd="xzcat" ;;
-	    ( *   ) cat_cmd="cat"   ;;
+	    ( bz2 ) cat_cmd="bzcat"	;;
+	    ( gz  ) cat_cmd="zcat"	;;
+	    ( lz4 ) cat_cmd="lz4cat"	;;
+	    ( xz  ) cat_cmd="xzcat"	;;
+	    ( zst ) cat_cmd="zstdcat"	;;
+	    ( *   ) cat_cmd="cat"	;;
 	esac
 }
 
