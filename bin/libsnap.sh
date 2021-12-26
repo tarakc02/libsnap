@@ -1597,7 +1597,7 @@ unset average
 # takes ~150 usec, 10x faster than: awk '{print $1 * $2}' <<<"$num_1 $num_2"
 set-product() {
 	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
-	[[ $# == 2 &&
+	[[ $# == 2 && $1 && $2 &&	# catch null parameters
 	       ( ($1 =~ ^-?[0-9]*(\.[0-9]*)*$ && $2 =~ ^-?[0-9]+$) ||
 		 ($2 =~ ^-?[0-9]*(\.[0-9]*)*$ && $1 =~ ^-?[0-9]+$)    ) ]] ||
 	    abort-function decimal integer
@@ -1649,7 +1649,8 @@ set-division() {
 	[[ $1 == -w? ]] && { width=${1#-w}; shift; }
 	[[ $1 == -z  ]] && { local zero_pad=$true; shift; } || local zero_pad=
 	[[ $1 == -d? ]] && { decimal_digits=${1#-d}; shift; }
-	[[ $# == 2 && ${decimal_digits-} == [1-9]* && $1$2 =~ ^[-0-9]+$ ]] ||
+	[[ $# == 2 && $1 && $2 &&	# catch null parameters
+	       ${decimal_digits-} == [1-9]* && $1$2 =~ ^[-0-9]+$ ]] ||
 	  abort-function "[-w# [-z]] -d#" numerator="${1-}" denominator="${2-}"
 
 	local -i numerator=$1 denominator=$2
