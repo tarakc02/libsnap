@@ -761,7 +761,7 @@ abort() {
 		echo "$@"
 	elif [[ ${Usage-} && "$*" == "$Usage" ]]
 	   then echo "$@" >&2 ; _libsnap-exit 1
-	   else	warn "$@"
+	   else warn "$@"
 	fi
 
 	print-call-stack -s "$stack_skip" >&2
