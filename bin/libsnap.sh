@@ -940,11 +940,11 @@ declare -a  mapa=(1 two)		; mapa_val='([0]="1" [1]="two")'
 declare -A  mapA=([one]=1 [two]=two)	; mapA_val='([two]="two" [one]="1" )'
 declare -ai mpai=(1 2)			; mpai_val='([0]=1 [1]=2)'
 declare -iA mpAi=([one]=1 [two]=2)	; mpAi_val='([two]=2 [one]=1 )'
-declare -A mapn				; mapn_val='<unset>'
-declare    sets='set"set'		; sets_val="'set\"set'"
-declare -i seti=1			; seti_val='1'
-declare    nots				; nots_val='<unset>'
-declare -i noti				; noti_val='<unset>'
+declare -A  mapn			; mapn_val='<unset>'
+declare     sets='set"set'		; sets_val="'set\"set'"
+declare -i  seti=1			; seti_val='1'
+declare     nots			; nots_val='<unset>'
+declare -i  noti			; noti_val='<unset>'
 declare					  Nope_val='<non-existent>'
 tst_func() {
 	local test=$1
