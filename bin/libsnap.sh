@@ -905,18 +905,23 @@ is-integer  1.3 && _abort  "1.3 is not an integer"
 
 function set-var_value--for-debugger() {
 	local _var_name_=$1 declare_output
-
-	if ! declare_output=$(declare -p "$_var_name_" 2>/dev/null)
-	   then var_value='<non-existent>'
-		return 1
-	fi
-	if [[ $declare_output != *=* ]]
-	   then var_value='<unset>'
-		return 1
-	fi
-
 	local -n var=$_var_name_
-	if [[  ${var@a} = *[aA]* ]]
+
+	while declare_output=$(declare -p "$_var_name_" 2>/dev/null)
+	   do	[[ $declare_output = *" -n "* ]] || break
+		_var_name_=${declare_output#*=}
+		_var_name_=${_var_name_//\"/}
+	done
+
+	if [[ $declare_output != *=* ]]
+	   then if declare -p "$_var_name_"  &> /dev/null
+		   then var_value='<unset>'
+		   else var_value='<non-existent>'
+		fi
+		return 1
+	fi
+
+	if [[  ${var@a} == *[aA]* ]]
 	   then local is_array=$true
 	   else local is_array=$false
 	fi
@@ -940,8 +945,8 @@ declare -a  mapa=(1 two)		; mapa_val='([0]="1" [1]="two")'
 declare -A  mapA=([one]=1 [two]=two)	; mapA_val='([two]="two" [one]="1" )'
 declare -ai mpai=(1 2)			; mpai_val='([0]=1 [1]=2)'
 declare -iA mpAi=([one]=1 [two]=2)	; mpAi_val='([two]=2 [one]=1 )'
-declare -n  mapX=mapa			; mapX_val="$mapa"
-declare -n  mapY=mapX			; mapY_val="$mapa"
+declare -n  mapX=mapa			; mapX_val="$mapa_val"
+declare -n  mapY=mapX			; mapY_val="$mapa_val"
 declare -A  mapn			; mapn_val='<unset>'
 declare     sets='set"set'		; sets_val="'set\"set'"
 declare -i  seti=1			; seti_val='1'
