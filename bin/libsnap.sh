@@ -101,7 +101,7 @@ our_path=${BASH_ARGV0-${0#-}}
 [[ $our_path ==  /* ]] || our_path=$PWD/$our_path
 
 [[ -v dev_null ]] ||
-readonly dev_null=/dev/null
+readonly dev_null=$dev_null
 
 # we might have been run as a script to create $tmp_dir (see above)
 if [[ $our_path == */libsnap.sh ]]
@@ -824,8 +824,8 @@ read-all() {
 read-all record /etc/passwd
 # shellcheck disable=SC2154
 [[ $record == root* ]] || _abort "read-all failed"
-( read-all record /etc/shadow 2>/dev/null ) || _abort "can't read /etc/shadow"
-( read-all record /etc        2>/dev/null ) || _abort "can't read /etc/"
+( read-all record /etc/shadow 2>$dev_null ) || _abort "can't read /etc/shadow"
+( read-all record /etc        2>$dev_null ) || _abort "can't read /etc/"
 }
 
 # ----------------------------------------------------------------------------
@@ -907,14 +907,14 @@ function set-var_value--for-debugger() {
 	local _var_name_=$1 declare_output
 	local -n var=$_var_name_
 
-	while declare_output=$(declare -p "$_var_name_" 2>/dev/null)
+	while declare_output=$(declare -p "$_var_name_" 2>$dev_null)
 	   do	[[ $declare_output = *" -n "* ]] || break
 		_var_name_=${declare_output#*=}
 		_var_name_=${_var_name_//\"/}
 	done
 
 	if [[ $declare_output != *=* ]]
-	   then if declare -p "$_var_name_"  &> /dev/null
+	   then if declare -p "$_var_name_"  &> $dev_null
 		   then var_value='<unset>'
 		   else var_value='<non-existent>'
 		fi
