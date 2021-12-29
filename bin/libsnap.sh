@@ -101,7 +101,7 @@ our_path=${BASH_ARGV0-${0#-}}
 [[ $our_path ==  /* ]] || our_path=$PWD/$our_path
 
 [[ -v dev_null ]] ||
-readonly dev_null=$dev_null
+readonly dev_null=/dev/null
 
 # we might have been run as a script to create $tmp_dir (see above)
 if [[ $our_path == */libsnap.sh ]]
