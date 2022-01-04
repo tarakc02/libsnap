@@ -1810,6 +1810,7 @@ assert-sha1sum() {
 # Test an internal function by passing its name + options + args to our script;
 # to show values of global variables it alters, pass: -v "varname(s)"
 function run-function() {
+	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
 	local is_procedure=$false	# abort if function "fails"
 	[[ $1 == -p ]] && { is_procedure=$true; shift; }
 	[[ $1 == -v ]] && { local var_names=$2; shift 2; } || local var_names=
@@ -1818,8 +1819,10 @@ function run-function() {
 	local function=$1
 	have-cmd "$function" || abort "function '$function' doesn't exist"
 
+	$xtrace
 	"$@"
 	local status=$?
+	set +x
 	# shellcheck disable=SC2086 # variable contains multiple values
 	[[ $var_names ]] && echoEV -1 ${var_names//,/ }
 	[[ $status == 0 || $is_procedure ]] || abort -1 "'$*' returned $status"
