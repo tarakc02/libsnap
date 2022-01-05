@@ -808,11 +808,14 @@ assert-not-option() {
 # ----------------------------------------------------------------------------
 
 # this doesn't fork, so way-faster than $(< )
-read-all() {
+function read-all() {
+	[[ $1 == -A ]] && { local no_abort=$true; shift; } || local no_abort=
 	local var_name=$1 file_name=$2
 
+	[[ $no_abort && ! -f "$file_name" ]] && return 1
 	read -d '\0' -r "$var_name" < "$file_name"
-	[[ -v $var_name ]] && return
+	[[ -v $var_name ]] && return 0
+	[[    $no_abort ]] && return 1
 	[[ -e $file_name ]] || abort-function "$file_name doesn't exist"
 	[[ -f $file_name || -p $file_name ]] ||
 	    abort-function "$file_name not a file"
@@ -821,11 +824,13 @@ read-all() {
 }
 
 [[ $_do_run_unit_tests ]] && {
-read-all record /etc/passwd
+read-all record /etc/passwd && [[ $record ]] || _abort "should return success"
 # shellcheck disable=SC2154
 [[ $record == root* ]] || _abort "read-all failed"
 ( read-all record /etc/shadow 2>$dev_null ) || _abort "can't read /etc/shadow"
 ( read-all record /etc        2>$dev_null ) || _abort "can't read /etc/"
+unset record
+read-all -A record DoesNotExist || [[ -v record ]] && _abort "nothing to read"
 }
 
 # ----------------------------------------------------------------------------
