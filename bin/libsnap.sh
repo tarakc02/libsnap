@@ -1939,7 +1939,11 @@ copy-file-perms() {
 
 	local path sudo=
 	for path
-	    do	if [[ $opt == -f ]]
+	    do	[[ -f "$path" ]] &&
+		    # we might not have GNU utils, or might need sudo
+		    cp --attributes-only -p "$reference" "$path" 2>$dev_null &&
+		    continue
+		if [[ $opt == -f ]]
 		   then if [[ -e "$path" ]]
 			   then [[ -w "$path" ]] || sudo=sudo
 				[[ -f "$path" ]] || abort "'$path' not a file"
