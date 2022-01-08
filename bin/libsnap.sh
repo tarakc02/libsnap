@@ -673,29 +673,6 @@ set-FS_label--from-mount_dir() {
 
 
 # ----------------------------------------------------------------------------
-# miscellaneous function(s) needed by next section
-# ----------------------------------------------------------------------------
-
-# does 1st argument match any of the whitespace-separated words in rest of args
-function is-arg1-in-arg2() {
-	(( $# >= 1 )) || abort-function "arg1 arg(s)"
-	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
-	local arg1=$1; shift
-	local arg2=$*
-	[[ $arg1 && $arg2 ]] || { $xtrace; return 1; }
-
-	[[ " $arg2 " == *" $arg1 "* ]]
-	local status=$?
-	$xtrace
-	return $status
-}
-
-[[ $_do_run_unit_tests ]] && {
-is-arg1-in-arg2 foo "" && _abort "null arg2 means false"
-is-arg1-in-arg2 foo    && _abort   "no arg2 means false"
-}
-
-# ----------------------------------------------------------------------------
 # simple error and warning and trace functions.
 # don't assign these until all the environment setup is finished, otherwise
 #   a login shell might source it and be terminated by abort's exit.
@@ -823,6 +800,27 @@ assert-not-option() {
 
 	[[ $order_opt ]] && msg=" (order matters)" || msg=
 	abort -1 "${FUNCNAME[1]}: unknown option $1$msg"
+}
+
+# --------------------------------------------
+
+# does 1st argument match any of the whitespace-separated words in rest of args
+function is-arg1-in-arg2() {
+	(( $# >= 1 )) || abort-function "arg1 arg(s)"
+	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
+	local arg1=$1; shift
+	local arg2=$*
+	[[ $arg1 && $arg2 ]] || { $xtrace; return 1; }
+
+	[[ " $arg2 " == *" $arg1 "* ]]
+	local status=$?
+	$xtrace
+	return $status
+}
+
+[[ $_do_run_unit_tests ]] && {
+is-arg1-in-arg2 foo "" && _abort "null arg2 means false"
+is-arg1-in-arg2 foo    && _abort   "no arg2 means false"
 }
 
 # ----------------------------------------------------------------------------
