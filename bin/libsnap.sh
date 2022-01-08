@@ -1547,18 +1547,18 @@ unset reversed_words
 
 function set-is_FIFO() {
 	[[ $# == [01] ]] || abort-function "[option]"
-	local arg=${1-}
+	local option=${1-}
 
-	[[ $arg == -[^fqls] ]] &&
+	[[ $option == -[^fqls] ]] &&
 	    abort-function -1 "only allows these options: -f -q -l -s"
 
 	is_FIFO=$true			 # default, also called queue
-	[[ $arg ==  -[fqls] ]] || return 1
+	[[ $option == -[fqls] ]] || return 1
 
-	[[ $1 == -f ]] && is_FIFO=$true	 # FIFO  aka queue
-	[[ $1 == -q ]] && is_FIFO=$true	 # Queue aka FIFO
-	[[ $1 == -l ]] && is_FIFO=$false # LIFO  aka stack
-	[[ $1 == -s ]] && is_FIFO=$false # Stack aka LIFO
+	[[ $option == -f ]] && is_FIFO=$true  # FIFO  aka queue
+	[[ $option == -q ]] && is_FIFO=$true  # Queue aka FIFO
+	[[ $option == -l ]] && is_FIFO=$false # LIFO  aka stack
+	[[ $option == -s ]] && is_FIFO=$false # Stack aka LIFO
 	return 0
 }
 
