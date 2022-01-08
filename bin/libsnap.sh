@@ -1865,22 +1865,23 @@ function pegrep() { grep --perl-regexp "$@"; }
 echo-to-file() {
 	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
 	[[ $1 == -p ]] && { shift; local do_perms=$true; } || local do_perms=
-	[[ $# ==  2 ]] || abort-function string filename
-	local string=$1 filename=$2
+	local filename=${!#}
 
 	if [[ $IfRun ]]
 	   then [[ $string == *[\ \"\`$]* ]] && string="'$string'"
-		echo "echo $string > $filename"; $xtrace; return;
+		echo "echo ${*: 1: $#-1} > $filename"; $xtrace; return;
 	fi
 
 	local new_filename="$filename.$BASHPID"
 	if [[ $string == '-' ]]
 	   then cat
-	   else echo "$string"
+	   else echo "${@: 1: $#-1}"
 	fi > "$new_filename" || abort-function "$new_filename"
 	[[ $do_perms ]] && copy-file-perms "$filename" "$new_filename"
 	mv "$new_filename" "$filename"
+	local status=$?
 	$xtrace
+	return $status
 }
 
 # ----------------------------------------------------------------------------
