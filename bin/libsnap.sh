@@ -1906,19 +1906,19 @@ function pegrep() { grep --perl-regexp "$@"; }
 # ----------------------------------------------------------------------------
 
 # replace a file's contents atomically (read from stdin if $1 == '-')
-echo-to-file() {
+function echo-to-file() {
 	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
 	[[ $1 == -p ]] && { shift; local do_perms=$true; } || local do_perms=
 	local filename=${!#}
 
 	if [[ $IfRun ]]
-	   then [[ $string == *[\ \"\`$]* ]] && string="'$string'"
-		echo "echo ${*: 1: $#-1} > $filename"; $xtrace; return;
+	   then echo "echo ${*: 1: $#-1} > $filename"; $xtrace; return 0;
 	fi
 
 	local new_filename="$filename.$BASHPID"
-	if [[ $string == '-' ]]
-	   then cat
+	if is-arg1-in-arg2 '-' "$@"
+	   then [[ $# == 1 ]] || abort-function ": can't mix stdin and strings"
+		cat
 	   else echo "${@: 1: $#-1}"
 	fi > "$new_filename" || abort-function "$new_filename"
 	[[ $do_perms ]] && copy-file-perms "$filename" "$new_filename"
