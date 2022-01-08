@@ -162,6 +162,7 @@ readonly lockpid_busy_exit_status=123	# also in src/lockpid/lockpid.c
 
 # return 0 if the passed variable name has been set
 function is-set() {
+	[[ $# == 1 ]] || abort-function "var-name"
 	[[ -v $1 ]] && return 0
 	eval "[[ \${!$1[*]} ]]"
 }
@@ -186,7 +187,10 @@ unset _foo _arr _map _Arr _Map
 # ---------------------------------
 
 # [[ -v $1 ]] requires $1 to be set, is-var just requires a declaration
-function is-var() { declare -p "$1" &> $dev_null ; }
+function is-var() {
+	[[ $# == 1 ]] || abort-function "var-name"
+	declare -p "$1" &> $dev_null
+}
 
 function is-variable() { is-var "$@"; }
 
@@ -352,9 +356,12 @@ prepend-to-PATH-var PATH $homebrew_install_dir/*/libexec/*bin
 
 }
 
-# ps_opt_H: (h)ierarchy (forest); ps_opt_f: ASCII-art (f)orest
-# ps_opt_h: no (h)eader; ps_opt_g: all with PGID, i.e. process (g)roup ID
+# ps_opt_H: (h)ierarchy (forest)
+# ps_opt_f: ASCII-art (f)orest
+# ps_opt_h: no (h)eader
+# ps_opt_g: all IDs are PGIDs, i.e. process (g)roup IDs
 setup-ps-options() {
+	[[ $# == 0 ]] || abort-function "takes no arguments"
 
 	[[ -v ps_opt_g ]] && return
 
@@ -407,6 +414,7 @@ umask 022				# caller can change it
 # -----------------------------------------------------------------------
 
 function set-FS_type--from-path() {
+	[[ $# == 1 ]] || abort-function "path"
 	local  path=$1
 	[[ -e $path ]] || abort "path='$path' doesn't exist"
 
@@ -434,6 +442,7 @@ function set-FS_type--from-path() {
 # ----------------------------------------------------------------------------
 
 function set-inode_size-data_block_size-dir_block_size--from-path() {
+	[[ $# == 1  ]] || abort-function "path"
 	local  path=$1
 	[[ -e $path ]] || abort-function "$path: path doesn't exist"
 
@@ -477,6 +486,7 @@ declare -i device_KB=0
 
 # snapback users can write a replacement in configure.sh
 function set-device_KB--from-block-device() {
+	[[ $# == 1 ]] || abort-function "device"
 	local  dev=$1
 	[[ -b $dev ]] || abort "$dev is not a device"
 
@@ -493,6 +503,7 @@ function set-device_KB--from-block-device() {
 
 # snapback or snapcrypt users can write a replacement in configure.sh
 set-FS_label--from-FS-device() {
+	[[ $# == 1 ]] || abort-function "device"
 	local  dev=$1
 	[[ -b $dev ]] || abort "$dev is not a device"
 
@@ -519,6 +530,7 @@ set-FS_label--from-FS-device() {
 # ----------------------------------------------------------------------------
 
 label-drive() {
+	[[ $# == 2 ]] || abort-function "device mount-dir"
 	local  device=$1 mount_dir=$2
 	[[ -b $device ]] || abort "$device is not a device"
 
@@ -537,6 +549,7 @@ label-drive() {
 # ----------------------------------------------------------------------------
 
 set-FS_device--from-FS-label() {
+	[[ $# == 1 ]] || abort-function "FS-label"
 	local label=$1
 
 	if [[ -d /Volumes ]]		# Darwin?
@@ -566,6 +579,7 @@ set-FS_device--from-FS-label() {
 
 # you might try to use $OSTYPE instead of this function
 set-OS_release_file-OS_release() {
+	[[ $# == 0 ]] || abort-function "takes no arguments"
 
 	set -- /usr/lib/*-release /etc/*-release
 	while (( $# > 1 ))
@@ -596,6 +610,7 @@ set-OS_release_file-OS_release() {
 # -----------------------------------------------------------------------
 
 set-FS_device--from-path() {
+	[[ $# == 1  ]] || abort-function "path"
 	local  path=$1
 	[[ -e $path ]] || { warn "path=$path doesn't exist"; return 1; }
 
@@ -610,8 +625,9 @@ set-FS_device--from-path() {
 
 function set-mount_dir--from-FS-device() {
 	[[ $1 == -q ]] && { local is_quiet=$true; shift; } || local is_quiet=
+	[[ $# == 1  ]] || abort-function "[-q] device"
 	local  dev=$1
-	[[ -b $dev ]] || abort "$dev is not a device"
+	[[ -b $dev  ]] || abort-function "$dev is not a device"
 
 	# shellcheck disable=SC2046
 	set -- $(df --output=target --no-sync "$dev" 2> $dev_null)
@@ -638,6 +654,7 @@ function set-mount_dir--from-FS-device() {
 # ----------------------------
 
 function set-mount_dir--from-FS-label() {
+	[[ $# == 1 ]] || abort-function "FS-label"
 	local label=$1
 
 	mount_dir=/${label//_/\/}
@@ -647,6 +664,7 @@ function set-mount_dir--from-FS-label() {
 # -------------------------------
 
 set-FS_label--from-mount_dir() {
+	[[ $# == 1 ]] || abort-function "mount-dir"
 	local mount_dir=$1
 
 	FS_label=${mount_dir#/}
@@ -660,6 +678,7 @@ set-FS_label--from-mount_dir() {
 
 # does 1st argument match any of the whitespace-separated words in rest of args
 function is-arg1-in-arg2() {
+	(( $# >= 1 )) || abort-function "arg1 arg(s)"
 	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
 	local arg1=$1; shift
 	local arg2=$*
@@ -695,6 +714,7 @@ print-call-stack() {
 	declare -i stack_skip=1
 	[[ ${1-} ==   -s  ]] && { stack_skip=$2+1; shift 2; }
 	[[ ${1-} == [0-9] ]] && { (( Trace_level >= $1 )) || return; shift; }
+	assert-not-option -o "${1-}"
 
 	local log_date_time
 	set-log_date_time
@@ -810,6 +830,7 @@ assert-not-option() {
 # this doesn't fork, so way-faster than $(< )
 function read-all() {
 	[[ $1 == -A ]] && { local no_abort=$true; shift; } || local no_abort=
+	[[ $# ==  2 ]] || abort-function "var-name path"
 	local var_name=$1 file_name=$2
 
 	[[ $no_abort && ! -f "$file_name" ]] && return 1
@@ -863,6 +884,7 @@ echoE() {
 # ----------------------
 
 function is-readonly-var() {
+	[[ $# == 1 ]] || abort-function "var-name"
 	is-var "$1" && [[ $(declare -p "$1") =~ ' '-[a-zA-Z]*r ]]
 }
 
@@ -871,6 +893,7 @@ function is-readonly-variable() { is-readonly-var "$@"; }
 # ----------------------
 
 function is-writable-var() {
+	[[ $# == 1 ]] || abort-function "var-name"
 	is-var "$1" && ! is-readonly-var "$1"
 }
 
@@ -879,6 +902,7 @@ function is-writable-variable() { is-writable-var "$@"; }
 # ----------------------
 
 function is-integer-var() {
+	[[ $# == 1 ]] || abort-function "var-name"
 	is-var "$1" && [[ $(declare -p "$1") =~ ' '-[a-zA-Z]*i ]]
 }
 
@@ -898,7 +922,10 @@ unset _int_var _str_var
 
 # --------------------------------
 
-is-integer() { [[ $1 =~ ^-?[0-9]+$ ]] ; }
+is-integer() {
+	[[ $# == 1 ]] || abort-function "arg"
+	[[ $1 =~ ^-?[0-9]+$ ]]
+}
 
 [[ $_do_run_unit_tests ]] && {
 is-integer -123 || _abort "-123 is an integer"
@@ -909,6 +936,7 @@ is-integer  1.3 && _abort  "1.3 is not an integer"
 # ----------------------
 
 function set-var_value--for-debugger() {
+	[[ $# == 1 ]] || abort-function "var-name"
 	local _var_name_=$1 declare_output
 	local -n var=$_var_name_
 
@@ -1022,9 +1050,9 @@ TraceV() { _Trace echoEV "$@"; }
 declare -A funcname2was_tracing		# global for next three functions
 
 function remember-tracing {
-
 	local status=$?			# status from caller's previous command
 	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
+	[[ $# == 0 ]] || abort-function "takes no arguments"
 
 	funcname2was_tracing[ ${FUNCNAME[1]} ]=$xtrace
 
@@ -1036,9 +1064,10 @@ function remember-tracing {
 
 # pass -l if used in a loop, and the restore-tracing is outside the loop
 function suspend-tracing {
-	[[ ${1-} == -l ]] && { shift; local in_loop=$true; } || local in_loop=
-
 	local status=$?			# status from caller's previous command
+	[[ ${1-} == -l ]] && { shift; local in_loop=$true; } || local in_loop=
+	[[ $# == 0 ]] || abort-function "[-l]"
+
 	if [[ -o xtrace ]]
 	   then set +x
 		local was_tracing=$true
@@ -1129,7 +1158,9 @@ RunCmd true &&
 [[ ${log_date_time_format-} ]] ||
      log_date_time_format="+%a %m/%d %H:%M:%S" # caller or env can over-ride
 
+# shellcheck disable=SC2120
 set-log_date_time() {
+	[[ $# == 0 ]] || abort-function "takes no arguments"
 
 	if [[ ${debug_opt-} ]]
 	   then log_date_time="DoW Mo/Da Hr:Mn:Sc"
@@ -1190,6 +1221,7 @@ header() {
 
 # http://www.tldp.org/HOWTO/Bash-Prompt-HOWTO/x405.html
 print-string-colors() {
+	[[ $# == 0 ]] || abort-function "takes no arguments"
 
 	header "Coloring from arguments passed to 'tput' command, see man page"
 	local n
@@ -1327,12 +1359,19 @@ strip-trailing-whitespace _var_1 _var_2
 # working with files and dirs (and processes)
 # ----------------------------------------------------------------------------
 
-is-older() { [[ -e $1 && -e $2 && $1 -ot $2 ]] ; }
-is-newer() { [[ -e $1 && -e $2 && $1 -nt $2 ]] ; }
+is-older() {
+	[[ $# == 2 ]] || abort-function "path-1 path-2"
+	[[ -e $1 && -e $2 && $1 -ot $2 ]]
+}
+is-newer() {
+	[[ $# == 2 ]] || abort-function "path-1 path-2"
+	[[ -e $1 && -e $2 && $1 -nt $2 ]]
+}
 
 # ----------------------------------------------------------------------------
 
 is-an-FS-device-mounted() {
+	[[ $# == 1 ]] || abort-function "mount-dir"
 	local mount_dir=$1
 
 	# shellcheck disable=SC2046,SC2086
@@ -1345,6 +1384,7 @@ is-an-FS-device-mounted / || _abort "can't find mounted root device"
 # ----------------------------------------------------------------------------
 
 function set-absolute_dir() {
+	[[ $# == 1 ]] || abort-function "path"
 	absolute_dir=$(realpath "$1")
 	[[ $absolute_dir && -d $absolute_dir ]]
 }
@@ -1352,6 +1392,7 @@ function set-absolute_dir() {
 # -------------------------------------------------------
 
 function set-absolute_path() {
+	[[ $# == 1 ]] || abort-function "path"
 	absolute_path=$(realpath "$1")
 	[[ -e $absolute_path ]]
 }
@@ -1427,6 +1468,7 @@ function setup-df-data-from-fields() {
 
 function set-file_KB() {
 	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
+	[[ $# == 1 ]] || abort-function "path"
 	local _file=$1
 
 	# shellcheck disable=SC2046
@@ -1504,6 +1546,7 @@ unset reversed_words
 # ----------------------------------------------------------------------------
 
 function set-is_FIFO() {
+	[[ $# == [01] ]] || abort-function "[option]"
 	local arg=${1-}
 
 	[[ $arg == -[^fqls] ]] &&
@@ -1736,6 +1779,7 @@ unset division
 
 # like usleep, but takes milliseconds as its argument
 msleep() {
+	[[ $# == 1 ]] || abort-function "milliseconds"
 	local -i msecs=$1
 
 	local division
@@ -1754,6 +1798,7 @@ sleep-exe() {
 # -------------------------------------------------------
 
 set-epoch_msecs() {
+	[[ $# == 0 ]] || abort-function "takes no arguments"
 
 	if [[ ${EPOCHREALTIME-} ]]
 	   then local epoch_usecs=${EPOCHREALTIME/./}
@@ -1802,7 +1847,8 @@ function confirm() {
 # --------------------------------------------
 
 assert-sha1sum() {
-	local sha1sum=$1 file=${2-}
+	[[ $# == 2 ]] || abort-function "sha1sum path"
+	local sha1sum=$1 file=$2
 
 	# shellcheck disable=SC2046,SC2086
 	set --   $(sha1sum "$file")
@@ -1979,6 +2025,7 @@ merged-continuation-lines() {
 # ----------------------------------------------------------------------------
 
 set-cat_cmd() {
+	[[ $# == 1 ]] || abort-function "path"
 	local filename=$1
 
 	case ${filename##*.} in
