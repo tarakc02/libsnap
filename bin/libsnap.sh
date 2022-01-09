@@ -1927,7 +1927,9 @@ echo-to-file() {
 	local filename=${!#}
 
 	if [[ $IfRun ]]
-	   then echo "echo ${*: 1: $#-1} > $filename"; $xtrace; return
+	   then local string=${*: 1: $#-1}
+		[[ $string == *[\ \"\`$]* ]] && string="'$string'"
+		echo "echo $string > $filename"; $xtrace; return
 	fi
 
 	local new_filename="$filename.$BASHPID"
