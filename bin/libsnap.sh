@@ -83,7 +83,7 @@ _libsnap-exit() {
 
 # to announce errors in this script
 function _warn() { echo -e "\n$0: source libsnap.sh: $*\n" >&2; return 1; }
-_abort() {
+function _abort() {
 	_warn "$*"
 	[[ $is_sourced_by_interactive_shell ]] && return 1
 	_libsnap-exit 1
@@ -356,10 +356,13 @@ prepend-to-PATH-var PATH $homebrew_install_dir/*/libexec/*bin
 
 }
 
+# ----------------------------------------------------------------------------
+
 # ps_opt_H: (h)ierarchy (forest)
 # ps_opt_f: ASCII-art (f)orest
 # ps_opt_h: no (h)eader
 # ps_opt_g: all IDs are PGIDs, i.e. process (g)roup IDs
+# shellcheck disable=SC2120 # we merely make sure we get no args
 setup-ps-options() {
 	[[ $# == 0 ]] || abort-function "takes no arguments"
 
@@ -497,6 +500,7 @@ function set-device_KB--from-block-device() {
 	set -- $(lsblk --noheadings --bytes --output=SIZE $dev)
 	[[ $# == 1 ]] || abort-function ": specify a partition not whole drive"
 	device_KB=$(( $1/1024 ))
+	(( $device_KB > 0 ))
 }
 
 # ----------------------------------------------------------------------------
@@ -578,6 +582,7 @@ set-FS_device--from-FS-label() {
 # ----------------------------------------------------------------------------
 
 # you might try to use $OSTYPE instead of this function
+# shellcheck disable=SC2120 # we merely make sure we get no args
 set-OS_release_file-OS_release() {
 	[[ $# == 0 ]] || abort-function "takes no arguments"
 
@@ -609,7 +614,7 @@ set-OS_release_file-OS_release() {
 # snapback or snapcrypt users can write replacements in configure.sh .	#
 # -----------------------------------------------------------------------
 
-set-FS_device--from-path() {
+function set-FS_device--from-path() {
 	[[ $# == 1  ]] || abort-function "path"
 	local  path=$1
 	[[ -e $path ]] || { warn "path=$path doesn't exist"; return 1; }
@@ -649,6 +654,7 @@ function set-mount_dir--from-FS-device() {
 	[[ $mount_dir ]] && return 0
 
 	[[ ! $is_quiet ]] && abort "couldn't find mount dir for dev=$dev"
+	return 1
 }
 
 # ----------------------------
@@ -1047,7 +1053,9 @@ TraceV() { _Trace echoEV "$@"; }
 
 declare -A funcname2was_tracing		# global for next three functions
 
+# shellcheck disable=SC2120 # we merely make sure we get no args
 function remember-tracing {
+
 	local status=$?			# status from caller's previous command
 	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
 	[[ $# == 0 ]] || abort-function "takes no arguments"
@@ -1061,14 +1069,15 @@ function remember-tracing {
 # ----------------------
 
 # pass -l if used in a loop, and the restore-tracing is outside the loop
+# shellcheck disable=SC2120 # we merely make sure we get no args
 function suspend-tracing {
 	local status=$?			# status from caller's previous command
+	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
 	[[ ${1-} == -l ]] && { shift; local in_loop=$true; } || local in_loop=
 	[[ $# == 0 ]] || abort-function "[-l]"
 
-	if [[ -o xtrace ]]
-	   then set +x
-		local was_tracing=$true
+	if [[ $xtrace ]]
+	   then local was_tracing=$true
 	   else local was_tracing=$false
 		[[ $in_loop ]] && return $status
 	fi
@@ -1156,7 +1165,7 @@ RunCmd true &&
 [[ ${log_date_time_format-} ]] ||
      log_date_time_format="+%a %m/%d %H:%M:%S" # caller or env can over-ride
 
-# shellcheck disable=SC2120
+# shellcheck disable=SC2120 # we merely make sure we get no args
 set-log_date_time() {
 	[[ $# == 0 ]] || abort-function "takes no arguments"
 
@@ -1218,6 +1227,7 @@ header() {
 # ----------------------------------------------------------------------------
 
 # http://www.tldp.org/HOWTO/Bash-Prompt-HOWTO/x405.html
+# shellcheck disable=SC2120 # we merely make sure we get no args
 print-string-colors() {
 	[[ $# == 0 ]] || abort-function "takes no arguments"
 
@@ -1377,7 +1387,8 @@ is-an-FS-device-mounted() {
 	[[ ${!#} == "$mount_dir" ]]
 }
 
-is-an-FS-device-mounted / || _abort "can't find mounted root device"
+[[ ! $_do_run_unit_tests ]] ||
+    is-an-FS-device-mounted / || _abort "can't find mounted root device"
 
 # ----------------------------------------------------------------------------
 
@@ -1499,7 +1510,8 @@ function is-process-alive() {
 	return 0
 }
 
-is-process-alive $$ $BASHPID || _abort "is-process-alive failure"
+[[ ! $_do_run_unit_tests ]] ||
+    is-process-alive $$ $BASHPID || _abort "is-process-alive failure"
 
 # ----------------------------------------------------------------------------
 # working with lists
@@ -1516,10 +1528,12 @@ set-uniques() {
 	[[ $uniques ]]
 }
 
+[[ $_do_run_unit_tests ]] && {
 set-uniques 1 2 2 3 3 3
 [[ $uniques == "1 2 3" ||
    $uniques == "3 2 1" ]] || _abort "(maybe order changed?): uniques=$uniques"
 unset uniques
+}
 
 # ----------------------------------------------------------------------------
 
@@ -1795,6 +1809,7 @@ sleep-exe() {
 
 # -------------------------------------------------------
 
+# shellcheck disable=SC2120 # we merely make sure we get no args
 set-epoch_msecs() {
 	[[ $# == 0 ]] || abort-function "takes no arguments"
 
@@ -1906,13 +1921,13 @@ function pegrep() { grep --perl-regexp "$@"; }
 # ----------------------------------------------------------------------------
 
 # replace a file's contents atomically (read from stdin if $1 == '-')
-function echo-to-file() {
+echo-to-file() {
 	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
 	[[ $1 == -p ]] && { shift; local do_perms=$true; } || local do_perms=
 	local filename=${!#}
 
 	if [[ $IfRun ]]
-	   then echo "echo ${*: 1: $#-1} > $filename"; $xtrace; return 0;
+	   then echo "echo ${*: 1: $#-1} > $filename"; $xtrace; return
 	fi
 
 	local new_filename="$filename.$BASHPID"
@@ -1922,10 +1937,8 @@ function echo-to-file() {
 	   else echo "${@: 1: $#-1}"
 	fi > "$new_filename" || abort-function "$new_filename"
 	[[ $do_perms ]] && copy-file-perms "$filename" "$new_filename"
-	mv "$new_filename" "$filename"
-	local status=$?
+	mv "$new_filename" "$filename" || abort-function "$filename"
 	$xtrace
-	return $status
 }
 
 # ----------------------------------------------------------------------------
@@ -1935,6 +1948,7 @@ copy-file-perms() {
 	[[ $1 == -d ]] && local mkdir_opt=
 	[[ $1 == -[dDf] ]] && { local opt=$1; shift; } || local opt=
 	assert-not-option "$1"
+	(( $# >= 2 )) || abort-function "reference-path path(s)"
 	local reference=$1; shift
 
 	local path sudo=
