@@ -833,14 +833,15 @@ is-arg1-in-arg2 foo    && _abort   "no arg2 means false"
 
 # this doesn't fork, so way-faster than $(< )
 function read-all() {
+	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
 	[[ $1 == -A ]] && { local no_abort=$true; shift; } || local no_abort=
 	[[ $# ==  2 ]] || abort-function "var-name path"
 	local var_name=$1 file_name=$2
 
-	[[ $no_abort && ! -f "$file_name" ]] && return 1
+	[[ $no_abort && ! -f "$file_name" ]] && { $xtrace; return 1; }
 	read -d '\0' -r "$var_name" < "$file_name"
-	[[ -v $var_name ]] && return 0
-	[[    $no_abort ]] && return 1
+	[[ -v $var_name ]] && { $xtrace; return 0; }
+	[[    $no_abort ]] && { $xtrace; return 1; }
 	[[ -e $file_name ]] || abort-function "$file_name doesn't exist"
 	[[ -f $file_name || -p $file_name ]] ||
 	    abort-function "$file_name not a file"
@@ -2054,6 +2055,73 @@ set-cat_cmd() {
 	    ( zst ) cat_cmd="zstdcat"	;;
 	    ( *   ) cat_cmd="cat"	;;
 	esac
+}
+
+# ----------------------------------------------------------------------------
+
+killer() {
+	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
+	[[ $# == 3 && $1 == -s && $2 != *[!.0-9]* && $3 != *[!0-9]* ]] ||
+	    abort-function "-s decimal-seconds PID"
+	local seconds=$2 PID=$3 spec
+
+	sleep "$seconds"
+	for spec in HUP TERM INT KILL
+	    do	kill -SIG$spec "$PID" || break
+		msleep 1
+	done &> $dev_null		# PID might already be dead
+	$xtrace
+}
+
+# ---------------------------------
+
+_run-echo-output() {
+	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
+	local type=$1
+
+	local -n file=${type}_file
+	local value
+	[[ -s $file ]] && read-all value "$file" || { $xtrace; return; }
+	$xtrace
+	echo "$value"
+}
+
+# ---------------------------------
+
+# don't pass a binary, you can't kill a binary that's hung on I/O
+function run-until-timeout() {
+	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
+	[[ ${1-} == -s && ${2-} != *[!.0-9]* && ${3-} ]] ||
+	    abort-function "-s decimal-seconds function [arg(s)]"
+	local seconds=$2 && shift 2
+
+	local stdout_file=$tmp_dir/run-stdout.$BASHPID
+	local stderr_file=$tmp_dir/run-stderr.$BASHPID
+	"$@" > "$stdout_file" 2> "$stderr_file" &
+	local func_PID=$!
+
+	killer -s "$seconds" $func_PID &
+	local killer_PID=$!
+
+	wait $func_PID
+	local status=$?
+	kill $killer_PID &> $dev_null	# might have run to completion
+
+	_run-echo-output stdout
+	_run-echo-output stderr >&2
+	rm "$stdout_file" "$stderr_file" # comment-out to debug
+	$xtrace
+	return $status
+}
+
+[[ $_do_run_unit_tests ]] && {
+pass() { echo "$FUNCNAME"    ; true ; }
+fail() { echo "$FUNCNAME" >&2; false; }
+hang() { sleep 1000; echo badness; }
+rut () { run-until-timeout "$@"; }
+out=$(rut -s .001 pass     ) && [[ $out == pass ]] ||_abort "should pass: $out"
+out=$(rut -s .001 fail 2>&1) || [[ $out != fail ]] &&_abort "should fail: $out"
+out=$(rut -s .001 hang 2>&1) || [[ $out != ""   ]] &&_abort "should hang: $out"
 }
 
 # ----------------------------------------------------------------------------
