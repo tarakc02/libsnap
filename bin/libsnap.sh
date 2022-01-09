@@ -1670,7 +1670,7 @@ set-product() {
 	[[ $# == 2 && $1 && $2 &&	# catch null parameters
 	       ( ($1 =~ ^-?[0-9]*(\.[0-9]*)*$ && $2 =~ ^-?[0-9]+$) ||
 		 ($2 =~ ^-?[0-9]*(\.[0-9]*)*$ && $1 =~ ^-?[0-9]+$)    ) ]] ||
-	    abort-function decimal integer
+	    abort-function "decimal integer"
 	if [[ $1 == *.* ]]
 	   then local decimal=$1 integer=$2
 	   else local decimal=$2 integer=$1
@@ -1721,7 +1721,7 @@ set-division() {
 	[[ $1 == -d? ]] && { decimal_digits=${1#-d}; shift; }
 	[[ $# == 2 && $1 && $2 &&	# catch null parameters
 	       ${decimal_digits-} == [1-9]* && $1$2 =~ ^[-0-9]+$ ]] ||
-	  abort-function "[-w# [-z]] -d#" numerator="${1-}" denominator="${2-}"
+	  abort-function "[-w# [-z]] -d# integer-numerator integer-denominator"
 
 	local -i numerator=$1 denominator=$2
 	[[ $denominator =~ ^-?[1-9][0-9]*$ ]] || # can't divide-by-0
