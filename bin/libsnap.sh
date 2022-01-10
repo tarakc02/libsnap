@@ -358,6 +358,17 @@ prepend-to-PATH-var PATH $homebrew_install_dir/*/libexec/*bin
 
 # ----------------------------------------------------------------------------
 
+set-mounts() {
+
+	local mounts_path=/proc/mounts
+	if [[ -f $mounts_path ]]	# FreeBSD doesn't have this
+	   then read-all mounts "$mounts_path"
+	   else mounts=$(mount)
+	fi
+}
+
+# ----------------------------------------------------------------------------
+
 # ps_opt_H: (h)ierarchy (forest)
 # ps_opt_f: ASCII-art (f)orest
 # ps_opt_h: no (h)eader
@@ -419,13 +430,14 @@ umask 022				# caller can change it
 function set-FS_type--from-path() {
 	[[ $# == 1 ]] || abort-function "path"
 	local  path=$1
-	[[ -e $path ]] || abort "path='$path' doesn't exist"
+	[[ -e $path ]] || abort "mount-dir='$path' doesn't exist"
 
-	if df --no-sync | fgrep -q -w "$path"
-	   then # shellcheck disable=SC2046
-		set -- $(df --output=fstype --no-sync "$path")
-		FS_type=${!#}
-	   else have-cmd lsblk ||
+	local mounts
+	set-mounts
+	FS_type=$(sed -r -n "s~^[^ ]+ $path ([^ ]+) .*~\1~p" <<<"$mounts")
+
+	if [[ ! $FS_type ]]
+	   then have-cmd lsblk ||
 		   abort "fix $FUNCNAME for '$path', email to ${coder-Scott}"
 		[[ ! -b "$path" ]] && local FS_device &&
 		    set-FS_device--from-path "$path" && path=$FS_device
@@ -447,7 +459,7 @@ function set-FS_type--from-path() {
 function set-inode_size-data_block_size-dir_block_size--from-path() {
 	[[ $# == 1  ]] || abort-function "path"
 	local  path=$1
-	[[ -e $path ]] || abort-function "$path: path doesn't exist"
+	[[ -e $path ]] || abort-function "mount-dir='$path' doesn't exist"
 
 	local FS_type
 	set-FS_type--from-path "$path" || return $?
@@ -510,6 +522,17 @@ set-FS_label--from-FS-device() {
 	[[ $# == 1 ]] || abort-function "device"
 	local  dev=$1
 	[[ -b $dev ]] || abort "$dev is not a device"
+
+	local  label2disk_dir=/dev/disk/by-label d
+	[[ -d $label2disk_dir ]] && {
+	[[ -L $dev ]] && d=$(readlink "$dev") && d=${d#../} || d=$dev
+	if [[ $d != */* || $d != /*/*/* ]]
+	   then local name=${d##*/}
+		# shellcheck disable=SC2012
+		FS_label=$(ls -l "$label2disk_dir" |
+			   sed -r -n "s~.* ([^ ]+) -> ../../$name$~\1~p")
+		[[ $FS_label ]] && return
+	fi; }
 
 	# shellcheck disable=SC1014,SC2053
 	[[ set-mount_dir--from-FS-device != ${FUNCNAME[1]} ]] && {
@@ -619,11 +642,10 @@ function set-FS_device--from-path() {
 	local  path=$1
 	[[ -e $path ]] || { warn "path=$path doesn't exist"; return 1; }
 
-	# shellcheck disable=SC2046
-	set -- $(df --output=source --no-sync "$path" 2> $dev_null)
-	[[ $# != 0 ]] || abort-function "couldn't find device for path=$path"
-	FS_device=${!#}
-	return 0
+	local mounts
+	set-mounts
+	FS_device=$(sed -r -n "s~^([^ ]+) $path .*~\1~p" <<<"$mounts")
+	[[ $FS_device ]]
 }
 
 # ----------------------------
@@ -633,12 +655,12 @@ function set-mount_dir--from-FS-device() {
 	[[ $# == 1  ]] || abort-function "[-q] device"
 	local  dev=$1
 	[[ -b $dev  ]] || abort-function "$dev is not a device"
+	[[ $dev == /* ]] || dev=$PWD/$dev
 
-	# shellcheck disable=SC2046
-	set -- $(df --output=target --no-sync "$dev" 2> $dev_null)
-	[[ $# == 0 ]] && mount_dir= || mount_dir=${!#}
-	[[ ! $mount_dir || $mount_dir == / || $mount_dir == /dev ]] ||
-	   return 0
+	local mounts
+	set-mounts
+	mount_dir=$(sed -r -n "s~^$dev ([^ ]+) .*~\1~p" <<<"$mounts")
+	[[ $mount_dir ]] && return 0
 
 	# shellcheck disable=SC1087,SC2046
 	set -- $(grep "^[[:space:]]*$dev[[:space:]]" /etc/fstab)
@@ -818,7 +840,9 @@ function is-arg1-in-arg2() {
 	local arg2=$*
 	[[ $arg1 && $arg2 ]] || { $xtrace; return 1; }
 
-	[[ " $arg2 " == *" $arg1 "* ]]
+	# turn newlines and TABs into SPACEs before checking
+	[[ " ${arg2//[
+	]/ } "  ==  *" $arg1 "* ]]
 	local status=$?
 	$xtrace
 	return $status
@@ -827,6 +851,15 @@ function is-arg1-in-arg2() {
 [[ $_do_run_unit_tests ]] && {
 is-arg1-in-arg2 foo "" && _abort "null arg2 means false"
 is-arg1-in-arg2 foo    && _abort   "no arg2 means false"
+lines="1
+2"
+is-arg1-in-arg2 1  "$lines" || _abort "1 is not in lines"
+is-arg1-in-arg2 2  "$lines" || _abort "2 is not in lines"
+is-arg1-in-arg2 12 "$lines" && _abort "12   is  in lines"
+fields="1	2"
+is-arg1-in-arg2 1  "$fields" || _abort "1 is not in fields"
+is-arg1-in-arg2 2  "$fields" || _abort "2 is not in fields"
+is-arg1-in-arg2 12 "$fields" && _abort "12   is  in fields"
 }
 
 # ----------------------------------------------------------------------------
@@ -1380,12 +1413,12 @@ is-newer() {
 # ----------------------------------------------------------------------------
 
 is-an-FS-device-mounted() {
-	[[ $# == 1 ]] || abort-function "mount-dir"
-	local mount_dir=$1
+	[[ $# == 1 ]] || abort-function "{ device | mount-dir }"
+	local path=$1
 
-	# shellcheck disable=SC2046,SC2086
-	set -- $(df --output=target --no-sync $mount_dir 2> $dev_null)
-	[[ ${!#} == "$mount_dir" ]]
+	local mounts
+	set-mounts
+	is-arg1-in-arg2 "$path" "$mounts"
 }
 
 [[ ! $_do_run_unit_tests ]] ||
