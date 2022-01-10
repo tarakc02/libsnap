@@ -1471,6 +1471,10 @@ popd_ () { _chdir  popd "$@"; }
 
 # ----------------------------------------------------------------------------
 
+df_() { df "$@"; }			# a killable function
+
+# ----------------
+
 # for each field, assign that field's value to a variable named for that field
 function setup-df-data-from-fields() {
 	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
@@ -1494,8 +1498,11 @@ function setup-df-data-from-fields() {
 	fields=$*
 	local -i field_count=$#
 	#
+	# the caller can deine this run-until-timeout wrapper:
+	local runner=run-with-timeout
+	have-cmd "$runner" || runner=
 	# shellcheck disable=SC2046,SC2086 # *_opts may be null or multi
-	set -- $(df $df_opts --output="${fields// /,}" --no-sync "$drive"/.)
+	set -- $($runner df_ $df_opts --output="${fields// /,}" "$drive"/.)
 	set +f
 	[[ $# != 0 ]] || abort-function "'df $drive' failed"
 	while (( $# > $field_count )) ; do shift; done
