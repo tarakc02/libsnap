@@ -520,14 +520,15 @@ function set-device_KB--from-block-device() {
 # snapback or snapcrypt users can write a replacement in configure.sh
 set-FS_label--from-FS-device() {
 	[[ $# == 1 ]] || abort-function "device"
-	local  dev=$1
-	[[ -b $dev ]] || abort "$dev is not a device"
+	local  device=$1
+	[[ -b $device ]] || abort "$device is not a device"
 
-	local  label2disk_dir=/dev/disk/by-label d
+	local  label2disk_dir=/dev/disk/by-label dev
 	[[ -d $label2disk_dir ]] && {
-	[[ -L $dev ]] && d=$(readlink "$dev") && d=${d#../} || d=$dev
-	if [[ $d != */* || $d != /*/*/* ]]
-	   then local name=${d##*/}
+	[[ -L $device ]] && dev=$(readlink "$device") && dev=${dev#../} || 
+		dev=$device
+	if [[ $dev != */* || $dev != /*/*/* ]]
+	   then local name=${dev##*/}
 		# shellcheck disable=SC2012
 		FS_label=$(ls -l "$label2disk_dir" |
 			   sed -r -n "s~.* ([^ ]+) -> ../../$name$~\1~p")
@@ -536,14 +537,14 @@ set-FS_label--from-FS-device() {
 
 	# shellcheck disable=SC1014,SC2053
 	[[ set-mount_dir--from-FS-device != ${FUNCNAME[1]} ]] && {
-	   set-mount_dir--from-FS-device "$dev"
+	   set-mount_dir--from-FS-device "$device"
 	# shellcheck disable=SC1087,SC2046
 	set -- $(grep "^[^#]*[[:space:]]$mount_dir[[:space:]]" /etc/fstab)
 	[[ ${1-} == LABEL=* ]] && FS_label=${1#*=} || FS_label=	; }
 
 	# don't use lsblk, it sometimes returns very old labels
 	if [[ ! ${FS_label-} ]] && have-cmd blkid
-	   then local cmd="blkid $dev |
+	   then local cmd="blkid $device |
 			   sed -n -r 's@.* LABEL=\"?([^ \"]*)\"? .*@\1@p'"
 		# have to eval because cmd contains a pipeline
 		eval "FS_label=\$($cmd)"	; [[ $FS_label ]] ||
@@ -1931,7 +1932,7 @@ function run-function() {
 	    return $status
 	local function_prefix=${BASH_REMATCH[0]}
 
-	header "variables set by $function"
+	header "variables set by: $*"
 	var_names=${function#"$function_prefix"} ; var_names=${var_names%%--*}
 	var_names=${var_names//-/ }
 	declare -i max_name_width=0
