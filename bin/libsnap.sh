@@ -1968,7 +1968,7 @@ echo-to-file() {
 
 	local new_filename="$filename.$BASHPID"
 	if is-arg1-in-arg2 '-' "$@"
-	   then [[ $# == 1 ]] || abort-function ": can't mix stdin and strings"
+	   then [[ $# == 2 ]] || abort-function ": can't mix stdin and strings"
 		cat
 	   else echo "${@: 1: $#-1}"
 	fi > "$new_filename" || abort-function "$new_filename"
