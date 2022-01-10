@@ -2136,7 +2136,7 @@ function run-until-timeout() {
 	killer -s "$seconds" $func_PID &
 	local killer_PID=$!
 
-	wait $func_PID
+	wait $func_PID &> $dev_null	# hide shell's error msg when killed
 	local status=$?
 	kill $killer_PID &> $dev_null	# might have run to completion
 
