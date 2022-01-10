@@ -813,7 +813,7 @@ abort-function() {
 	[[ ${1-} =~ ^-[0-9]+$ ]] && { stack_skip=${1#-}+1; shift; }
 	local opts= ; while [[ ${1-} == -* ]] ; do opts+=" $1"; shift; done
 
-	[[ $1 == ':'* ]] && local msg=$* || local msg=" $*"
+	[[ ${1-} == ':'* ]] && local msg=$* || local msg=" $*"
 	# shellcheck disable=SC2086 # $opts may be null or multi
 	abort -"$stack_skip" $opts "${FUNCNAME[$stack_skip]}$msg"
 }
