@@ -864,7 +864,9 @@ is-arg1-in-arg2 12 "$fields" && _abort "12   is  in fields"
 
 # ----------------------------------------------------------------------------
 
-# this doesn't fork, so way-faster than $(< )
+# this doesn't fork, so way-faster than $(< ).
+# BUT, this function will silently discard leading and trailing blank lines,
+# because that's how 'read' itself works in bash-5.0.
 function read-all() {
 	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
 	[[ $1 == -A ]] && { local no_abort=$true; shift; } || local no_abort=
@@ -2114,7 +2116,7 @@ _run-echo-output() {
 
 	local -n file=${type}_file
 	local value
-	[[ -s $file ]] && read-all value "$file" || { $xtrace; return; }
+	[[ -s $file ]] && value=$(< "$file") || { $xtrace; return; }
 	$xtrace
 	echo "$value"
 }
