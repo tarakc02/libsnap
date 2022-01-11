@@ -1418,6 +1418,9 @@ is-newer() {
 is-an-FS-device-mounted() {
 	[[ $# == 1 ]] || abort-function "{ device | mount-dir }"
 	local path=$1
+	[[ $path == /* ]] || path=$PWD/$path
+	[[ -b $path || -d $path ]] ||
+	    abort-function ": can't find device or directory for '$1'"
 
 	local mounts
 	set-mounts
@@ -2131,7 +2134,8 @@ _run-echo-output() {
 
 # ---------------------------------
 
-# don't pass a binary, you can't kill a binary that's hung on I/O
+# don't pass a binary, you can't kill a binary that's hung on I/O .
+# race condition: the function succeeds, but it's killed as exits: status > 0
 function run-until-timeout() {
 	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
 	[[ ${1-} == -s && ${2-} != *[!.0-9]* && ${3-} ]] ||
