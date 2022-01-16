@@ -1127,7 +1127,7 @@ function suspend-tracing {
 	[[ ${1-} == -l ]] && { shift; local in_loop=$true; } || local in_loop=
 	[[ $# == 0 ]] || abort-function "[-l]"
 
-	if [[ $x_function ]]
+	if [[ $x_function == "$FUNCNAME" ]]
 	   then local was_tracing=$true
 	   else local was_tracing=$false
 		[[ $in_loop ]] && return $status
@@ -1541,9 +1541,8 @@ function set-file_KB() {
 	# shellcheck disable=SC2046
 	set -- $(ls -sd "$_file")
 	file_KB=$1
+	[[ $x_function == "$FUNCNAME" ]] && set -x
 	[[ $file_KB ]]
-	local status=$?
-	x-return $status
 }
 
 # ----------------------------------------------------------------------------
@@ -1659,9 +1658,8 @@ function set-popped_word-is_last_word--from-list() {
 		set +f
 	fi
 	list=$*				# retain the rest of the words
+	[[ $x_function == "$FUNCNAME" ]] && set -x
 	[[ $popped_word ]]
-	local status=$?
-	x-return $status
 }
 
 [[ $_do_run_unit_tests ]] && {
@@ -1940,7 +1938,7 @@ function run-function() {
 	local function=$1
 	have-cmd "$function" || abort "function '$function' doesn't exist"
 
-	[[ $x_function ]] && set -x
+	[[ $x_function == "$FUNCNAME" ]] && set -x
 	"$@"
 	local status=$?
 	set +x
@@ -2139,7 +2137,6 @@ _run-echo-output() {
 	local -n file=${type}_file
 	local value
 	[[ -s $file ]] && value=$(< "$file") || { x-return; }
-	[[ $x_function ]] && set -x
 	echo "$value"
 }
 
