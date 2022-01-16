@@ -322,7 +322,7 @@ xtrace=				  # in case comment-out first line of function
 
 # exit noisily if missing (e.g. not in PATH) any of the $* commands
 need-cmds() {
-	do-not-trace-function
+	do-not-trace-function # use x-return to leave function; can comment-out
 
 	local _cmd is_cmd_missing=
 	for _cmd
@@ -730,7 +730,7 @@ declare -i max_call_stack_args=6
 shopt -s extdebug			# enable BASH_ARGV and BASH_ARGC
 
 print-call-stack() {
-	do-not-trace-function
+	do-not-trace-function # use x-return to leave function; can comment-out
 	declare -i stack_skip=1
 	[[ ${1-} ==   -s  ]] && { stack_skip=$2+1; shift 2; }
 	[[ ${1-} == [0-9] ]] && 
@@ -839,7 +839,7 @@ readonly -f abort-function
 # --------------------------------------------
 
 assert-not-option() {
-	do-not-trace-function
+	do-not-trace-function # use x-return to leave function; can comment-out
 	[[ ${1-} == -o ]] && { local order_opt=$1; shift; } || local order_opt=
 	[[ ${1-} != -? ]] && { x-return; }
 
@@ -851,7 +851,7 @@ assert-not-option() {
 
 # does 1st argument match any of the whitespace-separated words in rest of args
 function is-arg1-in-arg2() {
-	do-not-trace-function
+	do-not-trace-function # use x-return to leave function; can comment-out
 	(( $# >= 1 )) || abort-function "arg1 arg(s)"
 	local arg1=$1; shift
 	local arg2=$*
@@ -884,7 +884,7 @@ is-arg1-in-arg2 12 "$fields" && _abort "12   is  in fields"
 # BUT, this function will silently discard leading and trailing blank lines,
 # because that's how 'read' itself works in bash-5.0.
 function read-all() {
-	do-not-trace-function
+	do-not-trace-function # use x-return to leave function; can comment-out
 	[[ $1 == -A ]] && { local no_abort=$true; shift; } || local no_abort=
 	[[ $# ==  2 ]] || abort-function "var-name path"
 	local var_name=$1 file_name=$2
@@ -916,7 +916,7 @@ has_echoE_been_called=$false
 
 # echo to stdError, include the line and function from which we're called
 echoE() {
-	do-not-trace-function
+	do-not-trace-function # use x-return to leave function; can comment-out
 	[[ $1 == -n ]] && { local show_name=$true; shift; } || local show_name=
 	declare -i stack_frame_to_show=1 # default to our caller's stack frame
 	[[ $1 =~ ^-[0-9]+$ ]] && { stack_frame_to_show=${1#-}+1; shift; }
@@ -1070,7 +1070,7 @@ tst_func Nope && _abort "Nope  isn't"
 
 # like echoE, but also show the values of the variable names passed to us
 echoEV() {
-	do-not-trace-function
+	do-not-trace-function # use x-return to leave function; can comment-out
 	declare -i stack_frame_to_show=1 # default to our caller's stack frame
 	[[ $1 =~ ^-[0-9]+$ ]] && { stack_frame_to_show=${1#-}+1; shift; }
 	assert-not-option "${1-}"
@@ -1090,7 +1090,7 @@ declare -i Trace_level=0		# default to none (probably)
 
 _isnum() { [[ $1 =~ ^[0-9]+$ ]] ||abort -1 "Trace* first arg is (min) level"; }
 _Trace () {
-	do-not-trace-function
+	do-not-trace-function # use x-return to leave function; can comment-out
 	local echo_cmd=$1; shift
 	_isnum "$1"
 	(( $1 <= $Trace_level )) || { x-return 1; }
@@ -1109,7 +1109,7 @@ declare -A funcname2was_tracing		# global for next three functions
 function remember-tracing {
 
 	local status=$?			# status from caller's previous command
-	do-not-trace-function
+	do-not-trace-function # use x-return to leave function; can comment-out
 	[[ $# == 0 ]] || abort-function "takes no arguments"
 
 	funcname2was_tracing[ ${FUNCNAME[1]} ]=$x_function
@@ -1123,7 +1123,7 @@ function remember-tracing {
 # shellcheck disable=SC2120 # we merely make sure we get no args
 function suspend-tracing {
 	local status=$?			# status from caller's previous command
-	do-not-trace-function
+	do-not-trace-function # use x-return to leave function; can comment-out
 	[[ ${1-} == -l ]] && { shift; local in_loop=$true; } || local in_loop=
 	[[ $# == 0 ]] || abort-function "[-l]"
 
@@ -1235,7 +1235,7 @@ declare -i log_level=0			# set by getopts or configure.sh
 log_msg_prefix=				# can hold variables, it's eval'ed
 
 function log() {
-	do-not-trace-function
+	do-not-trace-function # use x-return to leave function; can comment-out
 	[[ $1 == [0-9] ]] && { local level=$1; shift; } || local level=0
 	local _msg="$*"
 
@@ -1263,7 +1263,7 @@ function log() {
 
 # show head-style header
 header() {
-	do-not-trace-function
+	do-not-trace-function # use x-return to leave function; can comment-out
 	[[ $1 == -e ]] && { shift; local nl="\n"; } || local nl=
 	[[ $1 == -E ]] &&   shift || echo
 	assert-not-option -o "${1-}"
@@ -1325,7 +1325,7 @@ clear_tput_args="sgr0"
 declare -A highlight_level2escape_sequence
 
 set-highlighted_string() {
-	do-not-trace-function
+	do-not-trace-function # use x-return to leave function; can comment-out
 	local level=$1; shift; local string=$*
 	is-arg1-in-arg2 "$level" "${!highlight_level2tput_args[*]}" ||
 	   abort-function "$level is unknown level"
@@ -1354,7 +1354,7 @@ default_padded_colorized_string_field_width=
 # "printf %7s" doesn't handle terminfo escape sequence
 # printf strips trailing SPACES; so pad with '_', and replace them later
 set-padded_colorized_string--for-printf() {
-	do-not-trace-function
+	do-not-trace-function # use x-return to leave function; can comment-out
 	[[ $# == [23] ]] || abort-function "need 2-3 args"
 	local string=$1 colorized_string=$2
 	local  default_width=$default_padded_colorized_string_field_width
@@ -1462,7 +1462,7 @@ function set-absolute_path() {
 # ----------------------------------------------------------------------------
 
 _chdir() {
-	do-not-trace-function
+	do-not-trace-function # use x-return to leave function; can comment-out
 	local cmd=$1; shift
 	[[ ${1-} == -q ]] && { shift;local is_quiet=$true; } || local is_quiet=
 	(( $# <= 1 )) || abort-function "$*: wrong number args"
@@ -1493,7 +1493,7 @@ df_() { df "$@"; }			# a killable function
 
 # for each field, assign that field's value to a variable named for that field
 function setup-df-data-from-fields() {
-	do-not-trace-function
+	do-not-trace-function # use x-return to leave function; can comment-out
 	local df_opts=
 	while [[ $1 == -* ]]; do df_opts+="$1 "; shift; done
 	(( $# >= 2 )) || abort-function "[df-opts] drive df-column-name(s)"
@@ -1534,7 +1534,7 @@ function setup-df-data-from-fields() {
 # ----------------------------------------------------------------------------
 
 function set-file_KB() {
-	do-not-trace-function
+	do-not-trace-function # use x-return to leave function; can comment-out
 	[[ $# == 1 ]] || abort-function "path"
 	local _file=$1
 
@@ -1554,7 +1554,7 @@ function have-proc { [[ -e /proc/mounts ]] ; }
 
 # return 0 if all processes alive, else 1; unlike 'kill -0', works without sudo
 function is-process-alive() {
-	do-not-trace-function
+	do-not-trace-function # use x-return to leave function; can comment-out
 	local PIDs=$*
 
 	local PID
@@ -1596,7 +1596,7 @@ unset uniques
 # ----------------------------------------------------------------------------
 
 set-reversed_words() {
-	do-not-trace-function
+	do-not-trace-function # use x-return to leave function; can comment-out
 
 	reversed_words=
 	local word
@@ -1636,7 +1636,7 @@ function set-is_FIFO() {
 
 # pop word off left side of named list; return non-0 if list was empty
 function set-popped_word-is_last_word--from-list() {
-	do-not-trace-function
+	do-not-trace-function # use x-return to leave function; can comment-out
 	# shellcheck disable=SC2086 # variable may be null
 	set-is_FIFO ${1-} && shift
 	[[ $# == 1 ]] || abort-function ": pass name of list"
@@ -1697,7 +1697,7 @@ unset _numbers _input _words popped_word is_last_word
 # ----------------------------------------------------------------------------
 
 set-average() {
-	do-not-trace-function
+	do-not-trace-function # use x-return to leave function; can comment-out
 	if [[ $# == 1 && ! $1 =~ ^[0-9]+$ && ( -e $1 || $1 == */* ) ]]
 	   then local numbers
 		read -r -d '\0' numbers < "$1"
@@ -1724,7 +1724,7 @@ unset average
 
 # takes ~150 usec, 10x faster than: awk '{print $1 * $2}' <<<"$num_1 $num_2"
 set-product() {
-	do-not-trace-function
+	do-not-trace-function # use x-return to leave function; can comment-out
 	[[ $# == 2 && $1 && $2 &&	# catch null parameters
 	       ( ($1 =~ ^-?[0-9]*(\.[0-9]*)*$ && $2 =~ ^-?[0-9]+$) ||
 		 ($2 =~ ^-?[0-9]*(\.[0-9]*)*$ && $1 =~ ^-?[0-9]+$)    ) ]] ||
@@ -1772,7 +1772,7 @@ unset product
 
 # takes ~150 usec, 10x faster than: awk '{printf "%0.2f\n" $1/$2}' <<<"$n $d"
 set-division() {
-	do-not-trace-function
+	do-not-trace-function # use x-return to leave function; can comment-out
 	local -i width=0 decimal_digits
 	[[ $1 == -w? ]] && { width=${1#-w}; shift; }
 	[[ $1 == -z  ]] && { local zero_pad=$true; shift; } || local zero_pad=
@@ -1882,7 +1882,7 @@ set-epoch_msecs() {
 # ----------------------------------------------------------------------------
 
 function confirm() {
-	do-not-trace-function
+	do-not-trace-function # use x-return to leave function; can comment-out
 	[[ $1 == -n  ]] && { echo; shift; }
 	assert-not-option "$1"
 	local _prompt=$1 default=${2-}
@@ -1931,7 +1931,7 @@ assert-sha1sum() {
 # Test an internal function by passing its name + options + args to our script;
 # to show values of global variables it alters, pass: -v "varname(s)"
 function run-function() {
-	do-not-trace-function
+	do-not-trace-function # use x-return to leave function; can comment-out
 	local is_procedure=$false	# abort if function "fails"
 	[[ $1 == -p ]] && { is_procedure=$true; shift; }
 	[[ $1 == -v ]] && { local var_names=$2; shift 2; } || local var_names=
@@ -1979,7 +1979,7 @@ alias pegrep='grep --perl-regexp'
 
 # replace a file's contents atomically (read from stdin if $1 == '-')
 echo-to-file() {
-	do-not-trace-function
+	do-not-trace-function # use x-return to leave function; can comment-out
 	[[ $1 == -p ]] && { shift; local do_perms=$true; } || local do_perms=
 	local filename=${!#}
 
@@ -2046,7 +2046,7 @@ copy-file-perms() {
 
 # return non-0 if din't find any emacs backup files
 function set-backup_suffix--for-emacs() {
-	do-not-trace-function
+	do-not-trace-function # use x-return to leave function; can comment-out
 	[[ $# == 1  ]] || abort-function ": specify a single file"
 	local  path=$1
 	[[ -f $path ]] || abort-function ": '$path' not file, or doesn't exist"
@@ -2072,7 +2072,7 @@ function set-backup_suffix--for-emacs() {
 
 # this is for 'sed --in-place[=SUFFIX]' or 'perl -i[extension]'
 set-backup_suffix() {
-	do-not-trace-function
+	do-not-trace-function # use x-return to leave function; can comment-out
 
 	set-backup_suffix--for-emacs "$@" || backup_suffix='~'
 	x-return
@@ -2117,7 +2117,7 @@ set-cat_cmd() {
 # ----------------------------------------------------------------------------
 
 killer() {
-	do-not-trace-function
+	do-not-trace-function # use x-return to leave function; can comment-out
 	[[ $# == 3 && $1 == -s && $2 != *[!.0-9]* && $3 != *[!0-9]* ]] ||
 	    abort-function "-s decimal-seconds PID"
 	local seconds=$2 PID=$3 spec
@@ -2133,7 +2133,7 @@ killer() {
 # ---------------------------------
 
 _run-echo-output() {
-	do-not-trace-function
+	do-not-trace-function # use x-return to leave function; can comment-out
 	local type=$1
 
 	local -n file=${type}_file
@@ -2148,7 +2148,7 @@ _run-echo-output() {
 # don't pass a binary, you can't kill a binary that's hung on I/O .
 # race condition: the function succeeds, but it's killed as exits: status > 0
 function run-until-timeout() {
-	do-not-trace-function
+	do-not-trace-function # use x-return to leave function; can comment-out
 	[[ ${1-} == -s && ${2-} != *[!.0-9]* && ${3-} ]] ||
 	    abort-function "-s decimal-seconds function [arg(s)]"
 	local seconds=$2 && shift 2
