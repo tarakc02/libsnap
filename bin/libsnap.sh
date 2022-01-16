@@ -273,6 +273,10 @@ prepend-to-PATH-var() {
 alias do-not-trace-function='
 [[ -o xtrace ]] && { set +x;local x_function=$FUNCNAME; } || local x_function='
 
+# shellcheck disable=SC2154 # shellcheck doesn't grok pervious alias
+alias continue-tracing-function='
+[[ $x_function == "$FUNCNAME" ]] && set -x'
+
 # Replaces 'return', if function might have profile-on or do-not-trace-function
 # If used after '||' or '&&' , you must enclose it in {}, aka: { x-return 1; }
 # shellcheck disable=SC2154 # shellcheck doesn't grok pervious alias
@@ -317,8 +321,6 @@ have-cmd our_name && _abort "don't have func our_name"
 }
 
 # --------------------------------------------
-
-xtrace=				  # in case comment-out first line of function
 
 # exit noisily if missing (e.g. not in PATH) any of the $* commands
 need-cmds() {
@@ -1541,7 +1543,7 @@ function set-file_KB() {
 	# shellcheck disable=SC2046
 	set -- $(ls -sd "$_file")
 	file_KB=$1
-	[[ $x_function == "$FUNCNAME" ]] && set -x
+	continue-tracing-function
 	[[ $file_KB ]]
 }
 
@@ -1658,7 +1660,7 @@ function set-popped_word-is_last_word--from-list() {
 		set +f
 	fi
 	list=$*				# retain the rest of the words
-	[[ $x_function == "$FUNCNAME" ]] && set -x
+	continue-tracing-function
 	[[ $popped_word ]]
 }
 
@@ -1938,7 +1940,7 @@ function run-function() {
 	local function=$1
 	have-cmd "$function" || abort "function '$function' doesn't exist"
 
-	[[ $x_function == "$FUNCNAME" ]] && set -x
+	continue-tracing-function
 	"$@"
 	local status=$?
 	set +x
