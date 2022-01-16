@@ -756,7 +756,6 @@ print-call-stack() {
 		local -i argc=${BASH_ARGC[depth]-0} number_args=0
 		for (( arg_i=argv_i+argc-1; arg_i >= argv_i; arg_i-- ))
 		    do	local arg=${BASH_ARGV[arg_i]}
-			[[ $arg == *[\	\ ]* ]] && arg="'$arg'"
 			args+="$arg "
 			(( argc > max_args+1 )) || continue
 			# we never want to say "<1 more args>"
