@@ -270,10 +270,11 @@ prepend-to-PATH-var() {
 
 # ----------------------------------------------------------------------------
 
-alias do-not-trace-function='[[ -o xtrace ]] && { set +x; local x_function=$FUNCNAME; } || local x_function='
+alias do-not-trace-function='
+[[ -o xtrace ]] && { set +x;local x_function=$FUNCNAME; } || local x_function='
 
-# 'return' replacement, if function _might_ contain have do-not-trace-function;
-# if used after a '||' or '&&' , must use { x-return 1; } .
+# Replaces 'return', if function might have profile-on or do-not-trace-function
+# If used after '||' or '&&' , you must enclose it in {}, aka: { x-return 1; }
 # shellcheck disable=SC2154 # shellcheck doesn't grok pervious alias
 alias x-return='[[ ${x_function-} != $FUNCNAME ]] || set +x && return'
 
