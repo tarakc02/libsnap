@@ -136,6 +136,7 @@ _abort "bash version >= 4.4 must appear earlier in the PATH than an older bash"
 # 4.3: [[ -v array[i] ]] ; globasciiranges; negative subscripts count backwards
 # 4.4: executing RHS of && or || won't cause shell to fork (lose side-effects)
 
+shopt -s expand_aliases			# x-return, alternate function names
 shopt -s globasciiranges		# so weird locales don't mess us up
 shopt -s lastpipe			# don't fork last cmd of pipeline
 
@@ -192,13 +193,17 @@ function is-var() {
 	declare -p "$1" &> $dev_null
 }
 
-function is-variable() { is-var "$@"; }
+alias is-variable=is-var
 
 [[ $_do_run_unit_tests ]] && {
 declare -i _foobar_
 is-var _foobar_ || _abort "have _foobar_"
 is-var our_name || _abort "have our_name"
 is-var NoTeXiSt && _abort "don't have NoTeXiSt"
+
+is-variable _foobar_ || _abort "alias: have _foobar_"
+is-variable our_name || _abort "alias: have our_name"
+is-variable NoTeXiSt && _abort "alias: don't have NoTeXiSt"
 }
 
 # ----------------------------------------------------------------------------
@@ -294,7 +299,7 @@ function have-cmd() {
 	return 1
 }
 
-function have-command() { have-cmd "$@"; }
+alias have-command=have-cmd
 
 [[ $_do_run_unit_tests ]] && {
 have-cmd is-set   || _abort "have is-set"
@@ -322,7 +327,7 @@ need-cmds() {
 	$xtrace
 }
 
-need-commands() { need-cmds "$@"; }
+alias need-commands=need-cmds
 
 # ----------------------------------------------------------------------------
 
@@ -929,16 +934,16 @@ function is-readonly-var() {
 	is-var "$1" && [[ $(declare -p "$1") =~ ' '-[a-zA-Z]*r ]]
 }
 
-function is-readonly-variable() { is-readonly-var "$@"; }
+alias is-readonly-variable=is-readonly-var
 
-# ----------------------
+#
 
 function is-writable-var() {
 	[[ $# == 1 ]] || abort-function "var-name"
 	is-var "$1" && ! is-readonly-var "$1"
 }
 
-function is-writable-variable() { is-writable-var "$@"; }
+alias is-writable-variable=is-writable-var
 
 # ----------------------
 
@@ -947,7 +952,7 @@ function is-integer-var() {
 	is-var "$1" && [[ $(declare -p "$1") =~ ' '-[a-zA-Z]*i ]]
 }
 
-function is-integer-variable() { is-integer-var "$@"; }
+alias is-integer-variable=is-integer-var
 
 [[ $_do_run_unit_tests ]] && {
 is-writable-var true && _abort "true is a readonly var"
@@ -1073,18 +1078,18 @@ echoEV() {
 
 declare -i Trace_level=0		# default to none (probably)
 
-_isnum() { [[ $1 =~ ^[0-9]+$ ]] ||abort -2 "Trace* first arg is (min) level"; }
+_isnum() { [[ $1 =~ ^[0-9]+$ ]] ||abort -1 "Trace* first arg is (min) level"; }
 _Trace () {
 	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
 	local echo_cmd=$1; shift
 	_isnum "$1"
 	(( $1 <= $Trace_level )) || { $xtrace; return 1; }
 	shift
-	$echo_cmd -2 "$@"
+	$echo_cmd -1 "$@"
 	$xtrace
 }
-Trace () { _Trace echoE  "$@"; }
-TraceV() { _Trace echoEV "$@"; }
+alias  Trace='_Trace echoE'
+alias TraceV='_Trace echoEV'
 
 # ----------------------------------------------------------------------------
 
@@ -1468,9 +1473,9 @@ _chdir() {
 	$xtrace
 }
 
-cd_   () { _chdir    cd "$@"; }
-pushd_() { _chdir pushd "$@"; }
-popd_ () { _chdir  popd "$@"; }
+alias    cd_='_chdir    cd'
+alias pushd_='_chdir pushd'
+alias  popd_='_chdir  popd'
 
 # ----------------------------------------------------------------------------
 
@@ -1961,7 +1966,7 @@ function run-function() {
 
 # ----------------------------------------------------------------------------
 
-function pegrep() { grep --perl-regexp "$@"; }
+alias pegrep='grep --perl-regexp'
 
 # ----------------------------------------------------------------------------
 # create and rewrite files
