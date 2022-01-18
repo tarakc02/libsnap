@@ -297,7 +297,7 @@ declare    -A profiled_function2name
 
 declare -i profile_overhead_usecs
 
-function set-profile_overhead_usecs() {
+function _set-profile_overhead_usecs() {
 	local name=${1-}
 
 	if [[ ! ${do_profile-} ]]
@@ -327,7 +327,7 @@ function set-profile_overhead_usecs() {
 
 function profile-on() {
 	[[ -v profile_overhead_usecs ]] ||
-	  set-profile_overhead_usecs "$@" || return 1
+	 _set-profile_overhead_usecs "$@" || return 1
 	local function=${FUNCNAME[1]-main}
 	local name=${1:-$function}
 	[[ $name ]] || abort-function ": not in a function, pass a name"
@@ -344,7 +344,7 @@ function profile-off() {
 	local -i epoch_usecs
 	set-epoch_usecs
 	[[ -v profile_overhead_usecs ]] ||
-	  set-profile_overhead_usecs "$@" || return 1
+	 _set-profile_overhead_usecs "$@" || return 1
 	local function=${FUNCNAME[1]-main}
 	local name=${1:-${profiled_function2name[$function]}}
 	[[ $name ]] || abort-function ": not in a function, pass a name"
@@ -383,7 +383,6 @@ alias can-profile-not-trace='
 		     force_next_function_trace=
 		profile-on
 	fi'
-alias do-not-trace-function=can-profile-not-trace # FIXME: remove legacy name
 
 # shellcheck disable=SC2154 # shellcheck doesn't grok pervious alias
 alias continue-tracing-function='
@@ -2311,8 +2310,8 @@ set-python_script() {
 
 [[  ${_do_run_unit_tests-} ]] && {
 unset _do_run_unit_tests
-unset "profiled_function2usecs['set-profile_overhead_usecs']"
-unset "profiled_function2count['set-profile_overhead_usecs']"
+unset "profiled_function2usecs['_set-profile_overhead_usecs']"
+unset "profiled_function2count['_set-profile_overhead_usecs']"
 # declare -p profiled_function2usecs profiled_function2count
 for function in set-product set-division is-arg1-in-arg2 read-all
     do	declare -i usecs=${profiled_function2usecs[$function]}
