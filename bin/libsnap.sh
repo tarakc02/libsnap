@@ -317,7 +317,7 @@ function _set-profile_overhead_usecs() {
 	fi
 
 	local -i usecs min_usecs=1123123123
-	for i in {1..5}	       # enough to get sample without context # switch
+	for i in {1..20}       # enough to get sample without context switch
 	    do	profile-on  "$FUNCNAME"
 		profile-off "$FUNCNAME"
 		usecs=${profiled_function2usecs[$FUNCNAME]}
@@ -365,6 +365,32 @@ function profile-off() {
 
 	profiled_function2epoch[$name]=0 # in case profile-off without -on
 	return $status
+}
+
+# -------------------------------------------------
+
+# shellcheck disable=SC2120
+print-profile-data() {
+	[[ ${1-} == -k ]] && { local arg="$1$2"; shift 2; } || local arg=-
+	[[ $# == 0 ]] || abort-function "[-k sort-column-number]"
+	local path=${1-profile}
+	[[ $path == *.* ]] || path+=".csv"
+
+	unset "profiled_function2usecs['_set-profile_overhead_usecs']"
+	unset "profiled_function2count['_set-profile_overhead_usecs']"
+
+	local name
+	local format="%s\t%7s\t%7s\t%s\n"
+	local -i usecs count per_call_usecs
+	# shellcheck disable=SC2059 # why not??
+	printf "$format" 'all-us' 'count' 'PerCall' 'function'
+	for name in ${!profiled_function2usecs[*]}
+	    do	usecs=${profiled_function2usecs[$name]}
+		count=${profiled_function2count[$name]}
+		per_call_usecs=$usecs/$count
+		# shellcheck disable=SC2059 # why not??
+		printf "$format" "$usecs" "$count" "$per_call_usecs" "$name"
+	done | sort -n -r "$arg"
 }
 
 [[ $_do_run_unit_tests ]] && {
@@ -2320,15 +2346,9 @@ set-python_script() {
 
 [[  ${_do_run_unit_tests-} ]] && {
 unset _do_run_unit_tests
-unset "profiled_function2usecs['_set-profile_overhead_usecs']"
-unset "profiled_function2count['_set-profile_overhead_usecs']"
-# declare -p profiled_function2usecs profiled_function2count
-for function in set-product set-division is-arg1-in-arg2 read-all
-    do	declare -i usecs=${profiled_function2usecs[$function]}
-	declare -i count=${profiled_function2count[$function]}
-	declare -i avg_usecs=$usecs/$count
-	printf "%5d usecs for $function\n" "$avg_usecs"
-done
+print-profile-data -k 3 |
+    sed 's/\tmain$/\t{all the unit tests}/' | echo-to-file - profile.csv
+head -v profile.csv
 }
 
 true					# we must return 0
