@@ -337,7 +337,6 @@ function profile-on() {
 	 _set-profile_overhead_usecs "$@" || return $status
 	local function=${FUNCNAME[1]-main}
 	local name=${1:-$function}
-	[[ $name ]] || abort-function ": not in a function, pass a name"
 	profiled_function2name[$function]=$name
 
 	local -i epoch_usecs
@@ -356,7 +355,6 @@ function profile-off() {
 	 _set-profile_overhead_usecs "$@" || return $status
 	local function=${FUNCNAME[1]-main}
 	local name=${1:-${profiled_function2name[$function]}}
-	[[ $name ]] || abort-function ": not in a function, pass a name"
 
 	local -i epoch_start=${profiled_function2epoch[$name]-0}
 	(( $epoch_start > 0 )) || return
