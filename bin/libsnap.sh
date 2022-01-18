@@ -144,7 +144,7 @@ shopt -s lastpipe			# don't fork last cmd of pipeline
 # set -x: if command in /home/, precede by ~ (yourself) else ~other-user .
 # this logic for the first-half of PS4 is duplicated in print-call-stack
 PS4='+ $(echo ${BASH_SOURCE-} | sed "s@^$HOME/@~/@; s@^/home/@~@; s@/.*/@ @")'
-PS4+=' line ${LINENO-}, in ${FUNCNAME-main}(): '
+PS4+=' line ${LINENO-}, in ${FUNCNAME-_main_}: '
 export PS4
 
 # put $IfRun in front of cmds w/side-effects, so -d means: debug only, simulate
@@ -306,18 +306,15 @@ declare -i profile_overhead_usecs
 function _set-profile_overhead_usecs() {
 	local name=${1-}
 
-	if [[ ! ${do_profile-} ]]
-	   then alias  profile-on=null-cmd
-		alias profile-off=null-cmd
-		return 1
-	fi
+	[[ ${do_profile-} ]] || return 1
+
 	if [[ $name == "$FUNCNAME" ]]	# recursing?
 	   then return
 	   else profile_overhead_usecs=0 # for first call to profile-off
 	fi
 
 	local -i usecs min_usecs=1123123123
-	for i in {1..20}       # enough to get sample without context switch
+	for ((i=0; i < 100; i++)) # enough to get sample without context switch
 	    do	profile-on  "$FUNCNAME"
 		profile-off "$FUNCNAME"
 		usecs=${profiled_function2usecs[$FUNCNAME]}
@@ -333,9 +330,10 @@ function _set-profile_overhead_usecs() {
 
 function profile-on() {
 	local status=$?
+	[[ ${do_profile-} ]] || return $status
 	[[ -v profile_overhead_usecs ]] ||
 	 _set-profile_overhead_usecs "$@" || return $status
-	local function=${FUNCNAME[1]-main}
+	local function=${FUNCNAME[1]-_main_}
 	local name=${1:-$function}
 	profiled_function2name[$function]=$name
 
@@ -351,9 +349,10 @@ function profile-off() {
 	local status=$?
 	local -i epoch_usecs
 	set-epoch_usecs
+	[[ ${do_profile-} ]] || return $status
 	[[ -v profile_overhead_usecs ]] ||
 	 _set-profile_overhead_usecs "$@" || return $status
-	local function=${FUNCNAME[1]-main}
+	local function=${FUNCNAME[1]-_main_}
 	local name=${1:-${profiled_function2name[$function]}}
 
 	local -i epoch_start=${profiled_function2epoch[$name]-0}
@@ -394,18 +393,20 @@ print-profile-data() {
 }
 
 [[ $_do_run_unit_tests ]] && {
-profile-on; sleep 0.00001; profile-off || _abort "must pass-through sleep stat"
+profile-on; sleep 0.00001; profile-off || _abort "must pass-through sleep-stat"
 [[ -v profile_overhead_usecs ]] && _abort "profiling should be disabled"
- true; profile-on || _abort "profile-on not null-cmd after true"
-false; profile-on && _abort "profile-on not null-cmd after false"
-unalias profile-on profile-off		# want real function again
+ true; profile-on  || _abort "profile-on  not null-cmd after true"
+false; profile-on  && _abort "profile-on  not null-cmd after false"
+ true; profile-off || _abort "profile-off not null-cmd after true"
+false; profile-off && _abort "profile-off not null-cmd after false"
 
 do_profile=$true
 profile-on; sleep 0.001; profile-off || _abort "should return success"
 [[ -v profile_overhead_usecs ]] || _abort "didn't set profile_overhead_usecs"
 ((    profile_overhead_usecs )) || _abort "profile_overhead_usecs is 0"
-((  ${profiled_function2usecs[main]} >= 10 )) || _abort "profile failed"
-((  ${profiled_function2count[main]} ==  1 )) || _abort "profiling error"
+declare -p profiled_function2usecs
+((  ${profiled_function2usecs[_main_]} >= 10 )) || _abort "profile failed"
+((  ${profiled_function2count[_main_]} ==  1 )) || _abort "profiling error"
 }
 
 # ----------------------------------------------------------------------------
@@ -413,11 +414,12 @@ profile-on; sleep 0.001; profile-off || _abort "should return success"
 alias can-profile-not-trace='
 	if [[ -o xtrace${force_next_function_trace-} ]]
 	   then set +x
-		local x_function=$FUNCNAME	; profile-on
+		[[ ${do_profile-} ]] && profile-on
+		local x_function=$FUNCNAME
 	   else local x_function=
+		[[ ${do_profile-} ]] && profile-on
 		[[ ${force_next_function_trace-} ]] &&
 		     force_next_function_trace=
-		profile-on
 	fi'
 
 # shellcheck disable=SC2154 # shellcheck doesn't grok pervious alias
@@ -2347,7 +2349,7 @@ set-python_script() {
 [[  ${_do_run_unit_tests-} ]] && {
 unset _do_run_unit_tests
 print-profile-data -k 3 |
-    sed 's/\tmain$/\t{all the unit tests}/' | echo-to-file - profile.csv
+    sed 's/\t_main_$/\t{all the unit tests}/' | echo-to-file - profile.csv
 head -v profile.csv
 }
 
