@@ -270,20 +270,13 @@ prepend-to-PATH-var() {
 
 # ----------------------------------------------------------------------------
 
-if [[ ! -v BASH_LOADABLES_PATH ]]
-   then export BASH_LOADABLES_PATH=
-	append-to-PATH-var BASH_LOADABLES_PATH \
-			   /usr/local/lib/bash /usr/lib/bash
+if [[ ${EPOCHREALTIME-} ]]
+   then # shellcheck disable=SC2154 # shellcheck doesn't grok aliases
+	alias set-epoch_msecs='
+		local _epoch_usecs_=${EPOCHREALTIME/./}
+		epoch_msecs=${_epoch_usecs_%???}'
+   else alias set-epoch_msecs='epoch_msecs=$(date +%s%3N)'
 fi
-
-# 'mkdir' buggy in bash-4.4.20: mkdir -p fails when exists & writable parent
-# 'head' speed is proportional to value of -n
-bash_builtins="basename dirname id realpath rmdir rm sleep tee uname"
-
-[[ $BASH_LOADABLES_PATH ]] &&
-for _builtin in $bash_builtins
-    do	enable -f "$_builtin" "$_builtin"
-done 2> $dev_null			# rm is only in bash-5.0, ignore error
 
 # ----------------------------------------------------------------------------
 
@@ -303,6 +296,25 @@ alias continue-tracing-function='
 # If used after '||' or '&&' , you must enclose it in {}, aka: { x-return 1; }
 # shellcheck disable=SC2154 # shellcheck doesn't grok pervious alias
 alias x-return='[[ ${x_function-} != $FUNCNAME ]] || set +x && return'
+
+# ----------------------------------------------------------------------------
+# we want some loadable builtins (the ones that aren't buggy)
+# ----------------------------------------------------------------------------
+
+if [[ ! -v BASH_LOADABLES_PATH ]]
+   then export BASH_LOADABLES_PATH=
+	append-to-PATH-var BASH_LOADABLES_PATH \
+			   /usr/local/lib/bash /usr/lib/bash
+fi
+
+# 'mkdir' buggy in bash-4.4.20: mkdir -p fails when exists & writable parent
+# 'head' speed is proportional to value of -n
+bash_builtins="basename dirname id realpath rmdir rm sleep tee uname"
+
+[[ $BASH_LOADABLES_PATH ]] &&
+for _builtin in $bash_builtins
+    do	enable -f "$_builtin" "$_builtin"
+done 2> $dev_null			# rm is only in bash-5.0, ignore error
 
 # ----------------------------------------------------------------------------
 # functions to make sure needed utilities are in the PATH
@@ -1871,16 +1883,6 @@ sleep-exe() {
 }
 
 # -------------------------------------------------------
-
-if [[ ${EPOCHREALTIME-} ]]
-   then # shellcheck disable=SC2154 # shellcheck doesn't grok aliases
-	alias set-epoch_msecs='
-		local _epoch_usecs_=${EPOCHREALTIME/./}
-		epoch_msecs=${_epoch_usecs_%???}'
-   else alias set-epoch_msecs='epoch_msecs=$(date +%s%3N)'
-fi
-
-# ----------------------------------------------------------------------------
 
 function confirm() {
 	do-not-trace-function # use x-return to leave function; can comment-out
