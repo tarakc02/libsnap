@@ -271,7 +271,12 @@ prepend-to-PATH-var() {
 # ----------------------------------------------------------------------------
 
 alias do-not-trace-function='
-[[ -o xtrace ]] && { set +x;local x_function=$FUNCNAME; } || local x_function='
+	if [[ -o xtrace${force_next_function_trace-} ]]
+	   then set +x; local x_function=$FUNCNAME
+	   else		local x_function=
+		[[ ${force_next_function_trace-} ]] &&
+		     force_next_function_trace=
+	fi'
 
 # shellcheck disable=SC2154 # shellcheck doesn't grok pervious alias
 alias continue-tracing-function='
@@ -1867,16 +1872,13 @@ sleep-exe() {
 
 # -------------------------------------------------------
 
-# shellcheck disable=SC2120 # we merely make sure we get no args
-set-epoch_msecs() {
-	[[ $# == 0 ]] || abort-function "takes no arguments"
-
-	if [[ ${EPOCHREALTIME-} ]]
-	   then local epoch_usecs=${EPOCHREALTIME/./}
-		epoch_msecs=${epoch_usecs%???}
-	   else epoch_msecs=$(date +%s%3N)
-	fi
-}
+if [[ ${EPOCHREALTIME-} ]]
+   then # shellcheck disable=SC2154 # shellcheck doesn't grok aliases
+	alias set-epoch_msecs='
+		local _epoch_usecs_=${EPOCHREALTIME/./}
+		epoch_msecs=${_epoch_usecs_%???}'
+   else alias set-epoch_msecs='epoch_msecs=$(date +%s%3N)'
+fi
 
 # ----------------------------------------------------------------------------
 
@@ -1939,10 +1941,12 @@ function run-function() {
 	local function=$1
 	have-cmd "$function" || abort "function '$function' doesn't exist"
 
-	continue-tracing-function
+	local force_next_function_trace=${Trace:+_}
+	$Trace
 	"$@"
 	local status=$?
 	set +x
+	echo -e "\nstatus=$?"
 	# shellcheck disable=SC2086 # variable contains multiple values
 	[[ $var_names ]] && echoEV -1 ${var_names//,/ }
 	[[ $status == 0 || $is_procedure ]] || abort -1 "'$*' returned $status"
