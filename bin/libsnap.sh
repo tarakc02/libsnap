@@ -84,6 +84,7 @@ _libsnap-exit() {
 # to announce errors in this script
 function _warn() { echo -e "\n$0: source libsnap.sh: $*\n" >&2; return 1; }
 function _abort() {
+	set +x
 	_warn "$*"
 	[[ $is_sourced_by_interactive_shell ]] && return 1
 	_libsnap-exit 1
@@ -143,7 +144,7 @@ shopt -s lastpipe			# don't fork last cmd of pipeline
 # set -x: if command in /home/, precede by ~ (yourself) else ~other-user .
 # this logic for the first-half of PS4 is duplicated in print-call-stack
 PS4='+ $(echo ${BASH_SOURCE-} | sed "s@^$HOME/@~/@; s@^/home/@~@; s@/.*/@ @")'
-PS4+=' line ${LINENO-}, in ${FUNCNAME-}(): '
+PS4+=' line ${LINENO-}, in ${FUNCNAME-main}(): '
 export PS4
 
 # put $IfRun in front of cmds w/side-effects, so -d means: debug only, simulate
@@ -288,6 +289,11 @@ readonly null_cmd_string='[[ $? == 0 ]]' # retain success/failure of prev cmd
 # shellcheck disable=SC2139 # we only want to expand once
 alias null-cmd="$null_cmd_string"	# retains success/failure of prev cmd
 
+[[ $_do_run_unit_tests ]] && {
+ true; null-cmd || _abort "didn't pass-through sucess"
+false; null-cmd && _abort "didn't pass-through failure"
+}
+
 # ----------------------------------------------------------------------------
 
 declare -i -A profiled_function2epoch
@@ -326,8 +332,9 @@ function _set-profile_overhead_usecs() {
 # ---------------------------------------
 
 function profile-on() {
+	local status=$?
 	[[ -v profile_overhead_usecs ]] ||
-	 _set-profile_overhead_usecs "$@" || return 1
+	 _set-profile_overhead_usecs "$@" || return $status
 	local function=${FUNCNAME[1]-main}
 	local name=${1:-$function}
 	[[ $name ]] || abort-function ": not in a function, pass a name"
@@ -336,15 +343,17 @@ function profile-on() {
 	local -i epoch_usecs
 	set-epoch_usecs
 	profiled_function2epoch[$name]=$epoch_usecs
+	return $status
 }
 
 # ----------------------
 
 function profile-off() {
+	local status=$?
 	local -i epoch_usecs
 	set-epoch_usecs
 	[[ -v profile_overhead_usecs ]] ||
-	 _set-profile_overhead_usecs "$@" || return 1
+	 _set-profile_overhead_usecs "$@" || return $status
 	local function=${FUNCNAME[1]-main}
 	local name=${1:-${profiled_function2name[$function]}}
 	[[ $name ]] || abort-function ": not in a function, pass a name"
@@ -357,11 +366,14 @@ function profile-off() {
 	profiled_function2count[$name]+=1
 
 	profiled_function2epoch[$name]=0 # in case profile-off without -on
+	return $status
 }
 
 [[ $_do_run_unit_tests ]] && {
-profile-on; sleep 0.00001; profile-off && _abort "must pass-through sleep stat"
+profile-on; sleep 0.00001; profile-off || _abort "must pass-through sleep stat"
 [[ -v profile_overhead_usecs ]] && _abort "profiling should be disabled"
+ true; profile-on || _abort "profile-on not null-cmd after true"
+false; profile-on && _abort "profile-on not null-cmd after false"
 unalias profile-on profile-off		# want real function again
 
 do_profile=$true
