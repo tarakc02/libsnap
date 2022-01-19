@@ -144,7 +144,7 @@ shopt -s lastpipe			# don't fork last cmd of pipeline
 # set -x: if command in /home/, precede by ~ (yourself) else ~other-user .
 # this logic for the first-half of PS4 is duplicated in print-call-stack
 PS4='+ $(echo ${BASH_SOURCE-} | sed "s@^$HOME/@~/@; s@^/home/@~@; s@/.*/@ @")'
-PS4+=' line ${LINENO-}, in ${FUNCNAME-_main_}: '
+PS4+=' line ${LINENO-}, in ${FUNCNAME-main}: '
 export PS4
 
 # put $IfRun in front of cmds w/side-effects, so -d means: debug only, simulate
@@ -1013,7 +1013,7 @@ function _set-profile_overhead_usecs() {
 
 	local -i usecs min_usecs=1123123123
 	# enough to get a sample without a (longish) context switch
-	for ((i=0; i < $profile_overhead_passes; i++))
+	for ((i=1; i <= $profile_overhead_passes; i++))
 	    do	profile-on  "$FUNCNAME"
 		profile-off "$FUNCNAME"
 		usecs=${profiled_function2usecs[$FUNCNAME]}
@@ -1032,7 +1032,7 @@ function profile-on() {
 	[[ ${do_profile-} ]] || return $status
 	[[ -v profile_overhead_usecs ]] ||
 	 _set-profile_overhead_usecs "$@" || return $status
-	local function=${FUNCNAME[1]-_main_}
+	local function=${FUNCNAME[1]-main}
 	local name=${1:-$function}
 	profiled_function2name[$function]=$name
 
@@ -1051,7 +1051,7 @@ function profile-off() {
 	[[ ${do_profile-} ]] || return $status
 	[[ -v profile_overhead_usecs ]] ||
 	 _set-profile_overhead_usecs "$@" || return $status
-	local function=${FUNCNAME[1]-_main_}
+	local function=${FUNCNAME[1]-main}
 	local name=${1:-${profiled_function2name[$function]}}
 
 	local -i epoch_start=${profiled_function2epoch[$name]-0}
@@ -1103,9 +1103,8 @@ do_profile=$true
 profile-on; sleep 0.001; profile-off || _abort "should return success"
 [[ -v profile_overhead_usecs ]] || _abort "didn't set profile_overhead_usecs"
 ((    profile_overhead_usecs )) || _abort "profile_overhead_usecs is 0"
-declare -p profiled_function2usecs
-((  ${profiled_function2usecs[_main_]} >= 10 )) || _abort "profile failed"
-((  ${profiled_function2count[_main_]} ==  1 )) || _abort "profiling error"
+((  ${profiled_function2usecs[main]} >= 10 )) || _abort "profile failed"
+((  ${profiled_function2count[main]} ==  1 )) || _abort "profiling error"
 }
 
 # ----------------------------------------------------------------------------
@@ -1214,23 +1213,6 @@ function not-yet() { warn "'$*' not yet available, ignoring"; }
 # functions for querying hardware; email ${coder-Scott} if fix/port.
 # snapback or snapcrypt users can write a replacement in configure.sh .
 #############################################################################
-
-is-an-FS-device-mounted() {
-	[[ $# == 1 ]] || abort-function "{ device | mount-dir }"
-	local path=$1
-	[[ $path == /* ]] || path=$PWD/$path
-	[[ -b $path || -d $path ]] ||
-	    abort-function ": can't find device or directory for '$1'"
-
-	local mounts
-	set-mounts
-	is-arg1-in-arg2 "$path" "$mounts"
-}
-
-[[ ! $_do_run_unit_tests ]] ||
-    is-an-FS-device-mounted / || _abort "can't find mounted root device"
-
-# ----------------------------------------------------------------------------
 
 function set-FS_type--from-path() {
 	[[ $# == 1 ]] || abort-function "path"
@@ -1585,6 +1567,23 @@ is-arg1-in-arg2 1  "$fields" || _abort "1 is not in fields"
 is-arg1-in-arg2 2  "$fields" || _abort "2 is not in fields"
 is-arg1-in-arg2 12 "$fields" && _abort "12   is  in fields"
 }
+
+# ----------------------------------------------------------------------------
+
+is-an-FS-device-mounted() {
+	[[ $# == 1 ]] || abort-function "{ device | mount-dir }"
+	local path=$1
+	[[ $path == /* ]] || path=$PWD/$path
+	[[ -b $path || -d $path ]] ||
+	    abort-function ": can't find device or directory for '$1'"
+
+	local mounts
+	set-mounts
+	is-arg1-in-arg2 "$path" "$mounts"
+}
+
+[[ ! $_do_run_unit_tests ]] ||
+    is-an-FS-device-mounted / || _abort "can't find mounted root device"
 
 # ----------------------------------------------------------------------------
 
@@ -2396,7 +2395,7 @@ set-python_script() {
 [[  ${_do_run_unit_tests-} ]] && {
 unset _do_run_unit_tests
 print-profile-data -k 3 |
-    sed 's/\t_main_$/\t{all the unit tests}/' | echo-to-file - profile.csv
+    sed 's/\tmain$/\t{all the unit tests}/' | echo-to-file - profile.csv
 head -v profile.csv
 }
 
