@@ -999,7 +999,7 @@ declare    -A profiled_function2name
 
 declare -i profile_overhead_usecs
 [[ -v	   profile_overhead_passes ]] ||
-declare -i profile_overhead_passes=200	# up to 50 ms per pass
+declare -i profile_overhead_passes=200	# up to 50 microseconds per pass
 
 function _set-profile_overhead_usecs() {
 	local name=${1-}
