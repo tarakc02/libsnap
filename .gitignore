@@ -4,6 +4,9 @@
 #*
 .#*
 
+# ignore profile data
+*.csv
+
 # force user to recompile
 src/lockpid/lockpid.o
 src/lockpid/lockpid
