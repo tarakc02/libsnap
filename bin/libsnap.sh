@@ -1883,13 +1883,13 @@ function read-all() {
 }
 
 [[ $_do_run_unit_tests ]] && {
-read-all record /etc/passwd && [[ $record ]] || _abort "should return success"
+read-all data /etc/hostname && [[ $data ]] || _abort "should return success"
 # shellcheck disable=SC2154
-[[ $record == root* ]] || _abort "read-all failed"
-( read-all record /etc/shadow 2>$dev_null ) || _abort "can't read /etc/shadow"
-( read-all record /etc        2>$dev_null ) || _abort "can't read /etc/"
-unset record
-read-all -A record DoesNotExist || [[ -v record ]] && _abort "nothing to read"
+[[ $data == "$HOSTNAME" ]] || _abort "read-all failed"
+( read-all data /etc/hostname 2>$dev_null ) || _abort "can't read /etc/shadow"
+( read-all data /etc          2>$dev_null ) || _abort "can't read /etc/"
+unset data
+read-all -A data DoesNotExist || [[ -v data ]] && _abort "nothing to read"
 }
 
 #############################################################################
