@@ -154,13 +154,9 @@ readonly lockpid_busy_exit_status=123	# also in src/lockpid/lockpid.c
 
 #############################################################################
 #############################################################################
-### First, create PATH that provides priority access to full GNU utilities.
+### Helper utilities to manipulate the PATH.
 #############################################################################
 #############################################################################
-
-# ----------------------------------------------------------------------------
-# functions to augment path-style variables
-# ----------------------------------------------------------------------------
 
 # return 0 if the passed variable name has been set
 function is-set() {
@@ -207,6 +203,8 @@ is-variable our_name || _abort "alias: have our_name"
 is-variable NoTeXiSt && _abort "alias: don't have NoTeXiSt"
 }
 
+# ----------------------------------------------------------------------------
+# functions to augment path-style variables
 # ----------------------------------------------------------------------------
 
 # $1 is path variable name, other args are dirs; append dirs one by one
@@ -269,6 +267,717 @@ prepend-to-PATH-var() {
 	eval "$pathname=\$path"
 }
 
+#############################################################################
+#############################################################################
+### Create a PATH that provides priority access to full GNU utilities.
+### While we're at it, provide some OS-specific routines.
+#############################################################################
+#############################################################################
+
+# ----------------------------------------------------------------------------
+# let sysadmin install newer versions of (GNU) commands in /usr/local/*bin
+# ----------------------------------------------------------------------------
+
+prepend-to-PATH-var PATH /usr/local/bin /usr/local/sbin
+
+# ----------------------------------------------------------------------------
+# Customization for Darwin (MacOS) + Homebrew, precedence over /usr/local/*bin
+# ----------------------------------------------------------------------------
+
+[[ $OSTYPE == darwin* ]] && readonly is_darwin=$true || readonly is_darwin=
+
+[[ $OSTYPE == *bsd ]] && readonly is_BSD=$true || readonly is_BSD=$is_darwin
+
+[[ $is_darwin ]] && {
+
+readonly homebrew_install_dir=/usr/local/opt
+readonly homebrew_coreutils_bin=$homebrew_install_dir/coreutils/libexec/gnubin
+
+[[ -d $homebrew_coreutils_bin ]] ||
+   _abort "you need to install a fairly complete set of GNU utilities with Homebrew; if they're already installed, symlink your Homebrew install directory to $homebrew_install_dir"
+
+prepend-to-PATH-var PATH /usr/local/Cellar/util-linux/*/bin # to grab 'setsid'
+prepend-to-PATH-var PATH $homebrew_install_dir/*/libexec/*bin
+
+}
+
+# ----------------------------------------------------------------------------
+
+set-mounts() {
+
+	local mounts_path=/proc/mounts
+	if [[ -f $mounts_path ]]	# FreeBSD doesn't have this
+	   then read -d '\0' -r mounts < "$mounts_path"
+	   else mounts=$(mount)
+	fi
+}
+
+# ----------------------------------------------------------------------------
+
+# ps_opt_H: (h)ierarchy (forest)
+# ps_opt_f: ASCII-art (f)orest
+# ps_opt_h: no (h)eader
+# ps_opt_g: all IDs are PGIDs, i.e. process (g)roup IDs
+# shellcheck disable=SC2120 # we merely make sure we get no args
+setup-ps-options() {
+	[[ $# == 0 ]] || abort-function "takes no arguments"
+
+	[[ -v ps_opt_g ]] && return
+
+	# set variables that map Linux's 'ps' options to random OS's 'ps' opts
+	case $OSTYPE,$is_BSD in
+	    ( linux* ) ps_opt_H=-H  ps_opt_f=f   ps_opt_h=h  ps_opt_g=-g ;;
+	    (*,$true ) ps_opt_H=-d  ps_opt_f=-d  ps_opt_h=   ps_opt_g=-G ;;
+	    (   *    ) ps_opt_H=    ps_opt_f=    ps_opt_h=   ps_opt_g=-G ;;
+	esac; readonly ps_opt_H     ps_opt_f	 ps_opt_h    ps_opt_g
+}
+
+#############################################################################
+#############################################################################
+### We now have a PATH that provides priority access to full GNU utilities.
+### Setup the environment, define utility functions needed for next section.
+#############################################################################
+#############################################################################
+
+# ----------------------------------------------------------------------------
+# provide a directory for temporary files that's safe from symlink attacks
+# ----------------------------------------------------------------------------
+
+tmp_dir=${tmp_dir:-/tmp/${USER-${LOGNAME-$(id -nu)}}} # caller can change
+[[ -w ${TMP-}     ]] && tmp_dir=$TMP
+[[ -w ${TMP_DIR-} ]] && tmp_dir=$TMP_DIR
+TMPDIR=$tmp_dir				# used by bash
+
+# the root filesystem is read-only while booting, don't get into infinite loop!
+# GNU mkdir will fail if  $tmp_dir is a symlink
+# shellcheck disable=SC2174 # yeah, I know
+until [[ ! -w /tmp || -d "$tmp_dir" ]] || mkdir -m 0700 -p "$tmp_dir"
+   do	_warn "deleting $(ls -ld "$tmp_dir")"; rm -f "$tmp_dir"
+done
+
+export TMP=$tmp_dir TMP_DIR=$tmp_dir	# caller can change these
+
+export LC_COLLATE=C			# so [A-Z] doesn't include a-z
+export LC_ALL=C				# server needs nothing special
+
+export RSYNC_RSH=ssh
+
+umask 022				# caller can change it
+
+# ----------------------------------------------------------------------------
+# functions to highlight and clean strings
+# ----------------------------------------------------------------------------
+
+# http://www.tldp.org/HOWTO/Bash-Prompt-HOWTO/x405.html
+# shellcheck disable=SC2120 # we merely make sure we get no args
+print-string-colors() {
+	[[ $# == 0 ]] || abort-function "takes no arguments"
+
+	header "Coloring from arguments passed to 'tput' command, see man page"
+	local n
+	for n in {1..8}
+	    do	local line=
+		local capname
+		for capname in setab setb setaf setf
+		    do	# shellcheck disable=SC2086
+			line+="$(tput $capname $n)$capname $n$(tput sgr0)   "
+		done
+		echo "$line"
+	done
+}
+
+# ---------------------------------
+
+# main script can over-ride the following global variables after source us
+
+# the setb coloring stands out more, but fails under 'watch' on some OSs
+declare -A highlight_level2tput_b_args=(
+         [ok]="setb 2"
+     [notice]="setb 6"
+    [warning]="setb 5"
+      [error]="setb 4"
+      [stale]="setb 1"
+)
+declare -A highlight_level2tput_args=(
+         [ok]="setf 2"
+     [notice]="setf 6"
+    [warning]="setf 5"
+      [error]="setf 4"
+      [stale]="setf 3"
+)
+declare -A highlight_level2tput_args=(
+         [ok]="setaf 2"
+     [notice]="setaf 6"
+    [warning]="setaf 5"
+      [error]="setab 1"			# setaf is less "striking" than setab
+      [stale]="setaf 3"
+)
+clear_tput_args="sgr0"
+
+declare -A highlight_level2escape_sequence
+
+set-highlighted_string() {
+	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
+	local level=$1; shift; local string=$*
+	# see is-arg1-in-arg2 function for this logic
+	[[ " ${!highlight_level2tput_args[*]} " == *" $level "* ]] ||
+	   abort-function "$level is unknown level"
+
+	[[ -t 1 || ${do_tput-} ]] ||
+	    { highlighted_string=$string; $xtrace; return; }
+
+	local esc=${highlight_level2escape_sequence[$level]=$(
+		# shellcheck disable=SC2086 # variable contains multiple values
+		tput ${highlight_level2tput_args[$level]})}
+	[[ ${clear_escape_seq-} ]] ||
+	     clear_escape_seq=$(tput $clear_tput_args |
+				    sed 's/\x1B(B//') # toss leading ESC ( B
+	[[ ${terminfo_color_bytes-} ]] ||
+	   declare -g -r -i \
+		   terminfo_color_bytes=$(( ${#esc} + ${#clear_escape_seq} ))
+
+	highlighted_string=$esc$string$clear_escape_seq
+	$xtrace
+}
+
+# ----------------------------------------------------------------------------
+
+strip-trailing-whitespace() {
+
+	local var_name
+	for var_name
+	    do	[[ -v $var_name ]] ||
+		    abort-function ": '$var_name' is not a variable"
+		local -n var=$var_name
+		[[ $var =~ [\	\ ]*$ ]]
+		local whitespace=${BASH_REMATCH[0]}
+		var=${var%"$whitespace"}
+	done
+}
+
+[[ $_do_run_unit_tests ]] && {
+_var_1='1 2 3 '
+_var_2='1 2 3	   		 '
+[[ $_var_1 != '1 2 3' ]] || _abort _var_1_
+strip-trailing-whitespace _var_1 _var_2
+[[ $_var_1 == '1 2 3' ]] || _abort _var_1
+[[ $_var_2 == '1 2 3' ]] || _abort _var_2
+}
+
+# ----------------------------------------------------------------------------
+# Generic logging function, with customization globals that caller can set.
+# ----------------------------------------------------------------------------
+
+[[ ${log_date_time_format-} ]] ||
+     log_date_time_format="+%a %m/%d %H:%M:%S" # caller or env can over-ride
+
+# shellcheck disable=SC2120 # we merely make sure we get no args
+set-log_date_time() {
+	[[ $# == 0 ]] || abort-function "takes no arguments"
+
+	if [[ ${debug_opt-} ]]
+	   then log_date_time="DoW Mo/Da Hr:Mn:Sc"
+	   else log_date_time=$(date "$log_date_time_format")
+	fi
+}
+
+# ----------------------
+
+file_for_logging=$dev_null		# append to it; caller can change
+
+declare -i log_level=0			# set by getopts or configure.sh
+
+log_msg_prefix=				# can hold variables, it's eval'ed
+
+function log() {
+	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
+	[[ $1 == [0-9] ]] && { local level=$1; shift; } || local level=0
+	local _msg="$*"
+
+	(( $level <= $log_level )) || { $xtrace; return 1; }
+
+	[[ ( ! -e $file_for_logging && -w ${file_for_logging%/*} ) ||
+	       -w $file_for_logging ]] && local sudo= || local sudo=sudo
+	[[ -e $file_for_logging ]] || $sudo mkdir -p ${file_for_logging%/*}
+
+	if [[ $IfRun ]]
+	   then local _file_for_logging=$dev_null
+	   else local _file_for_logging=$file_for_logging
+	fi
+	local log_date_time
+	set-log_date_time
+	local  _log_msg_prefix=$log_msg_prefix
+	eval  "_log_msg_prefix=\"$_log_msg_prefix\"" # can hold variables
+	strip-trailing-whitespace _log_msg_prefix
+	echo "$log_date_time$_log_msg_prefix: $_msg" |
+	   $sudo tee -a $_file_for_logging
+	$xtrace
+}
+
+# ----------------------------------------------------------------------------
+
+# show head-style header
+header() {
+	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
+	[[ $1 == -e ]] && { shift; local nl="\n"; } || local nl=
+	[[ $1 == -E ]] &&   shift || echo
+	assert-not-option -o "${1-}"
+
+	echo -e "==> $* <==$nl"
+	$xtrace
+}
+
+#############################################################################
+#############################################################################
+### simple error and warning and trace functions.
+#############################################################################
+#############################################################################
+
+declare -i max_call_stack_args=6
+
+# if interactive, want to avoid these extdebug warnings:
+#    bash: /usr/share/bashdb/bashdb-main.inc: No such file or directory
+#    bash: warning: cannot start debugger; debugging mode disabled
+[[ $is_sourced_by_interactive_shell ]] ||
+shopt -s extdebug			# enable BASH_ARGV and BASH_ARGC
+
+print-call-stack() {
+	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
+	declare -i stack_skip=1
+	[[ ${1-} ==   -s  ]] && { stack_skip=$2+1; shift 2; }
+	[[ ${1-} == [0-9] ]] && 
+	    { (( Trace_level >= $1 )) || { $xtrace; return; } ; shift; }
+	assert-not-option -o "${1-}"
+
+	local log_date_time
+	set-log_date_time
+	header -E "$log_date_time call stack $*" # include optional message
+	# declare -p BASH_ARGV BASH_ARGC	 # uncomment to debug
+	local -i depth arg_i argv_i=0 max_args=$max_call_stack_args
+	for depth in ${!FUNCNAME[*]}
+	   do	(( depth < stack_skip )) &&
+		    { argv_i+=${BASH_ARGC[depth]}; continue; } # skip ourself
+		# this logic is duplicated in PS4
+		local src
+		src=$(echo "${BASH_SOURCE[depth]}" |
+			  sed "s@^$HOME/@~/@; s@^/home/@~@; s@/.*/@ @") ||
+		    abort src=
+		local args=
+		local -i argc=${BASH_ARGC[depth]-0} number_args=0
+		for (( arg_i=argv_i+argc-1; arg_i >= argv_i; arg_i-- ))
+		    do	local arg=${BASH_ARGV[arg_i]}
+			args+="$arg "
+			(( argc > max_args+1 )) || continue
+			# we never want to say "<1 more args>"
+			(( ++number_args == max_args-2 )) &&
+			   arg_i=$(( argv_i + 2 )) &&
+			   args+="<$(( argc - max_args )) more args> "
+		done
+		# shellcheck disable=SC2219
+		let argv_i+=argc
+		echo -n "$src line ${BASH_LINENO[depth-1]}: "
+		echo    "${FUNCNAME[depth]} ${args% }"
+	done
+	echo
+	$xtrace
+}
+
+# --------------------------------------------
+
+function warn() {
+	local msg="$our_name: $*"
+
+	if [[ ${FUNCNAME[1]-} == abort ]]
+	   then local level=error
+	   else local level=warning
+	fi
+	[[ -t 2 ]] && set-highlighted_string $level "$msg" &&
+	    msg=$highlighted_string
+	echo -e "\n$msg\n" >&2
+	return 1
+}
+
+# ---------------------------------
+
+# clear master_PID to prevent child's abort's attempt to kill us
+[[ -v master_PID ]] || master_PID=$BASHPID
+
+abort() {
+	set +x
+	[[ ${1-} == -r ]] && { shift; is_recursion=$true; } || is_recursion=
+	declare -i stack_skip=1
+	[[ ${1-} =~ ^-[0-9]+$ ]] && { stack_skip=${1#-}+1; shift; }
+
+	if [[ $is_recursion ]]
+	   then # shellcheck disable=SC2219
+		let stack_skip+=1
+		echo "$@"
+	elif [[ ${Usage-} && "$*" == "$Usage" ]]
+	   then echo "$@" >&2 ; _libsnap-exit 1
+	   else warn "$@"
+	fi
+
+	print-call-stack -s "$stack_skip" >&2
+
+	if [[ ! $is_recursion ]]
+	   then # shellcheck disable=SC2048,SC2086
+		log "$(master_PID=$$ abort -r $* 2>&1)" > $dev_null
+	fi
+
+	if [[ ${master_PID-} && $master_PID != "$$" ]] # in a sub-shell?
+	   then trap '' TERM		 # don't kill ourself when ...
+		kill -TERM -$master_PID	 # kill our parent and its children
+		sleep 1
+		kill -KILL -$master_PID
+	fi 2>&1 | fgrep -v 'No such process'
+	_libsnap-exit 1
+}
+
+# ---------------------------------
+
+abort-function() {
+	set +x
+	declare -i stack_skip=1
+	[[ ${1-} =~ ^-[0-9]+$ ]] && { stack_skip=${1#-}+1; shift; }
+	local opts= ; while [[ ${1-} == -* ]] ; do opts+=" $1"; shift; done
+
+	[[ ${1-} == ':'* ]] && local msg=$* || local msg=" $*"
+	# shellcheck disable=SC2086 # $opts may be null or multi
+	abort -"$stack_skip" $opts "${FUNCNAME[$stack_skip]}$msg"
+}
+readonly -f abort-function
+
+# --------------------------------------------
+
+assert-not-option() {
+	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
+	[[ ${1-} == -o ]] && { local order_opt=$1; shift; } || local order_opt=
+	[[ ${1-} != -? ]] && { $xtrace; return; }
+
+	[[ $order_opt ]] && msg=" (order matters)" || msg=
+	abort -1 "${FUNCNAME[1]}: unknown option $1$msg"
+}
+
+#############################################################################
+#############################################################################
+### functions to do tracing, and display variables values
+#############################################################################
+#############################################################################
+
+has_echoE_been_called=$false
+
+# echo to stdError, include the line and function from which we're called
+echoE() {
+	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
+	[[ $1 == -n ]] && { local show_name=$true; shift; } || local show_name=
+	declare -i stack_frame_to_show=1 # default to our caller's stack frame
+	[[ $1 =~ ^-[0-9]+$ ]] && { stack_frame_to_show=${1#-}+1; shift; }
+	assert-not-option -o "${1-}"
+
+	local   line_no=${BASH_LINENO[stack_frame_to_show-1]}
+	local func_name=${FUNCNAME[stack_frame_to_show]}
+	[[   $func_name ]] && func_name="line $line_no, in $func_name():"
+
+	[[ $show_name ]] && local name="$our_name:" || local name=
+	if [[ ! $has_echoE_been_called ]]
+	   then  has_echoE_been_called=$true
+		[[ ${Trace_log-} && -s $Trace_log ]] && true > "$Trace_log"
+	fi
+	[[ ${Trace_log-} ]] &&
+	echo -e "$name $func_name" "$@" >> "$Trace_log"
+	echo -e "$name $func_name" "$@" >&2
+	$xtrace
+}
+
+# ----------------------
+
+function is-readonly-var() {
+	[[ $# == 1 ]] || abort-function "var-name"
+	is-var "$1" && [[ $(declare -p "$1") =~ ' '-[a-zA-Z]*r ]]
+}
+
+alias is-readonly-variable=is-readonly-var
+
+#
+
+function is-writable-var() {
+	[[ $# == 1 ]] || abort-function "var-name"
+	is-var "$1" && ! is-readonly-var "$1"
+}
+
+alias is-writable-variable=is-writable-var
+
+# ----------------------
+
+function is-integer-var() {
+	[[ $# == 1 ]] || abort-function "var-name"
+	is-var "$1" && [[ $(declare -p "$1") =~ ' '-[a-zA-Z]*i ]]
+}
+
+alias is-integer-variable=is-integer-var
+
+[[ $_do_run_unit_tests ]] && {
+is-writable-var true && _abort "true is a readonly var"
+
+declare -i _int_var
+declare    _str_var
+is-writable-var _int_var &&
+ is-integer-var _int_var || _abort "_int_var is writable int var"
+ is-integer-var _str_var && _abort "_str_var is not an int var"
+is-readonly-var _str_var && _abort "_str_var is not readonly var"
+unset _int_var _str_var
+}
+
+# --------------------------------
+
+is-integer() {
+	[[ $# == 1 ]] || abort-function "arg"
+	[[ $1 =~ ^-?[0-9]+$ ]]
+}
+
+[[ $_do_run_unit_tests ]] && {
+is-integer -123 || _abort "-123 is an integer"
+is-integer  123 || _abort  "123 is an integer"
+is-integer  1.3 && _abort  "1.3 is not an integer"
+}
+
+# ----------------------
+
+function set-var_value--for-debugger() {
+	[[ $# == 1 ]] || abort-function "var-name"
+	local _var_name_=$1 declare_output
+	local -n var=$_var_name_
+
+	while declare_output=$(declare -p "$_var_name_" 2>$dev_null)
+	   do	[[ $declare_output = *" -n "* ]] || break
+		_var_name_=${declare_output#*=}
+		_var_name_=${_var_name_//\"/}
+	done
+
+	if [[ $declare_output != *=* ]]
+	   then if declare -p "$_var_name_"  &> $dev_null
+		   then var_value='<unset>'
+		   else var_value='<non-existent>'
+		fi
+		return 1
+	fi
+
+	if [[  ${var@a} == *[aA]* ]]
+	   then local is_array=$true
+	   else local is_array=$false
+	fi
+	if [[  ${var@a} == *i* ]]
+	   then local is_int=$true
+	   else local is_int=$false
+	fi
+	if [[ $is_array ]]
+	   then var_value=${declare_output#*=}
+		[[ $is_int ]] && var_value=${var_value//\"/}
+	elif [[ $is_int ]]
+	     then var_value=${!_var_name_}
+	     else var_value=${var@Q}
+	fi
+
+	return 0
+}
+
+[[ $_do_run_unit_tests ]] && {
+declare -a  mapa=(1 two)		; mapa_val='([0]="1" [1]="two")'
+declare -A  mapA=([one]=1 [two]=two)	; mapA_val='([two]="two" [one]="1" )'
+declare -ai mpai=(1 2)			; mpai_val='([0]=1 [1]=2)'
+declare -iA mpAi=([one]=1 [two]=2)	; mpAi_val='([two]=2 [one]=1 )'
+declare -n  mapX=mapa			; mapX_val="$mapa_val"
+declare -n  mapY=mapX			; mapY_val="$mapa_val"
+declare -A  mapn			; mapn_val='<unset>'
+declare     sets='set"set'		; sets_val="'set\"set'"
+declare -i  seti=1			; seti_val='1'
+declare     nots			; nots_val='<unset>'
+declare -i  noti			; noti_val='<unset>'
+declare					  Nope_val='<non-existent>'
+tst_func() {
+	local test=$1
+
+	set-var_value--for-debugger "$test"
+	local status=$?
+	local -n correct_value=${1}_val
+	[[ $var_value == "$correct_value" ]] ||
+	    _abort "test $test: $var_value != $correct_value"
+	return $status
+}
+tst_func sets || _abort "sets is set"
+tst_func seti || _abort "seti is set"
+tst_func mapa || _abort "mapa is set"
+tst_func mapA || _abort "mapA is set"
+tst_func mpai || _abort "mpai is set"
+tst_func mpAi || _abort "mpAi is set"
+tst_func mapX || _abort "mapX is set"
+tst_func mapY || _abort "mapY is set"
+tst_func mapn && _abort "mapn  unset"
+tst_func nots && _abort "nots  unset"
+tst_func noti && _abort "noti  unset"
+tst_func Nope && _abort "Nope  isn't"
+}
+
+# ----------------------
+
+# like echoE, but also show the values of the variable names passed to us
+echoEV() {
+	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
+	declare -i stack_frame_to_show=1 # default to our caller's stack frame
+	[[ $1 =~ ^-[0-9]+$ ]] && { stack_frame_to_show=${1#-}+1; shift; }
+	assert-not-option "${1-}"
+
+	local _var_name_ var_value
+	for _var_name_
+	   do	set-var_value--for-debugger "$_var_name_"
+
+		echoE -"$stack_frame_to_show" "$_var_name_=$var_value"
+	done
+	$xtrace
+}
+
+# ----------------------
+
+declare -i Trace_level=0		# default to none (probably)
+
+_isnum() { [[ $1 =~ ^[0-9]+$ ]] ||abort -1 "Trace* first arg is (min) level"; }
+_Trace () {
+	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
+	local echo_cmd=$1; shift
+	_isnum "$1"
+	(( $1 <= $Trace_level )) || { $xtrace; return 1; }
+	shift
+	$echo_cmd -1 "$@"
+	$xtrace
+}
+alias  Trace='_Trace echoE'
+alias TraceV='_Trace echoEV'
+
+# ----------------------------------------------------------------------------
+
+declare -A funcname2was_tracing		# global for next three functions
+
+# shellcheck disable=SC2120 # we merely make sure we get no args
+function remember-tracing {
+
+	local status=$?			# status from caller's previous command
+	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
+	[[ $# == 0 ]] || abort-function "takes no arguments"
+
+	funcname2was_tracing[ ${FUNCNAME[1]} ]=$xtrace
+
+	$xtrace
+	return $status
+}
+
+# ----------------------
+
+# pass -l if used in a loop, and the restore-tracing is outside the loop
+# shellcheck disable=SC2120 # we merely make sure we get no args
+function suspend-tracing {
+	local status=$?			# status from caller's previous command
+	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
+	[[ ${1-} == -l ]] && { shift; local in_loop=$true; } || local in_loop=
+	[[ $# == 0 ]] || abort-function "[-l]"
+
+	if [[ $xtrace ]]
+	   then local was_tracing=$true
+	   else local was_tracing=$false
+		[[ $in_loop ]] && return $status
+	fi
+	funcname2was_tracing[ ${FUNCNAME[1]} ]=$was_tracing
+	return $status
+}
+
+# ----------------------
+
+# show the values of the variable names passed to us, then restore traing state
+function restore-tracing {
+
+	local status=$?			# status from caller's previous command
+	# see is-arg1-in-arg2 function for this logic
+	[[ " ${!funcname2was_tracing[*]} " == *" ${FUNCNAME[1]} "* ]] ||
+	   abort-function "was called without a suspend-tracing"
+	[[ ${funcname2was_tracing[ ${FUNCNAME[1]} ]} ]] || return $status
+
+	local variable
+	for variable
+	    do	if [[ -v $variable ]]
+		   then echo "+ $variable=${!variable}"
+		   else echo "+ $variable is not set"
+		fi
+	done
+
+	set -x
+	return $status
+}
+
+[[ $_do_run_unit_tests ]] && {
+wont-trace() {         foo=2
+	       suspend-tracing; echo untraced; restore-tracing foo; }
+will-trace() { set -x; foo=1
+	       suspend-tracing; echo untraced; restore-tracing foo
+	       wont-trace; echo traced; set +x; }
+[[ $(will-trace 2>&1) == *' echo untrac'* ]] && _abort "suspend-tracing failed"
+[[ $(will-trace 2>&1) == *' echo traced'* ]] || _abort "restore-tracing failed"
+unset -f wont-trace will-trace
+}
+
+# ----------------------------------------------------------------------------
+
+print-or-egrep-Usage-then-exit() {
+	[[ ${1-} == -[hHk] ]] && shift	# strip help or keyword-search option
+	[[ $# == 0 ]] && echo -e "$Usage" && _libsnap-exit 0
+
+	echo "$Usage" | egrep -i "$@"
+	_libsnap-exit 0
+}
+
+# ---------------------------------
+
+abort-with-action-Usage() {
+	local opts= ; while [[ ${1-} == -* ]] ; do opts+=" $1"; shift; done
+	local _action=${*:-$action}
+
+	echo -e "\nBad arguments; here's the usage for this action:"
+	# shellcheck disable=SC2086 # $opts may be null or multi
+	echo "$Usage" | grep $opts "^ *$_action" >&2; echo
+	_libsnap-exit 1
+}
+
+# ---------------------------------
+
+# RunCmd's args are a command (plus args) that _should_ return 0, else we abort
+RunCmd() {
+	[[ $1 == -d ]] && { local IfAbort=$IfRun; shift; } || local IfAbort=
+	[[ $1 == -m ]] && { local msg="; $2"; shift 2; } || local msg=
+	assert-not-option -o "${1-}"
+
+	$IfRun "$@" || $IfAbort abort -1 "'$*' returned $?$msg"
+}
+
+[[ $_do_run_unit_tests ]] && {
+RunCmd true &&
+[[ $(master_PID=$BASHPID \
+     RunCmd -d -m "expected (non fatal)" false 2>&1) == *'(non fatal)'* ]] ||
+   _abort "RunCmd error"
+}
+
+#############################################################################
+#############################################################################
+### Profiling functions, used in can-profile-not-trace and x-return .
+#############################################################################
+#############################################################################
+
+readonly null_cmd_string='[[ $? == 0 ]]' # retain success/failure of prev cmd
+# shellcheck disable=SC2139 # we only want to expand once
+alias null-cmd="$null_cmd_string"	# retains success/failure of prev cmd
+
+[[ $_do_run_unit_tests ]] && {
+ true; null-cmd || _abort "didn't pass-through sucess"
+false; null-cmd && _abort "didn't pass-through failure"
+}
+
 # ----------------------------------------------------------------------------
 
 if [[ ${EPOCHREALTIME-} ]]
@@ -282,19 +991,6 @@ if [[ ${EPOCHREALTIME-} ]]
 fi
 
 # ----------------------------------------------------------------------------
-# profiling functions, used in can-profile-not-trace and x-return
-# ----------------------------------------------------------------------------
-
-readonly null_cmd_string='[[ $? == 0 ]]' # retain success/failure of prev cmd
-# shellcheck disable=SC2139 # we only want to expand once
-alias null-cmd="$null_cmd_string"	# retains success/failure of prev cmd
-
-[[ $_do_run_unit_tests ]] && {
- true; null-cmd || _abort "didn't pass-through sucess"
-false; null-cmd && _abort "didn't pass-through failure"
-}
-
-# ----------------------------------------------------------------------------
 
 declare -i -A profiled_function2epoch
 declare -i -A profiled_function2count
@@ -302,6 +998,8 @@ declare -i -A profiled_function2usecs
 declare    -A profiled_function2name
 
 declare -i profile_overhead_usecs
+[[ -v	   profile_overhead_passes ]] ||
+declare -i profile_overhead_passes=200	# up to 50 ms per pass
 
 function _set-profile_overhead_usecs() {
 	local name=${1-}
@@ -314,7 +1012,8 @@ function _set-profile_overhead_usecs() {
 	fi
 
 	local -i usecs min_usecs=1123123123
-	for ((i=0; i < 100; i++)) # enough to get sample without context switch
+	# enough to get a sample without a (longish) context switch
+	for ((i=0; i < $profile_overhead_passes; i++))
 	    do	profile-on  "$FUNCNAME"
 		profile-off "$FUNCNAME"
 		usecs=${profiled_function2usecs[$FUNCNAME]}
@@ -383,7 +1082,7 @@ print-profile-data() {
 	local -i usecs count per_call_usecs
 	# shellcheck disable=SC2059 # why not??
 	printf "$format" 'all-us' 'count' 'PerCall' 'function'
-	for name in ${!profiled_function2usecs[*]}
+	for name in  ${!profiled_function2usecs[*]}
 	    do	usecs=${profiled_function2usecs[$name]}
 		count=${profiled_function2count[$name]}
 		per_call_usecs=$usecs/$count
@@ -410,6 +1109,8 @@ declare -p profiled_function2usecs
 }
 
 # ----------------------------------------------------------------------------
+# The above functions are mostly accessed with the following aliases.
+# ----------------------------------------------------------------------------
 
 alias can-profile-not-trace='
 	if [[ -o xtrace${force_next_function_trace-} ]]
@@ -431,6 +1132,12 @@ alias continue-tracing-function='
 # shellcheck disable=SC2154 # shellcheck doesn't grok pervious alias
 alias x-return='
 	profile-off; [[ ${x_function-} != $FUNCNAME ]] || set +x && return'
+
+#############################################################################
+#############################################################################
+### Optimizing and verifying commands
+#############################################################################
+#############################################################################
 
 # ----------------------------------------------------------------------------
 # we want some loadable builtins (the ones that aren't buggy)
@@ -497,103 +1204,33 @@ alias need-commands=need-cmds
 # used to precede a command/function that is not yet ready to run
 function not-yet() { warn "'$*' not yet available, ignoring"; }
 
-# ----------------------------------------------------------------------------
-# let sysadmin install newer versions of (GNU) commands in /usr/local/*bin
-# ----------------------------------------------------------------------------
+#############################################################################
+#############################################################################
+### define functions that abstract OS/kernel-specific operations or queries
+#############################################################################
+#############################################################################
 
-prepend-to-PATH-var PATH /usr/local/bin /usr/local/sbin
+#############################################################################
+# functions for querying hardware; email ${coder-Scott} if fix/port.
+# snapback or snapcrypt users can write a replacement in configure.sh .
+#############################################################################
 
-# ----------------------------------------------------------------------------
-# Customization for Darwin (MacOS) + Homebrew, precedence over /usr/local/*bin
-# ----------------------------------------------------------------------------
+is-an-FS-device-mounted() {
+	[[ $# == 1 ]] || abort-function "{ device | mount-dir }"
+	local path=$1
+	[[ $path == /* ]] || path=$PWD/$path
+	[[ -b $path || -d $path ]] ||
+	    abort-function ": can't find device or directory for '$1'"
 
-[[ $OSTYPE == darwin* ]] && readonly is_darwin=$true || readonly is_darwin=
-
-[[ $OSTYPE == *bsd ]] && readonly is_BSD=$true || readonly is_BSD=$is_darwin
-
-[[ $is_darwin ]] && {
-
-readonly homebrew_install_dir=/usr/local/opt
-readonly homebrew_coreutils_bin=$homebrew_install_dir/coreutils/libexec/gnubin
-
-[[ -d $homebrew_coreutils_bin ]] ||
-   _abort "you need to install a fairly complete set of GNU utilities with Homebrew; if they're already installed, symlink your Homebrew install directory to $homebrew_install_dir"
-
-prepend-to-PATH-var PATH /usr/local/Cellar/util-linux/*/bin # to grab 'setsid'
-prepend-to-PATH-var PATH $homebrew_install_dir/*/libexec/*bin
-
+	local mounts
+	set-mounts
+	is-arg1-in-arg2 "$path" "$mounts"
 }
 
-# ----------------------------------------------------------------------------
-
-set-mounts() {
-
-	local mounts_path=/proc/mounts
-	if [[ -f $mounts_path ]]	# FreeBSD doesn't have this
-	   then read-all mounts "$mounts_path"
-	   else mounts=$(mount)
-	fi
-}
+[[ ! $_do_run_unit_tests ]] ||
+    is-an-FS-device-mounted / || _abort "can't find mounted root device"
 
 # ----------------------------------------------------------------------------
-
-# ps_opt_H: (h)ierarchy (forest)
-# ps_opt_f: ASCII-art (f)orest
-# ps_opt_h: no (h)eader
-# ps_opt_g: all IDs are PGIDs, i.e. process (g)roup IDs
-# shellcheck disable=SC2120 # we merely make sure we get no args
-setup-ps-options() {
-	[[ $# == 0 ]] || abort-function "takes no arguments"
-
-	[[ -v ps_opt_g ]] && return
-
-	# set variables that map Linux's 'ps' options to random OS's 'ps' opts
-	case $OSTYPE,$is_BSD in
-	    ( linux* ) ps_opt_H=-H  ps_opt_f=f   ps_opt_h=h  ps_opt_g=-g ;;
-	    (*,$true ) ps_opt_H=-d  ps_opt_f=-d  ps_opt_h=   ps_opt_g=-G ;;
-	    (   *    ) ps_opt_H=    ps_opt_f=    ps_opt_h=   ps_opt_g=-G ;;
-	esac; readonly ps_opt_H     ps_opt_f	 ps_opt_h    ps_opt_g
-}
-
-#############################################################################
-#############################################################################
-### We now have a PATH that provides priority access to full GNU utilities.
-#############################################################################
-#############################################################################
-
-# ----------------------------------------------------------------------------
-# provide a directory for temporary files that's safe from symlink attacks
-# ----------------------------------------------------------------------------
-
-tmp_dir=${tmp_dir:-/tmp/${USER-${LOGNAME-$(id -nu)}}} # caller can change
-[[ -w ${TMP-}     ]] && tmp_dir=$TMP
-[[ -w ${TMP_DIR-} ]] && tmp_dir=$TMP_DIR
-TMPDIR=$tmp_dir				# used by bash
-
-# the root filesystem is read-only while booting, don't get into infinite loop!
-# GNU mkdir will fail if  $tmp_dir is a symlink
-# shellcheck disable=SC2174 # yeah, I know
-until [[ ! -w /tmp || -d "$tmp_dir" ]] || mkdir -m 0700 -p "$tmp_dir"
-   do	_warn "deleting $(ls -ld "$tmp_dir")"; rm -f "$tmp_dir"
-done
-
-export TMP=$tmp_dir TMP_DIR=$tmp_dir	# caller can change these
-
-export LC_COLLATE=C			# so [A-Z] doesn't include a-z
-export LC_ALL=C				# server needs nothing special
-
-export RSYNC_RSH=ssh
-
-umask 022				# caller can change it
-
-###########################################################################
-# define functions that abstract OS/kernel-specific operations or queries #
-###########################################################################
-
-# -----------------------------------------------------------------------
-# Linux functions for querying hardware; email ${coder-Scott} if fix.   #
-# snapback or snapcrypt users can write a replacement in configure.sh . #
-# -----------------------------------------------------------------------
 
 function set-FS_type--from-path() {
 	[[ $# == 1 ]] || abort-function "path"
@@ -797,7 +1434,7 @@ set-OS_release_file-OS_release() {
 
 ##############################################################################
 ##############################################################################
-# Finally, define shell functions that only need GNU utilities.
+### Finally, define shell functions that only need GNU utilities.
 ##############################################################################
 ##############################################################################
 
@@ -868,639 +1505,11 @@ set-FS_label--from-mount_dir() {
 	FS_label=${FS_label//\//_}
 }
 
-
-# ----------------------------------------------------------------------------
-# simple error and warning and trace functions.
-# don't assign these until all the environment setup is finished, otherwise
-#   a login shell might source it and be terminated by abort's exit.
-# ----------------------------------------------------------------------------
-
-declare -i max_call_stack_args=6
-
-# if interactive, want to avoid these extdebug warnings:
-#    bash: /usr/share/bashdb/bashdb-main.inc: No such file or directory
-#    bash: warning: cannot start debugger; debugging mode disabled
-[[ $is_sourced_by_interactive_shell ]] ||
-shopt -s extdebug			# enable BASH_ARGV and BASH_ARGC
-
-print-call-stack() {
-	can-profile-not-trace # use x-return to leave function; can comment-out
-	declare -i stack_skip=1
-	[[ ${1-} ==   -s  ]] && { stack_skip=$2+1; shift 2; }
-	[[ ${1-} == [0-9] ]] && 
-	    { (( Trace_level >= $1 )) || { x-return; }; shift; }
-	assert-not-option -o "${1-}"
-
-	local log_date_time
-	set-log_date_time
-	header -E "$log_date_time call stack $*" # include optional message
-	# declare -p BASH_ARGV BASH_ARGC	 # uncomment to debug
-	local -i depth arg_i argv_i=0 max_args=$max_call_stack_args
-	for depth in ${!FUNCNAME[*]}
-	   do	(( depth < stack_skip )) &&
-		    { argv_i+=${BASH_ARGC[depth]}; continue; } # skip ourself
-		# this logic is duplicated in PS4
-		local src
-		src=$(echo "${BASH_SOURCE[depth]}" |
-			  sed "s@^$HOME/@~/@; s@^/home/@~@; s@/.*/@ @") ||
-		    abort src=
-		local args=
-		local -i argc=${BASH_ARGC[depth]-0} number_args=0
-		for (( arg_i=argv_i+argc-1; arg_i >= argv_i; arg_i-- ))
-		    do	local arg=${BASH_ARGV[arg_i]}
-			args+="$arg "
-			(( argc > max_args+1 )) || continue
-			# we never want to say "<1 more args>"
-			(( ++number_args == max_args-2 )) &&
-			   arg_i=$(( argv_i + 2 )) &&
-			   args+="<$(( argc - max_args )) more args> "
-		done
-		# shellcheck disable=SC2219
-		let argv_i+=argc
-		echo -n "$src line ${BASH_LINENO[depth-1]}: "
-		echo    "${FUNCNAME[depth]} ${args% }"
-	done
-	echo
-	x-return
-}
-
-# --------------------------------------------
-
-function warn() {
-	local msg="$our_name: $*"
-
-	if [[ ${FUNCNAME[1]-} == abort ]]
-	   then local level=error
-	   else local level=warning
-	fi
-	[[ -t 2 ]] && set-highlighted_string $level "$msg" &&
-	    msg=$highlighted_string
-	echo -e "\n$msg\n" >&2
-	return 1
-}
-
-# ---------------------------------
-
-# clear master_PID to prevent child's abort's attempt to kill us
-[[ -v master_PID ]] || master_PID=$BASHPID
-
-abort() {
-	set +x
-	[[ ${1-} == -r ]] && { shift; is_recursion=$true; } || is_recursion=
-	declare -i stack_skip=1
-	[[ ${1-} =~ ^-[0-9]+$ ]] && { stack_skip=${1#-}+1; shift; }
-
-	if [[ $is_recursion ]]
-	   then # shellcheck disable=SC2219
-		let stack_skip+=1
-		echo "$@"
-	elif [[ ${Usage-} && "$*" == "$Usage" ]]
-	   then echo "$@" >&2 ; _libsnap-exit 1
-	   else warn "$@"
-	fi
-
-	print-call-stack -s "$stack_skip" >&2
-
-	if [[ ! $is_recursion ]]
-	   then # shellcheck disable=SC2048,SC2086
-		log "$(master_PID=$$ abort -r $* 2>&1)" > $dev_null
-	fi
-
-	if [[ ${master_PID-} && $master_PID != "$$" ]] # in a sub-shell?
-	   then trap '' TERM		 # don't kill ourself when ...
-		kill -TERM -$master_PID	 # kill our parent and its children
-		sleep 1
-		kill -KILL -$master_PID
-	fi 2>&1 | fgrep -v 'No such process'
-	_libsnap-exit 1
-}
-
-# ---------------------------------
-
-abort-function() {
-	set +x
-	declare -i stack_skip=1
-	[[ ${1-} =~ ^-[0-9]+$ ]] && { stack_skip=${1#-}+1; shift; }
-	local opts= ; while [[ ${1-} == -* ]] ; do opts+=" $1"; shift; done
-
-	[[ ${1-} == ':'* ]] && local msg=$* || local msg=" $*"
-	# shellcheck disable=SC2086 # $opts may be null or multi
-	abort -"$stack_skip" $opts "${FUNCNAME[$stack_skip]}$msg"
-}
-readonly -f abort-function
-
-# --------------------------------------------
-
-assert-not-option() {
-	can-profile-not-trace # use x-return to leave function; can comment-out
-	[[ ${1-} == -o ]] && { local order_opt=$1; shift; } || local order_opt=
-	[[ ${1-} != -? ]] && { x-return; }
-
-	[[ $order_opt ]] && msg=" (order matters)" || msg=
-	abort -1 "${FUNCNAME[1]}: unknown option $1$msg"
-}
-
-# --------------------------------------------
-
-# does 1st argument match any of the whitespace-separated words in rest of args
-function is-arg1-in-arg2() {
-	can-profile-not-trace # use x-return to leave function; can comment-out
-	(( $# >= 1 )) || abort-function "arg1 arg(s)"
-	local arg1=$1; shift
-	local arg2=$*
-	[[ $arg1 && $arg2 ]] || { x-return 1; }
-
-	# turn newlines and TABs into SPACEs before checking
-	[[ " ${arg2//[
-	]/ } "  ==  *" $arg1 "* ]]
-	local status=$?
-	x-return $status
-}
-
-[[ $_do_run_unit_tests ]] && {
-is-arg1-in-arg2 foo "" && _abort "null arg2 means false"
-is-arg1-in-arg2 foo    && _abort   "no arg2 means false"
-lines="1
-2"
-is-arg1-in-arg2 1  "$lines" || _abort "1 is not in lines"
-is-arg1-in-arg2 2  "$lines" || _abort "2 is not in lines"
-is-arg1-in-arg2 12 "$lines" && _abort "12   is  in lines"
-fields="1	2"
-is-arg1-in-arg2 1  "$fields" || _abort "1 is not in fields"
-is-arg1-in-arg2 2  "$fields" || _abort "2 is not in fields"
-is-arg1-in-arg2 12 "$fields" && _abort "12   is  in fields"
-}
-
-# ----------------------------------------------------------------------------
-
-# this doesn't fork, so way-faster than $(< ).
-# BUT, this function will silently discard leading and trailing blank lines,
-# because that's how 'read' itself works in bash-5.0.
-function read-all() {
-	can-profile-not-trace # use x-return to leave function; can comment-out
-	[[ $1 == -A ]] && { local no_abort=$true; shift; } || local no_abort=
-	[[ $# ==  2 ]] || abort-function "var-name path"
-	local var_name=$1 file_name=$2
-
-	[[ $no_abort && ! -f "$file_name" ]] && { x-return 1; }
-	read -d '\0' -r "$var_name" < "$file_name"
-	[[ -v $var_name ]] && { x-return 0; }
-	[[    $no_abort ]] && { x-return 1; }
-	[[ -e $file_name ]] || abort-function "$file_name doesn't exist"
-	[[ -f $file_name || -p $file_name ]] ||
-	    abort-function "$file_name not a file"
-	[[ -r $file_name ]] || abort-function "$file_name not readable file"
-	abort-function "failed to read $file_name"
-}
-
-[[ $_do_run_unit_tests ]] && {
-read-all record /etc/passwd && [[ $record ]] || _abort "should return success"
-# shellcheck disable=SC2154
-[[ $record == root* ]] || _abort "read-all failed"
-( read-all record /etc/shadow 2>$dev_null ) || _abort "can't read /etc/shadow"
-( read-all record /etc        2>$dev_null ) || _abort "can't read /etc/"
-unset record
-read-all -A record DoesNotExist || [[ -v record ]] && _abort "nothing to read"
-}
-
-# ----------------------------------------------------------------------------
-
-has_echoE_been_called=$false
-
-# echo to stdError, include the line and function from which we're called
-echoE() {
-	can-profile-not-trace # use x-return to leave function; can comment-out
-	[[ $1 == -n ]] && { local show_name=$true; shift; } || local show_name=
-	declare -i stack_frame_to_show=1 # default to our caller's stack frame
-	[[ $1 =~ ^-[0-9]+$ ]] && { stack_frame_to_show=${1#-}+1; shift; }
-	assert-not-option -o "${1-}"
-
-	local   line_no=${BASH_LINENO[stack_frame_to_show-1]}
-	local func_name=${FUNCNAME[stack_frame_to_show]}
-	[[   $func_name ]] && func_name="line $line_no, in $func_name():"
-
-	[[ $show_name ]] && local name="$our_name:" || local name=
-	if [[ ! $has_echoE_been_called ]]
-	   then  has_echoE_been_called=$true
-		[[ ${Trace_log-} && -s $Trace_log ]] && true > "$Trace_log"
-	fi
-	[[ ${Trace_log-} ]] &&
-	echo -e "$name $func_name" "$@" >> "$Trace_log"
-	echo -e "$name $func_name" "$@" >&2
-	x-return
-}
-
-# ----------------------
-
-function is-readonly-var() {
-	[[ $# == 1 ]] || abort-function "var-name"
-	is-var "$1" && [[ $(declare -p "$1") =~ ' '-[a-zA-Z]*r ]]
-}
-
-alias is-readonly-variable=is-readonly-var
-
-#
-
-function is-writable-var() {
-	[[ $# == 1 ]] || abort-function "var-name"
-	is-var "$1" && ! is-readonly-var "$1"
-}
-
-alias is-writable-variable=is-writable-var
-
-# ----------------------
-
-function is-integer-var() {
-	[[ $# == 1 ]] || abort-function "var-name"
-	is-var "$1" && [[ $(declare -p "$1") =~ ' '-[a-zA-Z]*i ]]
-}
-
-alias is-integer-variable=is-integer-var
-
-[[ $_do_run_unit_tests ]] && {
-is-writable-var true && _abort "true is a readonly var"
-
-declare -i _int_var
-declare    _str_var
-is-writable-var _int_var &&
- is-integer-var _int_var || _abort "_int_var is writable int var"
- is-integer-var _str_var && _abort "_str_var is not an int var"
-is-readonly-var _str_var && _abort "_str_var is not readonly var"
-unset _int_var _str_var
-}
-
-# --------------------------------
-
-is-integer() {
-	[[ $# == 1 ]] || abort-function "arg"
-	[[ $1 =~ ^-?[0-9]+$ ]]
-}
-
-[[ $_do_run_unit_tests ]] && {
-is-integer -123 || _abort "-123 is an integer"
-is-integer  123 || _abort  "123 is an integer"
-is-integer  1.3 && _abort  "1.3 is not an integer"
-}
-
-# ----------------------
-
-function set-var_value--for-debugger() {
-	[[ $# == 1 ]] || abort-function "var-name"
-	local _var_name_=$1 declare_output
-	local -n var=$_var_name_
-
-	while declare_output=$(declare -p "$_var_name_" 2>$dev_null)
-	   do	[[ $declare_output = *" -n "* ]] || break
-		_var_name_=${declare_output#*=}
-		_var_name_=${_var_name_//\"/}
-	done
-
-	if [[ $declare_output != *=* ]]
-	   then if declare -p "$_var_name_"  &> $dev_null
-		   then var_value='<unset>'
-		   else var_value='<non-existent>'
-		fi
-		return 1
-	fi
-
-	if [[  ${var@a} == *[aA]* ]]
-	   then local is_array=$true
-	   else local is_array=$false
-	fi
-	if [[  ${var@a} == *i* ]]
-	   then local is_int=$true
-	   else local is_int=$false
-	fi
-	if [[ $is_array ]]
-	   then var_value=${declare_output#*=}
-		[[ $is_int ]] && var_value=${var_value//\"/}
-	elif [[ $is_int ]]
-	     then var_value=${!_var_name_}
-	     else var_value=${var@Q}
-	fi
-
-	return 0
-}
-
-[[ $_do_run_unit_tests ]] && {
-declare -a  mapa=(1 two)		; mapa_val='([0]="1" [1]="two")'
-declare -A  mapA=([one]=1 [two]=two)	; mapA_val='([two]="two" [one]="1" )'
-declare -ai mpai=(1 2)			; mpai_val='([0]=1 [1]=2)'
-declare -iA mpAi=([one]=1 [two]=2)	; mpAi_val='([two]=2 [one]=1 )'
-declare -n  mapX=mapa			; mapX_val="$mapa_val"
-declare -n  mapY=mapX			; mapY_val="$mapa_val"
-declare -A  mapn			; mapn_val='<unset>'
-declare     sets='set"set'		; sets_val="'set\"set'"
-declare -i  seti=1			; seti_val='1'
-declare     nots			; nots_val='<unset>'
-declare -i  noti			; noti_val='<unset>'
-declare					  Nope_val='<non-existent>'
-tst_func() {
-	local test=$1
-
-	set-var_value--for-debugger "$test"
-	local status=$?
-	local -n correct_value=${1}_val
-	[[ $var_value == "$correct_value" ]] ||
-	    _abort "test $test: $var_value != $correct_value"
-	return $status
-}
-tst_func sets || _abort "sets is set"
-tst_func seti || _abort "seti is set"
-tst_func mapa || _abort "mapa is set"
-tst_func mapA || _abort "mapA is set"
-tst_func mpai || _abort "mpai is set"
-tst_func mpAi || _abort "mpAi is set"
-tst_func mapX || _abort "mapX is set"
-tst_func mapY || _abort "mapY is set"
-tst_func mapn && _abort "mapn  unset"
-tst_func nots && _abort "nots  unset"
-tst_func noti && _abort "noti  unset"
-tst_func Nope && _abort "Nope  isn't"
-}
-
-# ----------------------
-
-# like echoE, but also show the values of the variable names passed to us
-echoEV() {
-	can-profile-not-trace # use x-return to leave function; can comment-out
-	declare -i stack_frame_to_show=1 # default to our caller's stack frame
-	[[ $1 =~ ^-[0-9]+$ ]] && { stack_frame_to_show=${1#-}+1; shift; }
-	assert-not-option "${1-}"
-
-	local _var_name_ var_value
-	for _var_name_
-	   do	set-var_value--for-debugger "$_var_name_"
-
-		echoE -"$stack_frame_to_show" "$_var_name_=$var_value"
-	done
-	x-return
-}
-
-# ----------------------
-
-declare -i Trace_level=0		# default to none (probably)
-
-_isnum() { [[ $1 =~ ^[0-9]+$ ]] ||abort -1 "Trace* first arg is (min) level"; }
-_Trace () {
-	can-profile-not-trace # use x-return to leave function; can comment-out
-	local echo_cmd=$1; shift
-	_isnum "$1"
-	(( $1 <= $Trace_level )) || { x-return 1; }
-	shift
-	$echo_cmd -1 "$@"
-	x-return
-}
-alias  Trace='_Trace echoE'
-alias TraceV='_Trace echoEV'
-
-# ----------------------------------------------------------------------------
-
-declare -A funcname2was_tracing		# global for next three functions
-
-# shellcheck disable=SC2120 # we merely make sure we get no args
-function remember-tracing {
-
-	local status=$?			# status from caller's previous command
-	can-profile-not-trace # use x-return to leave function; can comment-out
-	[[ $# == 0 ]] || abort-function "takes no arguments"
-
-	funcname2was_tracing[ ${FUNCNAME[1]} ]=$x_function
-
-	x-return $status
-}
-
-# ----------------------
-
-# pass -l if used in a loop, and the restore-tracing is outside the loop
-# shellcheck disable=SC2120 # we merely make sure we get no args
-function suspend-tracing {
-	local status=$?			# status from caller's previous command
-	can-profile-not-trace # use x-return to leave function; can comment-out
-	[[ ${1-} == -l ]] && { shift; local in_loop=$true; } || local in_loop=
-	[[ $# == 0 ]] || abort-function "[-l]"
-
-	if [[ $x_function == "$FUNCNAME" ]]
-	   then local was_tracing=$true
-	   else local was_tracing=$false
-		[[ $in_loop ]] && return $status
-	fi
-	funcname2was_tracing[ ${FUNCNAME[1]} ]=$was_tracing
-	return $status
-}
-
-# ----------------------
-
-# show the values of the variable names passed to us, then restore traing state
-function restore-tracing {
-
-	local status=$?			# status from caller's previous command
-	is-arg1-in-arg2 "${FUNCNAME[1]}" "${!funcname2was_tracing[*]}" ||
-	   abort-function "was called without a suspend-tracing"
-	[[ ${funcname2was_tracing[ ${FUNCNAME[1]} ]} ]] || return $status
-
-	local variable
-	for variable
-	    do	if [[ -v $variable ]]
-		   then echo "+ $variable=${!variable}"
-		   else echo "+ $variable is not set"
-		fi
-	done
-
-	set -x
-	return $status
-}
-
-[[ $_do_run_unit_tests ]] && {
-wont-trace() {         foo=2
-	       suspend-tracing; echo untraced; restore-tracing foo; }
-will-trace() { set -x; foo=1
-	       suspend-tracing; echo untraced; restore-tracing foo
-	       wont-trace; echo traced; set +x; }
-[[ $(will-trace 2>&1) == *' echo untrac'* ]] && _abort "suspend-tracing failed"
-[[ $(will-trace 2>&1) == *' echo traced'* ]] || _abort "restore-tracing failed"
-unset -f wont-trace will-trace
-}
-
-# ----------------------------------------------------------------------------
-
-print-or-egrep-Usage-then-exit() {
-	[[ ${1-} == -[hHk] ]] && shift	# strip help or keyword-search option
-	[[ $# == 0 ]] && echo -e "$Usage" && _libsnap-exit 0
-
-	echo "$Usage" | egrep -i "$@"
-	_libsnap-exit 0
-}
-
-# ---------------------------------
-
-abort-with-action-Usage() {
-	local opts= ; while [[ ${1-} == -* ]] ; do opts+=" $1"; shift; done
-	local _action=${*:-$action}
-
-	echo -e "\nBad arguments; here's the usage for this action:"
-	# shellcheck disable=SC2086 # $opts may be null or multi
-	echo "$Usage" | grep $opts "^ *$_action" >&2; echo
-	_libsnap-exit 1
-}
-
-# ---------------------------------
-
-# RunCmd's args are a command (plus args) that _should_ return 0, else we abort
-RunCmd() {
-	[[ $1 == -d ]] && { local IfAbort=$IfRun; shift; } || local IfAbort=
-	[[ $1 == -m ]] && { local msg="; $2"; shift 2; } || local msg=
-	assert-not-option -o "${1-}"
-
-	$IfRun "$@" || $IfAbort abort -1 "'$*' returned $?$msg"
-}
-
-[[ $_do_run_unit_tests ]] && {
-RunCmd true &&
-[[ $(master_PID=$BASHPID \
-     RunCmd -d -m "expected (non fatal)" false 2>&1) == *'(non fatal)'* ]] ||
-   _abort "RunCmd error"
-}
-
-# ----------------------------------------------------------------------------
-# Generic logging function, with customization globals that caller can set.
-# ----------------------------------------------------------------------------
-
-[[ ${log_date_time_format-} ]] ||
-     log_date_time_format="+%a %m/%d %H:%M:%S" # caller or env can over-ride
-
-# shellcheck disable=SC2120 # we merely make sure we get no args
-set-log_date_time() {
-	[[ $# == 0 ]] || abort-function "takes no arguments"
-
-	if [[ ${debug_opt-} ]]
-	   then log_date_time="DoW Mo/Da Hr:Mn:Sc"
-	   else log_date_time=$(date "$log_date_time_format")
-	fi
-}
-
-# ----------------------
-
-file_for_logging=$dev_null		# append to it; caller can change
-
-declare -i log_level=0			# set by getopts or configure.sh
-
-log_msg_prefix=				# can hold variables, it's eval'ed
-
-function log() {
-	can-profile-not-trace # use x-return to leave function; can comment-out
-	[[ $1 == [0-9] ]] && { local level=$1; shift; } || local level=0
-	local _msg="$*"
-
-	(( $level <= $log_level )) || { x-return 1; }
-
-	[[ ( ! -e $file_for_logging && -w ${file_for_logging%/*} ) ||
-	       -w $file_for_logging ]] && local sudo= || local sudo=sudo
-	[[ -e $file_for_logging ]] || $sudo mkdir -p ${file_for_logging%/*}
-
-	if [[ $IfRun ]]
-	   then local _file_for_logging=$dev_null
-	   else local _file_for_logging=$file_for_logging
-	fi
-	local log_date_time
-	set-log_date_time
-	local  _log_msg_prefix=$log_msg_prefix
-	eval  "_log_msg_prefix=\"$_log_msg_prefix\"" # can hold variables
-	strip-trailing-whitespace _log_msg_prefix
-	echo "$log_date_time$_log_msg_prefix: $_msg" |
-	   $sudo tee -a $_file_for_logging
-	x-return 0
-}
-
-# ----------------------------------------------------------------------------
-
-# show head-style header
-header() {
-	can-profile-not-trace # use x-return to leave function; can comment-out
-	[[ $1 == -e ]] && { shift; local nl="\n"; } || local nl=
-	[[ $1 == -E ]] &&   shift || echo
-	assert-not-option -o "${1-}"
-
-	echo -e "==> $* <==$nl"
-	x-return
-}
-
-# ----------------------------------------------------------------------------
-# funcs to highlight strings & workaround printf's lack of terminfo knowledge
-# ----------------------------------------------------------------------------
-
-# http://www.tldp.org/HOWTO/Bash-Prompt-HOWTO/x405.html
-# shellcheck disable=SC2120 # we merely make sure we get no args
-print-string-colors() {
-	[[ $# == 0 ]] || abort-function "takes no arguments"
-
-	header "Coloring from arguments passed to 'tput' command, see man page"
-	local n
-	for n in {1..8}
-	    do	local line=
-		local capname
-		for capname in setab setb setaf setf
-		    do	# shellcheck disable=SC2086
-			line+="$(tput $capname $n)$capname $n$(tput sgr0)   "
-		done
-		echo "$line"
-	done
-}
-
-# ---------------------------------
-
-# main script can over-ride the following global variables after source us
-
-# the setb coloring stands out more, but fails under 'watch' on some OSs
-declare -A highlight_level2tput_b_args=(
-         [ok]="setb 2"
-     [notice]="setb 6"
-    [warning]="setb 5"
-      [error]="setb 4"
-      [stale]="setb 1"
-)
-declare -A highlight_level2tput_args=(
-         [ok]="setf 2"
-     [notice]="setf 6"
-    [warning]="setf 5"
-      [error]="setf 4"
-      [stale]="setf 3"
-)
-declare -A highlight_level2tput_args=(
-         [ok]="setaf 2"
-     [notice]="setaf 6"
-    [warning]="setaf 5"
-      [error]="setab 1"			# setaf is less "striking" than setab
-      [stale]="setaf 3"
-)
-clear_tput_args="sgr0"
-
-declare -A highlight_level2escape_sequence
-
-set-highlighted_string() {
-	can-profile-not-trace # use x-return to leave function; can comment-out
-	local level=$1; shift; local string=$*
-	is-arg1-in-arg2 "$level" "${!highlight_level2tput_args[*]}" ||
-	   abort-function "$level is unknown level"
-
-	[[ -t 1 || ${do_tput-} ]] ||
-	    { highlighted_string=$string; x-return; }
-
-	local esc=${highlight_level2escape_sequence[$level]=$(
-		# shellcheck disable=SC2086 # variable contains multiple values
-		tput ${highlight_level2tput_args[$level]})}
-	[[ ${clear_escape_seq-} ]] ||
-	     clear_escape_seq=$(tput $clear_tput_args |
-				    sed 's/\x1B(B//') # toss leading ESC ( B
-	[[ ${terminfo_color_bytes-} ]] ||
-	   declare -g -r -i \
-		   terminfo_color_bytes=$(( ${#esc} + ${#clear_escape_seq} ))
-
-	highlighted_string=$esc$string$clear_escape_seq
-	x-return
-}
-
-# ----------------------------------------------------------------------------
+#############################################################################
+#############################################################################
+### Functions to workaround printf's lack of terminfo knowledge.
+#############################################################################
+#############################################################################
 
 default_padded_colorized_string_field_width=
 
@@ -1542,32 +1551,41 @@ fix-padded-colorized-string-vars() {
 	done
 }
 
-# ----------------------------------------------------------------------------
+#############################################################################
+#############################################################################
+### Working with file/directory metadata.
+#############################################################################
+#############################################################################
 
-strip-trailing-whitespace() {
+# does 1st argument match any of the whitespace-separated words in rest of args
+function is-arg1-in-arg2() {
+	can-profile-not-trace # use x-return to leave function; can comment-out
+	(( $# >= 1 )) || abort-function "arg1 arg(s)"
+	local arg1=$1; shift
+	local arg2=$*
+	[[ $arg1 && $arg2 ]] || { x-return 1; }
 
-	local var_name
-	for var_name
-	    do	[[ -v $var_name ]] ||
-		    abort-function ": '$var_name' is not a variable"
-		local -n var=$var_name
-		[[ $var =~ [\ \	]*$ ]]
-		local whitespace=${BASH_REMATCH[0]}
-		var=${var%"$whitespace"}
-	done
+	# turn newlines and TABs into SPACEs before checking
+	[[ " ${arg2//[
+	]/ } "  ==  *" $arg1 "* ]]
+	local status=$?
+	x-return $status
 }
 
 [[ $_do_run_unit_tests ]] && {
-_var_1='1 2 3 '
-_var_2='1 2 3	   		 '
-[[ $_var_1 != '1 2 3' ]] || _abort _var_1_
-strip-trailing-whitespace _var_1 _var_2
-[[ $_var_1 == '1 2 3' ]] || _abort _var_1
-[[ $_var_2 == '1 2 3' ]] || _abort _var_2
+is-arg1-in-arg2 foo "" && _abort "null arg2 means false"
+is-arg1-in-arg2 foo    && _abort   "no arg2 means false"
+lines="1
+2"
+is-arg1-in-arg2 1  "$lines" || _abort "1 is not in lines"
+is-arg1-in-arg2 2  "$lines" || _abort "2 is not in lines"
+is-arg1-in-arg2 12 "$lines" && _abort "12   is  in lines"
+fields="1	2"
+is-arg1-in-arg2 1  "$fields" || _abort "1 is not in fields"
+is-arg1-in-arg2 2  "$fields" || _abort "2 is not in fields"
+is-arg1-in-arg2 12 "$fields" && _abort "12   is  in fields"
 }
 
-# ----------------------------------------------------------------------------
-# working with files and dirs (and processes)
 # ----------------------------------------------------------------------------
 
 is-older() {
@@ -1578,23 +1596,6 @@ is-newer() {
 	[[ $# == 2 ]] || abort-function "path-1 path-2"
 	[[ -e $1 && -e $2 && $1 -nt $2 ]]
 }
-
-# ----------------------------------------------------------------------------
-
-is-an-FS-device-mounted() {
-	[[ $# == 1 ]] || abort-function "{ device | mount-dir }"
-	local path=$1
-	[[ $path == /* ]] || path=$PWD/$path
-	[[ -b $path || -d $path ]] ||
-	    abort-function ": can't find device or directory for '$1'"
-
-	local mounts
-	set-mounts
-	is-arg1-in-arg2 "$path" "$mounts"
-}
-
-[[ ! $_do_run_unit_tests ]] ||
-    is-an-FS-device-mounted / || _abort "can't find mounted root device"
 
 # ----------------------------------------------------------------------------
 
@@ -1700,6 +1701,197 @@ function set-file_KB() {
 
 # ----------------------------------------------------------------------------
 
+copy-file-perms() {
+	[[ $1 == -D ]] && local mkdir_opt=-p
+	[[ $1 == -d ]] && local mkdir_opt=
+	[[ $1 == -[dDf] ]] && { local opt=$1; shift; } || local opt=
+	assert-not-option "$1"
+	(( $# >= 2 )) || abort-function "reference-path path(s)"
+	local reference=$1; shift
+
+	local path sudo=
+	for path
+	    do	[[ -f "$path" ]] &&
+		    # we might not have GNU utils, or might need sudo
+		    cp --attributes-only -p "$reference" "$path" 2>$dev_null &&
+		    continue
+		if [[ $opt == -f ]]
+		   then if [[ -e "$path" ]]
+			   then [[ -w "$path" ]] || sudo=sudo
+				[[ -f "$path" ]] || abort "'$path' not a file"
+			   else [[ -w "${path%/*}" ]] || sudo=sudo
+				$IfRun $sudo touch "$path"
+			fi
+		elif [[ $opt == -[dD] ]]
+		   then if [[ -e "$path" ]]
+			   then [[ -w "$path" ]] || sudo=sudo
+				[[ -d "$path" ]] || abort "'$path' not a dir"
+			   else [[ -w "${path%/*}" ]] || sudo=sudo
+				# shellcheck disable=SC2086 # *_opt may be null
+				$IfRun $sudo mkdir $mkdir_opt "$path"
+			fi
+		elif [[ ! -e "$path" ]]
+		   then abort-function ": '$path' doesn't exist, & no options"
+		fi || abort-function ": couldn't create '$path'"
+
+		local cmd
+		for cmd in chown chmod
+		    do	$IfRun $sudo $cmd --reference="$reference" "$path"
+		done
+	done
+}
+
+#############################################################################
+#############################################################################
+### Working with file contents
+#############################################################################
+#############################################################################
+
+# replace a file's contents atomically (read from stdin if $1 == '-')
+echo-to-file() {
+	can-profile-not-trace # use x-return to leave function; can comment-out
+	[[ $1 == -p ]] && { shift; local do_perms=$true; } || local do_perms=
+	local filename=${!#}
+
+	if [[ $IfRun ]]
+	   then local string=${*: 1: $#-1}
+		[[ $string == *[\ \"\`$]* ]] && string="'$string'"
+		echo "echo $string > $filename"; x-return
+	fi
+
+	local new_filename="$filename.$BASHPID"
+	if is-arg1-in-arg2 '-' "$@"
+	   then [[ $# == 2 ]] || abort-function ": can't mix stdin and strings"
+		cat
+	   else echo "${@: 1: $#-1}"
+	fi > "$new_filename" || abort-function "$new_filename"
+	[[ $do_perms ]] && copy-file-perms "$filename" "$new_filename"
+	mv "$new_filename" "$filename" || abort-function "$filename"
+	x-return
+}
+
+# ----------------------------------------------------------------------------
+
+assert-sha1sum() {
+	[[ $# == 2 ]] || abort-function "sha1sum path"
+	local sha1sum=$1 file=$2
+
+	# shellcheck disable=SC2046,SC2086
+	set --   $(sha1sum "$file")
+	[[ $1 == "$sha1sum" ]] && return
+	abort     "sha1sum($file) != $sha1sum"
+}
+
+# ----------------------------------------------------------------------------
+
+# return non-0 if din't find any emacs backup files
+function set-backup_suffix--for-emacs() {
+	can-profile-not-trace # use x-return to leave function; can comment-out
+	[[ $# == 1  ]] || abort-function ": specify a single file"
+	local  path=$1
+	[[ -f $path ]] || abort-function ": '$path' not file, or doesn't exist"
+
+	local -i max_num=0
+	local backup
+	for backup in "$path".~[1-9]*~
+	   do	[[ $backup =~ ~([1-9][0-9]*)~$ ]] || continue
+		local -i num=${BASH_REMATCH[1]}
+		(( max_num < num )) &&
+		   max_num=$num
+	done
+
+	(( max_num == 0 )) && local status=1 || local status=0
+	# shellcheck disable=SC2219
+	let max_num+=1
+	backup_suffix=.~$max_num~
+
+	x-return $status
+}
+
+# ---------------------------------
+
+# this is for 'sed --in-place[=SUFFIX]' or 'perl -i[extension]'
+set-backup_suffix() {
+	can-profile-not-trace # use x-return to leave function; can comment-out
+
+	set-backup_suffix--for-emacs "$@" || backup_suffix='~'
+	x-return
+}
+
+# ----------------------------------------------------------------------------
+
+function does-file-end-in-newline() {
+
+	local file
+	for file
+	    do	[[ -f $file && -s $file ]] || return 1
+		[[ $(tail -c 1 "$file") ]] && return 1
+	done
+	return 0
+}
+
+# ----------------------------------------------------------------------------
+
+merged-continuation-lines() {
+
+	# https://catonmat.net/sed-one-liners-explained-part-one
+	sed -e :a -e '/\\$/N; s/\\\n//; ta' "$@"
+}
+
+# ----------------------------------------------------------------------------
+
+set-cat_cmd() {
+	[[ $# == 1 ]] || abort-function "path"
+	local filename=$1
+
+	case ${filename##*.} in
+	    ( bz2 ) cat_cmd="bzcat"	;;
+	    ( gz  ) cat_cmd="zcat"	;;
+	    ( lz4 ) cat_cmd="lz4cat"	;;
+	    ( xz  ) cat_cmd="xzcat"	;;
+	    ( zst ) cat_cmd="zstdcat"	;;
+	    ( *   ) cat_cmd="cat"	;;
+	esac
+}
+
+# ----------------------------------------------------------------------------
+
+# this doesn't fork, so SHOULD BE (FIXME) way-faster than $(< ).
+# BUT, this function will silently discard leading and trailing blank lines,
+# because that's how 'read' itself works in bash-5.0.
+function read-all() {
+	can-profile-not-trace # use x-return to leave function; can comment-out
+	[[ $1 == -A ]] && { local no_abort=$true; shift; } || local no_abort=
+	[[ $# ==  2 ]] || abort-function "var-name path"
+	local var_name=$1 file_name=$2
+
+	[[ $no_abort && ! -f "$file_name" ]] && { x-return 1; }
+	read -d '\0' -r "$var_name" < "$file_name"
+	[[ -v $var_name ]] && { x-return 0; }
+	[[    $no_abort ]] && { x-return 1; }
+	[[ -e $file_name ]] || abort-function "$file_name doesn't exist"
+	[[ -f $file_name || -p $file_name ]] ||
+	    abort-function "$file_name not a file"
+	[[ -r $file_name ]] || abort-function "$file_name not readable file"
+	abort-function "failed to read $file_name"
+}
+
+[[ $_do_run_unit_tests ]] && {
+read-all record /etc/passwd && [[ $record ]] || _abort "should return success"
+# shellcheck disable=SC2154
+[[ $record == root* ]] || _abort "read-all failed"
+( read-all record /etc/shadow 2>$dev_null ) || _abort "can't read /etc/shadow"
+( read-all record /etc        2>$dev_null ) || _abort "can't read /etc/"
+unset record
+read-all -A record DoesNotExist || [[ -v record ]] && _abort "nothing to read"
+}
+
+#############################################################################
+#############################################################################
+### Working with processes.
+#############################################################################
+#############################################################################
+
 function have-proc { [[ -e /proc/mounts ]] ; }
 
 # ---------------------------------
@@ -1723,9 +1915,11 @@ function is-process-alive() {
 [[ ! $_do_run_unit_tests ]] ||
     is-process-alive $$ $BASHPID || _abort "is-process-alive failure"
 
-# ----------------------------------------------------------------------------
-# working with lists
-# ----------------------------------------------------------------------------
+#############################################################################
+#############################################################################
+### Working with lists.
+#############################################################################
+#############################################################################
 
 set-uniques() {
 
@@ -1843,9 +2037,11 @@ done
 unset _numbers _input _words popped_word is_last_word
 }
 
-# ----------------------------------------------------------------------------
-# (decimal) arithmetic functions
-# ----------------------------------------------------------------------------
+#############################################################################
+#############################################################################
+### (Decimal) arithmetic functions.
+#############################################################################
+#############################################################################
 
 set-average() {
 	can-profile-not-trace # use x-return to leave function; can comment-out
@@ -1995,9 +2191,11 @@ unset -f sd
 unset division
 }
 
-# ----------------------------------------------------------------------------
-# miscellaneous functions
-# ----------------------------------------------------------------------------
+#############################################################################
+#############################################################################
+### Miscellaneous functions.
+#############################################################################
+#############################################################################
 
 # like usleep, but takes milliseconds as its argument
 msleep() {
@@ -2052,18 +2250,6 @@ function confirm() {
 	x-return $status
 }
 
-# --------------------------------------------
-
-assert-sha1sum() {
-	[[ $# == 2 ]] || abort-function "sha1sum path"
-	local sha1sum=$1 file=$2
-
-	# shellcheck disable=SC2046,SC2086
-	set --   $(sha1sum "$file")
-	[[ $1 == "$sha1sum" ]] && return
-	abort     "sha1sum($file) != $sha1sum"
-}
-
 # ----------------------------------------------------------------------------
 
 # Test an internal function by passing its name + options + args to our script;
@@ -2114,146 +2300,7 @@ function run-function() {
 alias pegrep='grep --perl-regexp'
 
 # ----------------------------------------------------------------------------
-# create and rewrite files
-# ----------------------------------------------------------------------------
-
-# replace a file's contents atomically (read from stdin if $1 == '-')
-echo-to-file() {
-	can-profile-not-trace # use x-return to leave function; can comment-out
-	[[ $1 == -p ]] && { shift; local do_perms=$true; } || local do_perms=
-	local filename=${!#}
-
-	if [[ $IfRun ]]
-	   then local string=${*: 1: $#-1}
-		[[ $string == *[\ \"\`$]* ]] && string="'$string'"
-		echo "echo $string > $filename"; x-return
-	fi
-
-	local new_filename="$filename.$BASHPID"
-	if is-arg1-in-arg2 '-' "$@"
-	   then [[ $# == 2 ]] || abort-function ": can't mix stdin and strings"
-		cat
-	   else echo "${@: 1: $#-1}"
-	fi > "$new_filename" || abort-function "$new_filename"
-	[[ $do_perms ]] && copy-file-perms "$filename" "$new_filename"
-	mv "$new_filename" "$filename" || abort-function "$filename"
-	x-return
-}
-
-# ----------------------------------------------------------------------------
-
-copy-file-perms() {
-	[[ $1 == -D ]] && local mkdir_opt=-p
-	[[ $1 == -d ]] && local mkdir_opt=
-	[[ $1 == -[dDf] ]] && { local opt=$1; shift; } || local opt=
-	assert-not-option "$1"
-	(( $# >= 2 )) || abort-function "reference-path path(s)"
-	local reference=$1; shift
-
-	local path sudo=
-	for path
-	    do	[[ -f "$path" ]] &&
-		    # we might not have GNU utils, or might need sudo
-		    cp --attributes-only -p "$reference" "$path" 2>$dev_null &&
-		    continue
-		if [[ $opt == -f ]]
-		   then if [[ -e "$path" ]]
-			   then [[ -w "$path" ]] || sudo=sudo
-				[[ -f "$path" ]] || abort "'$path' not a file"
-			   else [[ -w "${path%/*}" ]] || sudo=sudo
-				$IfRun $sudo touch "$path"
-			fi
-		elif [[ $opt == -[dD] ]]
-		   then if [[ -e "$path" ]]
-			   then [[ -w "$path" ]] || sudo=sudo
-				[[ -d "$path" ]] || abort "'$path' not a dir"
-			   else [[ -w "${path%/*}" ]] || sudo=sudo
-				# shellcheck disable=SC2086 # *_opt may be null
-				$IfRun $sudo mkdir $mkdir_opt "$path"
-			fi
-		elif [[ ! -e "$path" ]]
-		   then abort-function ": '$path' doesn't exist, & no options"
-		fi || abort-function ": couldn't create '$path'"
-
-		local cmd
-		for cmd in chown chmod
-		    do	$IfRun $sudo $cmd --reference="$reference" "$path"
-		done
-	done
-}
-
-# ----------------------------------------------------------------------------
-
-# return non-0 if din't find any emacs backup files
-function set-backup_suffix--for-emacs() {
-	can-profile-not-trace # use x-return to leave function; can comment-out
-	[[ $# == 1  ]] || abort-function ": specify a single file"
-	local  path=$1
-	[[ -f $path ]] || abort-function ": '$path' not file, or doesn't exist"
-
-	local -i max_num=0
-	local backup
-	for backup in "$path".~[1-9]*~
-	   do	[[ $backup =~ ~([1-9][0-9]*)~$ ]] || continue
-		local -i num=${BASH_REMATCH[1]}
-		(( max_num < num )) &&
-		   max_num=$num
-	done
-
-	(( max_num == 0 )) && local status=1 || local status=0
-	# shellcheck disable=SC2219
-	let max_num+=1
-	backup_suffix=.~$max_num~
-
-	x-return $status
-}
-
-# ---------------------------------
-
-# this is for 'sed --in-place[=SUFFIX]' or 'perl -i[extension]'
-set-backup_suffix() {
-	can-profile-not-trace # use x-return to leave function; can comment-out
-
-	set-backup_suffix--for-emacs "$@" || backup_suffix='~'
-	x-return
-}
-
-# ----------------------------------------------------------------------------
-
-function does-file-end-in-newline() {
-
-	local file
-	for file
-	    do	[[ -f $file && -s $file ]] || return 1
-		[[ $(tail -c 1 "$file") ]] && return 1
-	done
-	return 0
-}
-
-# ----------------------------------------------------------------------------
-
-merged-continuation-lines() {
-
-	# https://catonmat.net/sed-one-liners-explained-part-one
-	sed -e :a -e '/\\$/N; s/\\\n//; ta' "$@"
-}
-
-# ----------------------------------------------------------------------------
-
-set-cat_cmd() {
-	[[ $# == 1 ]] || abort-function "path"
-	local filename=$1
-
-	case ${filename##*.} in
-	    ( bz2 ) cat_cmd="bzcat"	;;
-	    ( gz  ) cat_cmd="zcat"	;;
-	    ( lz4 ) cat_cmd="lz4cat"	;;
-	    ( xz  ) cat_cmd="xzcat"	;;
-	    ( zst ) cat_cmd="zstdcat"	;;
-	    ( *   ) cat_cmd="cat"	;;
-	esac
-}
-
+# run-until-timeout let's you avoid hangs when there are I/O problems
 # ----------------------------------------------------------------------------
 
 killer() {
