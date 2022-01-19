@@ -2127,12 +2127,12 @@ unset product
 set-division() {
 	can-profile-not-trace # use x-return to leave function; can comment-out
 	local -i width=0 decimal_digits
-	[[ $1 == -w? ]] && { width=${1#-w}; shift; }
-	[[ $1 == -z  ]] && { local zero_pad=$true; shift; } || local zero_pad=
-	[[ $1 == -d? ]] && { decimal_digits=${1#-d}; shift; }
+	[[ $1 == -w ]] && { width=$2; shift 2; }
+	[[ $1 == -z ]] && { local zero_pad=$true; shift; } || local zero_pad=
+	[[ $1 == -d ]] && { decimal_digits=$2; shift 2; }
 	[[ $# == 2 && $1 && $2 &&	# catch null parameters
-	       ${decimal_digits-} == [1-9]* && $1$2 =~ ^[-0-9]+$ ]] ||
-	  abort-function "[-w# [-z]] -d# integer-numerator integer-denominator"
+	   ${decimal_digits-} == [1-9]* && $1$2 =~ ^[-0-9]+$ ]] ||
+	    abort-function "[-w # [-z]] -d # integer-numerator int-denominator"
 
 	local -i numerator=$1 denominator=$2
 	[[ $denominator =~ ^-?[1-9][0-9]*$ ]] || # can't divide-by-0
@@ -2174,26 +2174,26 @@ set-division() {
 }
 
 [[ $_do_run_unit_tests ]] && {
-set-division -d1 -6  3 ; [[ $division == -2.0 ]] || _abort "-6/3  != $division"
-set-division -d1 -6 -3 ; [[ $division ==  2.0 ]] || _abort "-6/-3 != $division"
+alias sd=set-division
+sd -d 1 -6  3 ; [[ $division == -2.0 ]] || _abort "-6/3  != $division"
+sd -d 1 -6 -3 ; [[ $division ==  2.0 ]] || _abort "-6/-3 != $division"
 # test minutes to hours
-set-division -d2 10 60 ; [[ $division == 0.17 ]] || _abort "10/60 != $division"
-set-division -d1 10 60 ; [[ $division == 0.2  ]] || _abort "10/60 != $division"
-set-division -d1 59 60 ; [[ $division == 1.0  ]] || _abort "59/60 != $division"
+sd -d 2 10 60 ; [[ $division == 0.17 ]] || _abort "10/60 != $division"
+sd -d 1 10 60 ; [[ $division == 0.2  ]] || _abort "10/60 != $division"
+sd -d 1 59 60 ; [[ $division == 1.0  ]] || _abort "59/60 != $division"
 # test error handling
-sd() { set-division "$@"; }
-sd -d1    1 0 |& fgrep -q libsnap.sh: || _abort "1/0 should fail"
-sd -d1  1.1 1 |& fgrep -q libsnap.sh: || _abort "didn't catch non-integer"
-sd -d1  1 1 1 |& fgrep -q libsnap.sh: || _abort "didn't catch too many args"
-sd        1 1 |& fgrep -q libsnap.sh: || _abort "didn't catch missing -d#"
-sd -d1 -q 1 1 |& fgrep -q libsnap.sh: || _abort "didn't catch erroneous opt"
-sd -d1      1 |& fgrep -q libsnap.sh: || _abort "missing numerator"
+sd -d 1    1 0 |& fgrep -q libsnap.sh: || _abort "1/0 should fail"
+sd -d 1  1.1 1 |& fgrep -q libsnap.sh: || _abort "didn't catch non-integer"
+sd -d 1  1 1 1 |& fgrep -q libsnap.sh: || _abort "didn't catch too many args"
+sd         1 1 |& fgrep -q libsnap.sh: || _abort "didn't catch missing -d#"
+sd -d 1 -q 1 1 |& fgrep -q libsnap.sh: || _abort "didn't catch erroneous opt"
+sd -d 1      1 |& fgrep -q libsnap.sh: || _abort "missing numerator"
 # test -w and -z
-sd() { set-division -w5 -z -d2 "$@"; }
+alias sd='set-division -w 5 -z -d 2'
 sd    9 2; [[ $division == 04.50 ]] || _abort    "9/2 != $division"
 sd  900 2; [[ $division == 450.0 ]] || _abort  "900/2 != $division"
 sd 9000 2; [[ $division == 4500  ]] || _abort "9000/2 != $division"
-unset -f sd
+unalias sd
 unset division
 }
 
@@ -2209,7 +2209,7 @@ msleep() {
 	local -i msecs=$1
 
 	local division
-	set-division -d3 "$msecs" 1000
+	set-division -d 3 "$msecs" 1000
 	[[ $division != *-* ]] &&	# avoid negative values
 	sleep "$division"		# sleep is a loadable, so fast
 }
@@ -2225,7 +2225,7 @@ sleep-exe() {
 
 function confirm() {
 	can-profile-not-trace # use x-return to leave function; can comment-out
-	[[ $1 == -n  ]] && { echo; shift; }
+	[[ $1 == -n ]] && { echo; shift; }
 	assert-not-option "$1"
 	local _prompt=$1 default=${2-}
 
