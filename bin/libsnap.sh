@@ -1069,8 +1069,10 @@ function profile-off() {
 
 # shellcheck disable=SC2120
 print-profile-data() {
+	[[ ${1-} == -d ]] && { local opt="$1$2"; shift 2; } || local opt=
 	[[ ${1-} == -k ]] && { local arg="$1$2"; shift 2; } || local arg=-
-	[[ $# == 0 ]] || abort-function "[-k sort-column-number]"
+	[[ $# == 0 ]] ||
+	    abort-function "[-d decimal-digits] [-k sort-column-number]"
 	local path=${1-profile}
 	[[ $path == *.* ]] || path+=".csv"
 
@@ -1078,16 +1080,21 @@ print-profile-data() {
 	unset "profiled_function2count['_set-profile_overhead_usecs']"
 
 	local name
-	local format="%s\t%7s\t%7s\t%s\n"
-	local -i usecs count per_call_usecs
+	local format="%15s\t%7s\t%15s\t%s\n"
+	local -i count usecs usecs_per_call
+	local secs secs_per_call
 	# shellcheck disable=SC2059 # why not??
-	printf "$format" 'all-us' 'count' 'PerCall' 'function'
+	printf "$format" 'total-seconds' 'count' 'secs-per-call' 'function'
 	for name in  ${!profiled_function2usecs[*]}
-	    do	usecs=${profiled_function2usecs[$name]}
-		count=${profiled_function2count[$name]}
-		per_call_usecs=$usecs/$count
+	    do	count=${profiled_function2count[$name]}
+		usecs=${profiled_function2usecs[$name]}
+		usecs_per_call=$usecs/$count
+		  set-division "${opt:--d6}" "$usecs"          1000000
+		secs=$division
+		  set-division "${opt:--d6}" "$usecs_per_call" 1000000
+		secs_per_call=$division
 		# shellcheck disable=SC2059 # why not??
-		printf "$format" "$usecs" "$count" "$per_call_usecs" "$name"
+		printf "$format" "$secs" "$count" "$secs_per_call" "$name"
 	done | sort -n -r "$arg"
 }
 
