@@ -340,6 +340,27 @@ setup-ps-options() {
 #############################################################################
 
 # ----------------------------------------------------------------------------
+# we want some loadable builtins (the ones that aren't buggy)
+# ----------------------------------------------------------------------------
+
+if [[ ! -v BASH_LOADABLES_PATH ]]
+   then export BASH_LOADABLES_PATH=
+	append-to-PATH-var BASH_LOADABLES_PATH \
+			   /usr/local/lib/bash /usr/lib/bash
+fi
+
+# 'mkdir' buggy in bash-4.4.20: mkdir -p fails when exists & writable parent
+# 'head' speed is proportional to value of -n
+# You can read the code for each builtin, e.g. for realpath:
+#    https://fossies.org/linux/bash/examples/loadables/realpath.c
+bash_builtins="basename dirname id realpath rmdir rm sleep tee uname"
+
+[[ $BASH_LOADABLES_PATH ]] &&
+for _builtin in $bash_builtins
+    do	enable -f "$_builtin" "$_builtin"
+done 2> $dev_null			# rm is only in bash-5.0, ignore error
+
+# ----------------------------------------------------------------------------
 # provide a directory for temporary files that's safe from symlink attacks
 # ----------------------------------------------------------------------------
 
@@ -469,7 +490,7 @@ strip-trailing-whitespace _var_1 _var_2
 # ----------------------------------------------------------------------------
 
 [[ ${log_date_time_format-} ]] ||
-     log_date_time_format="+%a %m/%d %H:%M:%S" # caller or env can over-ride
+     log_date_time_format="%a %m/%d %H:%M:%S" # caller or env can over-ride
 
 # shellcheck disable=SC2120 # we merely make sure we get no args
 set-log_date_time() {
@@ -477,7 +498,7 @@ set-log_date_time() {
 
 	if [[ ${debug_opt-} ]]
 	   then log_date_time="DoW Mo/Da Hr:Mn:Sc"
-	   else log_date_time=$(date "$log_date_time_format")
+	   else log_date_time=$(date "+$log_date_time_format")
 	fi
 }
 
@@ -693,7 +714,7 @@ echoE() {
 
 function is-readonly-var() {
 	[[ $# == 1 ]] || abort-function "var-name"
-	is-var "$1" && [[ $(declare -p "$1") =~ ' '-[a-zA-Z]*r ]]
+	is-var "$1" && [[ $(declare -p "$1") =~ ' '-[a-zA-Z]*r[a-zA-Z]*' ' ]]
 }
 
 alias is-readonly-variable=is-readonly-var
@@ -711,7 +732,7 @@ alias is-writable-variable=is-writable-var
 
 function is-integer-var() {
 	[[ $# == 1 ]] || abort-function "var-name"
-	is-var "$1" && [[ $(declare -p "$1") =~ ' '-[a-zA-Z]*i ]]
+	is-var "$1" && [[ $(declare -p "$1") =~ ' '-[a-zA-Z]*i[a-zA-Z]*' ' ]]
 }
 
 alias is-integer-variable=is-integer-var
@@ -1148,27 +1169,6 @@ alias x-return='
 #############################################################################
 
 # ----------------------------------------------------------------------------
-# we want some loadable builtins (the ones that aren't buggy)
-# ----------------------------------------------------------------------------
-
-if [[ ! -v BASH_LOADABLES_PATH ]]
-   then export BASH_LOADABLES_PATH=
-	append-to-PATH-var BASH_LOADABLES_PATH \
-			   /usr/local/lib/bash /usr/lib/bash
-fi
-
-# 'mkdir' buggy in bash-4.4.20: mkdir -p fails when exists & writable parent
-# 'head' speed is proportional to value of -n
-# You can read the code for each builtin, e.g. for realpath:
-#    https://fossies.org/linux/bash/examples/loadables/realpath.c
-bash_builtins="basename dirname id realpath rmdir rm sleep tee uname"
-
-[[ $BASH_LOADABLES_PATH ]] &&
-for _builtin in $bash_builtins
-    do	enable -f "$_builtin" "$_builtin"
-done 2> $dev_null			# rm is only in bash-5.0, ignore error
-
-# ----------------------------------------------------------------------------
 # functions to make sure needed utilities are in the PATH
 # ----------------------------------------------------------------------------
 
@@ -1227,6 +1227,7 @@ function not-yet() { warn "'$*' not yet available, ignoring"; }
 
 # path can be either the mount directory or the device
 function set-FS_type--from-path() {
+	can-profile-not-trace # use x-return to leave function; can comment-out
 	[[ $# == 1 ]] || abort-function "path"
 	local  path=$1
 	[[ -e $path ]] || abort "mount-dir='$path' doesn't exist"
@@ -1251,23 +1252,26 @@ function set-FS_type--from-path() {
 	fi
 
 	[[ $FS_type ]] || warn "$FUNCNAME: $path has no discernible filesystem"
+	local status=$?
+	x-return $status		# x-return mangles $?, so use $status
 }
 
 # ----------------------------------------------------------------------------
 
 # path can be either the mount directory or the device
 function set-inode_size-data_block_size-dir_block_size--from-path() {
+	can-profile-not-trace # use x-return to leave function; can comment-out
 	[[ $# == 1  ]] || abort-function "path"
 	local  path=$1
 	[[ -e $path ]] || abort-function "mount-dir='$path' doesn't exist"
 
 	local FS_type
-	set-FS_type--from-path "$path" || return $?
+	set-FS_type--from-path "$path" || { x-return $?; }
 
 	case $FS_type in
 	   ( ext? )
 		local FS_device
-		set-FS_device--from-mount-dir "$path" || return 1
+		set-FS_device--from-mount-dir "$path" || { x-return 1; }
 		# shellcheck disable=SC2046
 		set -- $(sudo tune2fs -l "$FS_device" |&
 				sed -n  -e 's/^Block size://p' \
@@ -1292,7 +1296,7 @@ function set-inode_size-data_block_size-dir_block_size--from-path() {
 		abort "fix $FUNCNAME for '$FS_type', email ${coder-}"
 		;;
 	esac || abort-function "$path (FS_type=$FS_type) returned $status"
-	return $?
+	x-return 0
 }
 
 # ----------------------------------------------------------------------------
@@ -1301,18 +1305,21 @@ declare -i device_KB=0
 
 # snapback users can write a replacement in configure.sh
 function set-device_KB--from-block-device() {
+	can-profile-not-trace # use x-return to leave function; can comment-out
 	[[ $# == 1 ]] || abort-function "device"
 	local  dev=$1
 	[[ -b $dev ]] || abort "$dev is not a device"
 
 	device_KB=0
-	have-cmd lsblk || return 1
+	have-cmd lsblk || { x-return 1; } # x-return is multi-cmd alias, so {}
 
 	# shellcheck disable=SC2046,SC2086
 	set -- $(lsblk --noheadings --bytes --output=SIZE $dev)
 	[[ $# == 1 ]] || abort-function ": specify a partition not whole drive"
 	device_KB=$(( $1/1024 ))
 	(( $device_KB > 0 ))
+	local status=$?
+	x-return $status		# x-return mangles $?, so use $status
 }
 
 # ----------------------------------------------------------------------------
@@ -1379,12 +1386,13 @@ label-drive() {
 # ----------------------------------------------------------------------------
 
 set-FS_device--from-FS-label() {
+	can-profile-not-trace # use x-return to leave function; can comment-out
 	[[ $# == 1 ]] || abort-function "FS-label"
 	local label=$1
 
 	if [[ -d /Volumes ]]		# Darwin?
 	   then set-FS_device--from-mount-dir "/Volumes/$label"
-		return
+		x-return
 	fi
 
 	have-cmd blkid ||
@@ -1403,6 +1411,7 @@ set-FS_device--from-FS-label() {
 	  abort "'blkid' lies: pass device to '$our_name' by-hand"
 
 	[[ $FS_device ]] || abort "couldn't find device for $label"
+	x-return
 }
 
 # ----------------------------------------------------------------------------
@@ -1441,19 +1450,23 @@ set-OS_release_file-OS_release() {
 # -----------------------------------------------------------------------
 
 function set-FS_device--from-mount-dir() {
+	can-profile-not-trace # use x-return to leave function; can comment-out
 	[[ $# == 1  ]] || abort-function "path"
 	local  path=$1
-	[[ -e $path ]] || { warn "path=$path doesn't exist"; return 1; }
+	[[ -e $path ]] || { warn "path=$path doesn't exist"; x-return 1; }
 
 	local mounts
 	set-mounts
 	FS_device=$(sed -r -n "s~^([^ ]+) $path .*~\1~p" <<<"$mounts")
 	[[ $FS_device ]]
+	local status=$?
+	x-return $status		# x-return mangles $?, so use $status
 }
 
 # ----------------------------
 
 function set-mount_dir--from-FS-device() {
+	can-profile-not-trace # use x-return to leave function; can comment-out
 	[[ $1 == -q ]] && { local is_quiet=$true; shift; } || local is_quiet=
 	[[ $# == 1  ]] || abort-function "[-q] device"
 	local  dev=$1
@@ -1463,12 +1476,12 @@ function set-mount_dir--from-FS-device() {
 	local mounts
 	set-mounts
 	mount_dir=$(sed -r -n "s~^$dev ([^ ]+) .*~\1~p" <<<"$mounts")
-	[[ $mount_dir ]] && return 0
+	[[ $mount_dir ]] && { x-return 0; }
 
 	# shellcheck disable=SC1087,SC2046
 	set -- $(grep "^[[:space:]]*$dev[[:space:]]" /etc/fstab)
 	mount_dir=${2-}
-	[[ $mount_dir ]] && return 0
+	[[ $mount_dir ]] && { x-return 0; }
 
 	local FS_label
 	set-FS_label--from-FS-device "$dev"
@@ -1476,10 +1489,10 @@ function set-mount_dir--from-FS-device() {
 	set -- $(grep "^[[:space:]]*LABEL=$FS_label[[:space:]]" /etc/fstab)
 	mount_dir=${2-}
 
-	[[ $mount_dir ]] && return 0
+	[[ $mount_dir ]] && { x-return 0; }
 
 	[[ ! $is_quiet ]] && abort "couldn't find mount dir for dev=$dev"
-	return 1
+	x-return 1
 }
 
 # ----------------------------
@@ -1566,7 +1579,7 @@ function is-arg1-in-arg2() {
 	[[ " ${arg2//[
 	]/ } "  ==  *" $arg1 "* ]]
 	local status=$?
-	x-return $status
+	x-return $status		# x-return mangles $?, so use $status
 }
 
 [[ $_do_run_unit_tests ]] && {
@@ -1787,12 +1800,13 @@ echo-to-file() {
 # ----------------------------------------------------------------------------
 
 assert-sha1sum() {
+	can-profile-not-trace # use x-return to leave function; can comment-out
 	[[ $# == 2 ]] || abort-function "sha1sum path"
 	local sha1sum=$1 file=$2
 
 	# shellcheck disable=SC2046,SC2086
 	set --   $(sha1sum "$file")
-	[[ $1 == "$sha1sum" ]] && return
+	[[ $1 == "$sha1sum" ]] && x-return
 	abort     "sha1sum($file) != $sha1sum"
 }
 
@@ -1835,13 +1849,14 @@ set-backup_suffix() {
 # ----------------------------------------------------------------------------
 
 function does-file-end-in-newline() {
+	can-profile-not-trace # use x-return to leave function; can comment-out
 
 	local file
 	for file
-	    do	[[ -f $file && -s $file ]] || return 1
-		[[ $(tail -c 1 "$file") ]] && return 1
+	    do	[[ -f $file && -s $file ]] || { x-return 1; }
+		[[ $(tail -c 1 "$file") ]] && { x-return 1; }
 	done
-	return 0
+	x-return 0
 }
 
 # ----------------------------------------------------------------------------
@@ -1922,7 +1937,7 @@ function is-process-alive() {
 		if [[ -e /proc/mounts ]]
 		   then [[ -d /proc/$PID ]]
 		   else ps "$PID" &> $dev_null
-		fi || { x-return 1; }
+		fi || { x-return 1; }	# x-return is multi-cmd alias, so {}
 	done
 	x-return 0
 }
@@ -2385,7 +2400,9 @@ out=$(rut -s .001 hang 2>&1) || [[ $out != ""   ]] &&_abort "should hang: $out"
 
 # strip leading tabs (shell script's indent) from $1, and expand remaining tabs
 set-python_script() {
-	[[ $# == 1 ]] || abort-function "takes one arg, got $#" || return 1
+	can-profile-not-trace # use x-return to leave function; can comment-out
+	[[ $# == 1 ]] ||
+	    abort-function "takes one arg, got $#" || { x-return 1; }
 	python_script=$1
 
 	local leading_tabs='						'
@@ -2403,6 +2420,7 @@ set-python_script() {
 
 	python_script=$(echo "$python_script" |
 			sed "s/^$leading_tabs//" | expand)
+	x-return
 }
 
 # ----------------------------------------------------------------------------
