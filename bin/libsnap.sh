@@ -1225,7 +1225,7 @@ function not-yet() { warn "'$*' not yet available, ignoring"; }
 # snapback or snapcrypt users can write a replacement in configure.sh .
 #############################################################################
 
-function set-FS_type--from-path() {
+function set-FS_type--from-mount-dir() {
 	[[ $# == 1 ]] || abort-function "path"
 	local  path=$1
 	[[ -e $path ]] || abort "mount-dir='$path' doesn't exist"
@@ -1238,7 +1238,7 @@ function set-FS_type--from-path() {
 	   then have-cmd lsblk ||
 		   abort "fix $FUNCNAME for '$path', email to ${coder-Scott}"
 		[[ ! -b "$path" ]] && local FS_device &&
-		    set-FS_device--from-path "$path" && path=$FS_device
+		    set-FS_device--from-mount-dir "$path" && path=$FS_device
 		[[ ! -b "$path" ]] &&
 		    abort-function "'$path' is not accessible"
 		local cmd="lsblk --noheadings --nodeps --output=fstype $path"
@@ -1254,18 +1254,18 @@ function set-FS_type--from-path() {
 
 # ----------------------------------------------------------------------------
 
-function set-inode_size-data_block_size-dir_block_size--from-path() {
+function set-inode_size-data_block_size-dir_block_size--from-mount-dir() {
 	[[ $# == 1  ]] || abort-function "path"
 	local  path=$1
 	[[ -e $path ]] || abort-function "mount-dir='$path' doesn't exist"
 
 	local FS_type
-	set-FS_type--from-path "$path" || return $?
+	set-FS_type--from-mount-dir "$path" || return $?
 
 	case $FS_type in
 	   ( ext? )
 		local FS_device
-		set-FS_device--from-path "$path" || return 1
+		set-FS_device--from-mount-dir "$path" || return 1
 		# shellcheck disable=SC2046
 		set -- $(sudo tune2fs -l "$FS_device" |&
 				sed -n  -e 's/^Block size://p' \
@@ -1363,7 +1363,7 @@ label-drive() {
 	[[ -b $device ]] || abort "$device is not a device"
 
 	local FS_type FS_label
-	set-FS_type--from-path "$device"
+	set-FS_type--from-mount-dir "$device"
 
 	set-FS_label--from-mount_dir "$mount_dir"
 
@@ -1381,7 +1381,7 @@ set-FS_device--from-FS-label() {
 	local label=$1
 
 	if [[ -d /Volumes ]]		# Darwin?
-	   then set-FS_device--from-path "/Volumes/$label"
+	   then set-FS_device--from-mount-dir "/Volumes/$label"
 		return
 	fi
 
@@ -1438,7 +1438,7 @@ set-OS_release_file-OS_release() {
 # snapback or snapcrypt users can write replacements in configure.sh .	#
 # -----------------------------------------------------------------------
 
-function set-FS_device--from-path() {
+function set-FS_device--from-mount-dir() {
 	[[ $# == 1  ]] || abort-function "path"
 	local  path=$1
 	[[ -e $path ]] || { warn "path=$path doesn't exist"; return 1; }
