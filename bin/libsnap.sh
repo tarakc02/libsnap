@@ -108,14 +108,14 @@ readonly dev_null=/dev/null
 if [[ $our_path == */libsnap.sh ]]
    then [[ $# == 0 ]] && exit 0
 	# shellcheck disable=SC2048
-	[[ $* == -r ]] || _abort "only -r (run regression tests) is supported"
+	[[ $* == -r ]]  || _abort "only -r (run regression tests) is supported"
+	[[ $UID != 0 ]] || _abort "don't run as root with -r"
 
 	! type -t shellcheck > $dev_null || shellcheck "$our_path" || exit 1
 	set -u				# for unit tests
 	_do_run_unit_tests=$true	# 90 milliseconds
    else _do_run_unit_tests=$false	# 10 milliseconds
 fi
-
 
 # basename of calling script, we won't change caller's value
 if [[ ! ${our_name-} ]]
