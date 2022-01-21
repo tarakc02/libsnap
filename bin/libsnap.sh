@@ -1122,18 +1122,22 @@ print-profile-data() {
 [[ $_do_run_unit_tests ]] && {
 profile-on; sleep 0.00001; profile-off || _abort "must pass-through sleep-stat"
 [[ -v profile_overhead_usecs ]] && _abort "profiling should be disabled"
- true; profile-on  || _abort "profile-on  not null-cmd after true"
-false; profile-on  && _abort "profile-on  not null-cmd after false"
- true; profile-off || _abort "profile-off not null-cmd after true"
-false; profile-off && _abort "profile-off not null-cmd after false"
 
-do_profile=$true
-profile-on; sleep 0.001; profile-off || _abort "should return success"
+for do_profile in "$false" "$true"
+    do	 true; profile-on  || _abort "profile-on  not null-cmd after true"
+	 true; profile-off || _abort "profile-off not null-cmd after true"
+	false; profile-on  && _abort "profile-on  not null-cmd after false"
+	false; profile-off && _abort "profile-off not null-cmd after false"
+done
+
+profile-on; sleep 0.00001; profile-off || _abort "should return success"
 [[ -v profile_overhead_usecs ]] || _abort "didn't set profile_overhead_usecs"
 ((    profile_overhead_usecs )) || _abort "profile_overhead_usecs is 0"
 ((  ${profiled_function2usecs[main]} >= 10 )) || _abort "profile failed"
-((  ${profiled_function2count[main]} ==  1 )) || _abort "profiling error"
+((  ${profiled_function2count[main]} ==  3 )) || _abort "profiling error"
 }
+
+do_profile=$true
 
 # ----------------------------------------------------------------------------
 # The above functions are mostly accessed with the following aliases.
@@ -2426,7 +2430,7 @@ set-python_script() {
 [[  ${_do_run_unit_tests-} ]] && {
 unset _do_run_unit_tests
 print-profile-data -k 3 |
-    sed 's/\tmain$/\t{all the unit tests}/' | echo-to-file - profile.csv
+    sed 's/\tmain$/\t{profile unit tests}/' | echo-to-file - profile.csv
 head -v profile.csv
 }
 
