@@ -142,8 +142,8 @@ shopt -s globasciiranges		# so weird locales don't mess us up
 shopt -s lastpipe			# don't fork last cmd of pipeline
 
 # set -x: if command in /home/, precede by ~ (yourself) else ~other-user .
-# this logic for the first-half of PS4 is duplicated in print-call-stack
-PS4='+ $(echo ${BASH_SOURCE-} | sed "s@^$HOME/@~/@; s@^/home/@~@; s@/.*/@ @")'
+# This logic for the first-half of PS4 is duplicated in print-call-stack .
+PS4='+ $(sed "s@^$HOME/@~/@; s@^/home/@~@; s@/.*/@ @" <<<"${BASH_SOURCE-}")'
 PS4+=' line ${LINENO-}, in ${FUNCNAME-main}: '
 export PS4
 
@@ -580,9 +580,7 @@ print-call-stack() {
 		    { argv_i+=${BASH_ARGC[depth]}; continue; } # skip ourself
 		# this logic is duplicated in PS4
 		local src
-		src=$(echo "${BASH_SOURCE[depth]}" |
-			  sed "s@^$HOME/@~/@; s@^/home/@~@; s@/.*/@ @") ||
-		    abort src=
+		src=$(sed "s@^$HOME/@~/@; s@^/home/@~@; s@/.*/@ @" <<<"${BASH_SOURCE[depth]}") || abort src=
 		local args=
 		local -i argc=${BASH_ARGC[depth]-0} number_args=0
 		for (( arg_i=argv_i+argc-1; arg_i >= argv_i; arg_i-- ))
