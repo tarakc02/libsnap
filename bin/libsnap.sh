@@ -1069,7 +1069,7 @@ function profile-off() {
 
 # shellcheck disable=SC2120
 print-profile-data() {
-	[[ ${1-} == -d ]] && { local opt="$1$2"; shift 2; } || local opt=
+	[[ ${1-} == -d ]] && { local opt="$1$2"; shift 2; } || local opt="-d 6"
 	[[ ${1-} == -k ]] && { local arg="$1$2"; shift 2; } || local arg=-
 	[[ $# == 0 ]] ||
 	    abort-function "[-d decimal-digits] [-k sort-column-number]"
@@ -1089,9 +1089,11 @@ print-profile-data() {
 	    do	count=${profiled_function2count[$name]}
 		usecs=${profiled_function2usecs[$name]}
 		usecs_per_call=$usecs/$count
-		  set-division "${opt:--d6}" "$usecs"          1000000
+		# shellcheck disable=SC2086 # options are optional
+		  set-division $opt "$usecs"          1000000
 		secs=$division
-		  set-division "${opt:--d6}" "$usecs_per_call" 1000000
+		# shellcheck disable=SC2086 # options are optional
+		  set-division $opt "$usecs_per_call" 1000000
 		secs_per_call=$division
 		# shellcheck disable=SC2059 # why not??
 		printf "$format" "$secs" "$count" "$secs_per_call" "$name"
@@ -1157,6 +1159,8 @@ fi
 
 # 'mkdir' buggy in bash-4.4.20: mkdir -p fails when exists & writable parent
 # 'head' speed is proportional to value of -n
+# You can read the code for each builtin, e.g. for realpath:
+#    https://fossies.org/linux/bash/examples/loadables/realpath.c
 bash_builtins="basename dirname id realpath rmdir rm sleep tee uname"
 
 [[ $BASH_LOADABLES_PATH ]] &&
@@ -1313,6 +1317,7 @@ function set-device_KB--from-block-device() {
 
 # snapback or snapcrypt users can write a replacement in configure.sh
 set-FS_label--from-FS-device() {
+	can-profile-not-trace # use x-return to leave function; can comment-out
 	[[ $# == 1 ]] || abort-function "device"
 	local  device=$1
 	[[ -b $device ]] || abort "$device is not a device"
@@ -1326,7 +1331,7 @@ set-FS_label--from-FS-device() {
 		# shellcheck disable=SC2012
 		FS_label=$(ls -l "$label2disk_dir" |
 			   sed -r -n "s~.* ([^ ]+) -> ../../$name$~\1~p")
-		[[ $FS_label ]] && return
+		[[ $FS_label ]] && { x-return; }
 	fi; }
 
 	# shellcheck disable=SC1014,SC2053
@@ -1347,6 +1352,7 @@ set-FS_label--from-FS-device() {
 
 	[[ $FS_label ]] ||
 	   abort "you need to fix $FUNCNAME and email it to ${coder-Scott}"
+	x-return
 }
 
 # ----------------------------------------------------------------------------
@@ -2174,7 +2180,7 @@ set-division() {
 }
 
 [[ $_do_run_unit_tests ]] && {
-alias sd=set-division
+sd() { set-division "$@"; }
 sd -d 1 -6  3 ; [[ $division == -2.0 ]] || _abort "-6/3  != $division"
 sd -d 1 -6 -3 ; [[ $division ==  2.0 ]] || _abort "-6/-3 != $division"
 # test minutes to hours
@@ -2189,11 +2195,10 @@ sd         1 1 |& fgrep -q libsnap.sh: || _abort "didn't catch missing -d#"
 sd -d 1 -q 1 1 |& fgrep -q libsnap.sh: || _abort "didn't catch erroneous opt"
 sd -d 1      1 |& fgrep -q libsnap.sh: || _abort "missing numerator"
 # test -w and -z
-alias sd='set-division -w 5 -z -d 2'
-sd    9 2; [[ $division == 04.50 ]] || _abort    "9/2 != $division"
-sd  900 2; [[ $division == 450.0 ]] || _abort  "900/2 != $division"
-sd 9000 2; [[ $division == 4500  ]] || _abort "9000/2 != $division"
-unalias sd
+sd-w() { set-division -w 5 -z -d 2 "$@"; }
+sd-w    9 2; [[ $division == 04.50 ]] || _abort    "9/2 != $division"
+sd-w  900 2; [[ $division == 450.0 ]] || _abort  "900/2 != $division"
+sd-w 9000 2; [[ $division == 4500  ]] || _abort "9000/2 != $division"
 unset division
 }
 
