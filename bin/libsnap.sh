@@ -1890,9 +1890,9 @@ function read-all() {
 
 [[ $_do_run_unit_tests ]] && {
 [[ -s /etc/hostname ]] && {
-read-all data /etc/hostname && [[ $data ]] || _abort "should return success"; }
+read-all data /etc/hostname && [[ $data ]] || _abort "should return success"
 # shellcheck disable=SC2154
-[[ $data == "$HOSTNAME" ]] || _abort "read-all failed"
+[[ $data == "$HOSTNAME" ]] || _abort "read-all got wrong data: $data"; }
 ( read-all data /etc/hostname 2>$dev_null ) || _abort "can't read /etc/shadow"
 ( read-all data /etc          2>$dev_null ) || _abort "can't read /etc/"
 unset data
