@@ -1225,7 +1225,8 @@ function not-yet() { warn "'$*' not yet available, ignoring"; }
 # snapback or snapcrypt users can write a replacement in configure.sh .
 #############################################################################
 
-function set-FS_type--from-mount-dir() {
+# path can be either the mount directory or the device
+function set-FS_type--from-path() {
 	[[ $# == 1 ]] || abort-function "path"
 	local  path=$1
 	[[ -e $path ]] || abort "mount-dir='$path' doesn't exist"
@@ -1254,13 +1255,14 @@ function set-FS_type--from-mount-dir() {
 
 # ----------------------------------------------------------------------------
 
-function set-inode_size-data_block_size-dir_block_size--from-mount-dir() {
+# path can be either the mount directory or the device
+function set-inode_size-data_block_size-dir_block_size--from-path() {
 	[[ $# == 1  ]] || abort-function "path"
 	local  path=$1
 	[[ -e $path ]] || abort-function "mount-dir='$path' doesn't exist"
 
 	local FS_type
-	set-FS_type--from-mount-dir "$path" || return $?
+	set-FS_type--from-path "$path" || return $?
 
 	case $FS_type in
 	   ( ext? )
@@ -1363,7 +1365,7 @@ label-drive() {
 	[[ -b $device ]] || abort "$device is not a device"
 
 	local FS_type FS_label
-	set-FS_type--from-mount-dir "$device"
+	set-FS_type--from-path "$device"
 
 	set-FS_label--from-mount_dir "$mount_dir"
 
