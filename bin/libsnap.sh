@@ -749,7 +749,7 @@ unset _int_var _str_var
 
 # --------------------------------
 
-is-integer() {
+function is-integer() {
 	[[ $# == 1 ]] || abort-function "arg"
 	[[ $1 =~ ^-?[0-9]+$ ]]
 }
@@ -860,7 +860,7 @@ echoEV() {
 declare -i Trace_level=0		# default to none (probably)
 
 _isnum() { [[ $1 =~ ^[0-9]+$ ]] ||abort -1 "Trace* first arg is (min) level"; }
-_Trace () {
+function _Trace () {
 	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
 	local echo_cmd=$1; shift
 	_isnum "$1"
@@ -1268,7 +1268,7 @@ function set-inode_size-data_block_size-dir_block_size--from-path() {
 	[[ -e $path ]] || abort-function "mount-dir='$path' doesn't exist"
 
 	local FS_type
-	set-FS_type--from-path "$path" || { x-return $?; }
+	set-FS_type--from-path "$path" || { x-return 1; }
 
 	case $FS_type in
 	   ( ext? )
@@ -1600,7 +1600,7 @@ is-arg1-in-arg2 12 "$fields" && _abort "12   is  in fields"
 
 # ----------------------------------------------------------------------------
 
-is-an-FS-device-mounted() {
+function is-an-FS-device-mounted() {
 	[[ $# == 1 ]] || abort-function "{ device | mount-dir }"
 	local path=$1
 	[[ $path == /* ]] || path=$PWD/$path
@@ -1617,11 +1617,11 @@ is-an-FS-device-mounted() {
 
 # ----------------------------------------------------------------------------
 
-is-older() {
+function is-older() {
 	[[ $# == 2 ]] || abort-function "path-1 path-2"
 	[[ -e $1 && -e $2 && $1 -ot $2 ]]
 }
-is-newer() {
+function is-newer() {
 	[[ $# == 2 ]] || abort-function "path-1 path-2"
 	[[ -e $1 && -e $2 && $1 -nt $2 ]]
 }
@@ -1726,6 +1726,7 @@ function set-file_KB() {
 	file_KB=$1
 	continue-tracing-function
 	[[ $file_KB ]]
+	profile-off
 }
 
 # ----------------------------------------------------------------------------
@@ -1808,7 +1809,7 @@ assert-sha1sum() {
 
 	# shellcheck disable=SC2046,SC2086
 	set --   $(sha1sum "$file")
-	[[ $1 == "$sha1sum" ]] && x-return
+	[[ $1 == "$sha1sum" ]] && { x-return; }
 	abort     "sha1sum($file) != $sha1sum"
 }
 
@@ -2039,6 +2040,7 @@ function set-popped_word-is_last_word--from-list() {
 	list=$*				# retain the rest of the words
 	continue-tracing-function
 	[[ $popped_word ]]
+	profile-off
 }
 
 [[ $_do_run_unit_tests ]] && {
@@ -2306,7 +2308,7 @@ function run-function() {
 	[[ $status == 0 || $is_procedure ]] || abort -1 "'$*' returned $status"
 
 	[[ $function =~ ^_?(did-)?(set|update|(append|prepend)-to)- ]] ||
-	    return $status
+	    { x-return $status; }
 	local function_prefix=${BASH_REMATCH[0]}
 
 	header "variables set by: $*"
@@ -2358,6 +2360,7 @@ _run-echo-output() {
 	local value
 	[[ -s $file ]] && value=$(< "$file") || { x-return; }
 	echo "$value"
+	x-return
 }
 
 # ---------------------------------
@@ -2422,7 +2425,7 @@ set-python_script() {
 
 	python_script=$(echo "$python_script" |
 			sed "s/^$leading_tabs//" | expand)
-	x-return
+	x-return 0
 }
 
 # ----------------------------------------------------------------------------
