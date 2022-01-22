@@ -1065,22 +1065,24 @@ function profile-on() {
 
 function profile-off() {
 	local status=$?
+	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
 	local -i epoch_usecs
 	set-epoch_usecs
-	[[ ${do_profile-} ]] || return $status
+	[[ ${do_profile-} ]] || { $xtrace; return $status; }
 	[[ -v profile_overhead_usecs ]] ||
-	 _set-profile_overhead_usecs "$@" || return $status
+	 _set-profile_overhead_usecs "$@" || { $xtrace; return $status; }
 	local function=${FUNCNAME[1]-main}
 	local name=${1:-${profiled_function2name[$function]}}
 
 	local -i epoch_start=${profiled_function2epoch[$name]-0}
-	(( $epoch_start > 0 )) || return
+	(( $epoch_start > 0 )) || { $xtrace; return $status; }
 
 	local -i usecs_duration=$epoch_usecs-$epoch_start
 	profiled_function2usecs[$name]+=$usecs_duration-$profile_overhead_usecs
 	profiled_function2count[$name]+=1
 
 	profiled_function2epoch[$name]=0 # in case profile-off without -on
+	$xtrace
 	return $status
 }
 
