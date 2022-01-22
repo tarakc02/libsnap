@@ -1164,9 +1164,9 @@ local _trc_=$?; [[ $x_function == "$FUNCNAME" ]] && set -x; [[ $_trc_ == 0 ]]'
 # If used after '||' or '&&' , you must enclose it in {}, aka: { x-return 1; }
 # shellcheck disable=SC2154 # shellcheck doesn't grok pervious alias
 alias x-return='
-	local _x_return_status_=$?
+	local _x_return_default_status_=$?
 	profile-off; [[ ${x_function-} != $FUNCNAME ]] || set +x
-	[[ $_x_return_status_ == 0 ]]; return'
+	[[ $_x_return_default_status_ == 0 ]]; return'
 
 #############################################################################
 #############################################################################
