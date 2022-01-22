@@ -1156,13 +1156,15 @@ alias can-profile-not-trace='
 
 # shellcheck disable=SC2154 # shellcheck doesn't grok pervious alias
 alias continue-tracing-function='
-[[ $x_function == "$FUNCNAME" ]] && set -x'
+local _trc_=$?; [[ $x_function == "$FUNCNAME" ]] && set -x; [[ $_trc_ == 0 ]]'
 
-# Replaces 'return', if function might have profile-on or can-profile-not-trace
+# This replaces 'return', if function *might* have can-profile-not-trace ,
 # If used after '||' or '&&' , you must enclose it in {}, aka: { x-return 1; }
 # shellcheck disable=SC2154 # shellcheck doesn't grok pervious alias
 alias x-return='
-	profile-off; [[ ${x_function-} != $FUNCNAME ]] || set +x && return'
+	local _x_return_status_=$?
+	profile-off; [[ ${x_function-} != $FUNCNAME ]] || set +x
+	[[ $_x_return_status_ == 0 ]]; return'
 
 #############################################################################
 #############################################################################
@@ -1254,8 +1256,7 @@ function set-FS_type--from-path() {
 	fi
 
 	[[ $FS_type ]] || warn "$FUNCNAME: $path has no discernible filesystem"
-	local status=$?
-	x-return $status		# x-return mangles $?, so use $status
+	x-return
 }
 
 # ----------------------------------------------------------------------------
@@ -1320,8 +1321,7 @@ function set-device_KB--from-block-device() {
 	[[ $# == 1 ]] || abort-function ": specify a partition not whole drive"
 	device_KB=$(( $1/1024 ))
 	(( $device_KB > 0 ))
-	local status=$?
-	x-return $status		# x-return mangles $?, so use $status
+	x-return
 }
 
 # ----------------------------------------------------------------------------
@@ -1461,8 +1461,7 @@ function set-FS_device--from-mount-dir() {
 	set-mounts
 	FS_device=$(sed -r -n "s~^([^ ]+) $path .*~\1~p" <<<"$mounts")
 	[[ $FS_device ]]
-	local status=$?
-	x-return $status		# x-return mangles $?, so use $status
+	x-return
 }
 
 # ----------------------------
@@ -1580,8 +1579,7 @@ function is-arg1-in-arg2() {
 	# turn newlines and TABs into SPACEs before checking
 	[[ " ${arg2//[
 	]/ } "  ==  *" $arg1 "* ]]
-	local status=$?
-	x-return $status		# x-return mangles $?, so use $status
+	x-return
 }
 
 [[ $_do_run_unit_tests ]] && {
