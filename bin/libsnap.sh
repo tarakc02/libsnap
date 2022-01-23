@@ -1888,9 +1888,10 @@ set-cat_cmd() {
 
 # ----------------------------------------------------------------------------
 
-# this doesn't fork, so SHOULD BE (FIXME) way-faster than $(< ).
+# this doesn't fork, so 20xfaster than $(< ).
 # BUT, this function will silently discard leading and trailing blank lines,
 # because that's how 'read' itself works in bash-5.0.
+# returns non-0 if file is empty, or if -A and error.
 function read-all() {
 	can-profile-not-trace # use x-return to leave function; can comment-out
 	[[ $1 == -A ]] && { local no_abort=$true; shift; } || local no_abort=
