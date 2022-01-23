@@ -1898,8 +1898,12 @@ function read-all() {
 	local var_name=$1 file_name=$2
 
 	[[ $no_abort && ! -f "$file_name" ]] && { x-return 1; }
+	unset "$var_name"		# in case 'read' fails
 	read -d '\0' -r "$var_name" < "$file_name"
-	[[ -v $var_name ]] && { x-return 0; }
+	if [[ -v $var_name ]]
+	   then [[ ${!var_name} ]]
+		x-return
+	fi
 	[[    $no_abort ]] && { x-return 1; }
 	[[ -e $file_name ]] || abort-function "$file_name doesn't exist"
 	[[ -f $file_name || -p $file_name ]] ||
@@ -1909,14 +1913,16 @@ function read-all() {
 }
 
 [[ $_do_run_unit_tests ]] && {
-[[ -s /etc/hostname ]] && {
-read-all data /etc/hostname && [[ $data ]] || _abort "should return success"
-# shellcheck disable=SC2154
+file=/etc/hostname
+[[ -s $file ]] && {
+cat   $file > $dev_null			# pull into page cache for profiling
+read-all data $file && [[ $data ]] || _abort "should return success"
 [[ $data == "$HOSTNAME" ]] || _abort "read-all got wrong data: $data"; }
-( read-all data /etc/hostname 2>$dev_null ) || _abort "can't read /etc/shadow"
-( read-all data /etc          2>$dev_null ) || _abort "can't read /etc/"
+( read-all data /etc/shadow 2>$dev_null ) && _abort "can't read /etc/shadow"
+( read-all data /etc        2>$dev_null ) && _abort "can't read /etc/"
 unset data
 read-all -A data DoesNotExist || [[ -v data ]] && _abort "nothing to read"
+read-all data $dev_null && _abort "should return nothing, but got '$data'"
 }
 
 #############################################################################
