@@ -303,7 +303,7 @@ prepend-to-PATH-var PATH $homebrew_install_dir/*/libexec/*bin
 
 # ----------------------------------------------------------------------------
 
-set-mounts() {
+function set-mounts {
 
 	local mounts_path=/proc/mounts
 	if [[ -f $mounts_path ]]	# FreeBSD doesn't have this
@@ -893,7 +893,7 @@ function remember-tracing {
 
 # pass -l if used in a loop, and the restore-tracing is outside the loop
 # shellcheck disable=SC2120 # we merely make sure we get no args
-function suspend-tracing {
+function suspend-tracing() {
 	local status=$?			# status from caller's previous command
 	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
 	[[ ${1-} == -l ]] && { shift; local in_loop=$true; } || local in_loop=
@@ -1422,7 +1422,7 @@ set-FS_device--from-FS-label() {
 
 # you might try to use $OSTYPE instead of this function
 # shellcheck disable=SC2120 # we merely make sure we get no args
-set-OS_release_file-OS_release() {
+function set-OS_release_file-OS_release {
 	[[ $# == 0 ]] || abort-function "takes no arguments"
 
 	set -- /usr/lib/*-release /etc/*-release
@@ -1670,7 +1670,7 @@ alias  popd_='_chdir  popd'
 
 # ----------------------------------------------------------------------------
 
-df_() { df "$@"; }			# a killable function
+function df_() { df "$@"; }		# a killable function
 
 # ----------------
 
@@ -1961,7 +1961,7 @@ function is-process-alive() {
 #############################################################################
 #############################################################################
 
-set-uniques() {
+function set-uniques() {
 
 	local -A unique2true
 	local value
@@ -2238,7 +2238,7 @@ unset division
 #############################################################################
 
 # like usleep, but takes milliseconds as its argument
-msleep() {
+function msleep() {
 	[[ $# == 1 ]] || abort-function "milliseconds"
 	local -i msecs=$1
 
@@ -2250,7 +2250,7 @@ msleep() {
 
 # ---------------------------------
 
-sleep-exe() {
+function sleep-exe() {
 
 	env sleep "$@"
 }
@@ -2411,7 +2411,7 @@ out=$(rut -s .001 hang 2>&1) || [[ $out != ""   ]] &&_abort "should hang: $out"
 # ----------------------------------------------------------------------------
 
 # strip leading tabs (shell script's indent) from $1, and expand remaining tabs
-set-python_script() {
+function set-python_script() {
 	can-profile-not-trace # use x-return to leave function; can comment-out
 	[[ $# == 1 ]] ||
 	    abort-function "takes one arg, got $#" || { x-return 1; }
