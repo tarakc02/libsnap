@@ -1160,6 +1160,10 @@ alias can-profile-not-trace='
 alias continue-tracing-function='
 local _trc_=$?; [[ $x_function == "$FUNCNAME" ]] && set -x; [[ $_trc_ == 0 ]]'
 
+# Programmer can end function with a test on (possibly-null) computed value.
+alias can-trace-final-test='
+profile-off; [[ $x_function == "$FUNCNAME" ]] && set -x'
+
 # This replaces 'return', if function *might* have can-profile-not-trace ,
 # If used after '||' or '&&' , you must enclose it in {}, aka: { x-return 1; }
 # shellcheck disable=SC2154 # shellcheck doesn't grok pervious alias
