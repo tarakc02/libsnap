@@ -984,7 +984,7 @@ RunCmd true &&
 
 #############################################################################
 #############################################################################
-### Profiling functions, used in can-profile-not-trace and x-return .
+### Profiling functions, primrily used by the aliases at the very end.
 #############################################################################
 #############################################################################
 
@@ -1150,6 +1150,12 @@ do_profile=$true
 
 # ----------------------------------------------------------------------------
 # The above functions are mostly accessed with the following aliases.
+
+# The common use case: after a (possible) global "set -x", you don't want to
+# trace a particular function because it's known to work or contains loops, so
+# you start the function with can-profile-not-trace, and restore tracing
+# before leaving the function with either can-trace-final-test or x-return .
+# As a bonus, if $do_profile is non-null, it profiles that function.
 # ----------------------------------------------------------------------------
 
 alias can-profile-not-trace='
@@ -2348,10 +2354,14 @@ function run-function() {
 
 # ----------------------------------------------------------------------------
 
+# On Ubuntu, install libpcre3-dev to get pcresyntax(3) and pcrepattern(3).
+# This may not be reliable with option --null-data .
 alias pegrep='grep --perl-regexp'
 
 # ----------------------------------------------------------------------------
-# run-until-timeout let's you avoid hangs when there are I/O problems
+# ----------------------------------------------------------------------------
+# run-until-timeout: let's you avoid hangs when there are I/O problems
+# ----------------------------------------------------------------------------
 # ----------------------------------------------------------------------------
 
 killer() {
