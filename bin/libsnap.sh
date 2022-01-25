@@ -1122,7 +1122,6 @@ print-profile-data() {
 }
 
 [[ $_do_run_unit_tests ]] && {
-profile-on; sleep 0.00001; profile-off || _abort "must pass-through sleep-stat"
 [[ -v profile_overhead_usecs ]] && _abort "profiling should be disabled"
 
 for do_profile in "$false" "$true"
@@ -1132,11 +1131,19 @@ for do_profile in "$false" "$true"
 	false; profile-off && _abort "profile-off not null-cmd after false"
 done
 
-profile-on; sleep 0.00001; profile-off || _abort "should return success"
+for name in "" test; do
+profile-on "$name"; sleep 0.00001; profile-off || _abort "must return success"
 [[ -v profile_overhead_usecs ]] || _abort "didn't set profile_overhead_usecs"
 ((    profile_overhead_usecs )) || _abort "profile_overhead_usecs is 0"
-((  ${profiled_function2usecs[main]} >= 10 )) || _abort "profile failed"
-((  ${profiled_function2count[main]} ==  3 )) || _abort "profiling error"
+name=${name:-main}
+[[ $name != main ]] ||
+((  ${profiled_function2count[$name]} ==  3 )) || _abort "profile error: $name"
+((  ${profiled_function2usecs[$name]} >= 10 )) || _abort "profile fail: $name"
+done
+
+for name in main test
+    do	[[ ${profiled_function2usecs[$name]-} ]] || _abort "PF missing $name"
+done
 }
 
 do_profile=$true
