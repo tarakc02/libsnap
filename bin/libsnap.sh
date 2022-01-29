@@ -82,11 +82,15 @@ _libsnap-exit() {
 }
 
 # to announce errors in this script
-function _warn() { echo -e "\n$0: source libsnap.sh: $*\n" >&2; return 1; }
+function _warn() {
+	[[ ${_do_run_unit_tests-} ]] && local file=${0##*/} || local file=$0
+	echo -e "\n$file line ${BASH_LINENO[1]}: $*\n" >&2
+	return 1
+}
 function _abort() {
 	set +x
 	_warn "$*"
-	[[ $is_sourced_by_interactive_shell ]] && return 1
+	[[ ${is_sourced_by_interactive_shell-} ]] && return 1
 	_libsnap-exit 1
 }
 
@@ -1131,19 +1135,20 @@ for do_profile in "$false" "$true"
 	false; profile-off && _abort "profile-off not null-cmd after false"
 done
 
-for name in "" test; do
+for name in "" profile; do
 profile-on "$name"; sleep 0.00001; profile-off || _abort "must return success"
 [[ -v profile_overhead_usecs ]] || _abort "didn't set profile_overhead_usecs"
 ((    profile_overhead_usecs )) || _abort "profile_overhead_usecs is 0"
 name=${name:-main}
-[[ $name != main ]] ||
-((  ${profiled_function2count[$name]} ==  3 )) || _abort "profile error: $name"
+[[ $name == main ]] && c=3 || c=1
+((  ${profiled_function2count[$name]} == $c )) || _abort "profile error: $name"
 ((  ${profiled_function2usecs[$name]} >= 10 )) || _abort "profile fail: $name"
 done
 
-for name in main test
+for name in main profile
     do	[[ ${profiled_function2usecs[$name]-} ]] || _abort "PF missing $name"
 done
+unset "profiled_function2count[main]" "profiled_function2usecs[main]"
 }
 
 do_profile=$true
@@ -2460,8 +2465,7 @@ function set-python_script() {
 
 [[  ${_do_run_unit_tests-} ]] && {
 unset _do_run_unit_tests
-print-profile-data -k 3 |
-    sed 's/\tmain$/\t{profile unit tests}/' | echo-to-file - profile.csv
+print-profile-data -k 3 | echo-to-file - profile.csv
 head -v profile.csv
 }
 
