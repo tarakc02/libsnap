@@ -1125,6 +1125,19 @@ print-profile-data() {
 	done | sort -n -r "$arg"
 }
 
+# ---------------------------------
+
+write-profile-data() {
+	if [[ $# == 0 ]] || is-integer ${!#} # only print-profile-data args?
+	   then local filename=profile	     # default filename
+	   else local filename=${!#}
+		set -- "${@: 1: $#-1}"
+	fi
+	[[ ${filename##*/} == *.* ]] || filename+=.csv
+
+	print-profile-data "$@" | echo-to-file - $filename
+}
+
 [[ $_do_run_unit_tests ]] && {
 [[ -v profile_overhead_usecs ]] && _abort "profiling should be disabled"
 
@@ -2465,7 +2478,7 @@ function set-python_script() {
 
 [[  ${_do_run_unit_tests-} ]] && {
 unset _do_run_unit_tests
-print-profile-data -k 3 | echo-to-file - profile.csv
+write-profile-data -k 3
 head -v profile.csv
 }
 
