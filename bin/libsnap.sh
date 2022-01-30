@@ -46,10 +46,12 @@ readonly libsnap_version=1
 ##    set-foo-foo_bar	# sets variable foo and also sets variable foo_bar
 ##    set-foo--from-xxx	# sets variable foo ... using method/variable xxx
 ##    setup-foo-vars	# sets numerous variables related to foo
-## if "set-" is replaced by "update-" or "append-to-" or "prepend-to-",
+## If "set-*" is replaced by "update-" or "append-to-" or "prepend-to-",
 ##    the (initialized) variable(s) are updated rather than set;
-##    the designator might be preceded by "did-" (returm 1 of already set);
-## the included function 'run-function' will display these variables.
+##    the designator might be preceded by "did-" (returns 1 if already set).
+## The function 'run-function' will display the variables in function names.
+##
+## A function named "func-" is a faster version of "func" w/out error checking.
 ##
 ## An array (indexed or associative) that maps a_key to a_value is named:
 ##    a_key2a_value
