@@ -1,5 +1,6 @@
 #! /usr/bin/env bash
 # shellcheck disable=SC1007,SC2004,SC2015,SC2034,SC2128,SC2196,SC2197
+# disable SC2004: emacs doesn't colorize variables not preceded by a '$'
 
 readonly libsnap_version=1
 
