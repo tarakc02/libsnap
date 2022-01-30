@@ -2455,17 +2455,17 @@ out=$(rut -s .001 hang 2>&1) || [[ $out != ""   ]] &&_abort "should hang: $out"
 # strip leading tabs (shell script's indent) from $1, and expand remaining tabs
 function set-python_script() {
 	can-profile-not-trace # use x-return to leave function; can comment-out
-	[[ $# == 1 ]] ||
-	    abort-function "takes one arg, got $#" || { x-return 1; }
+	[[ $# == 1 && $1 ]] ||
+	    abort-function "takes one arg, got: '$*'" || { x-return 1; }
 	python_script=$1
 
 	local leading_tabs='						'
 	# shellcheck disable=SC2155
-	local line_count=$(echo "$python_script" | grep -c '[a-z]')
+	local line_count=$(grep -c '[a-z]' <<<"$python_script")
 	while [[ ${#leading_tabs} != 0 ]]
 	   do	# shellcheck disable=SC2155
-		local count=$(echo "$python_script" | grep '[a-z]' |
-				 grep -c "^$leading_tabs")
+		local count=$(grep '[a-z]' <<<"$python_script" |
+				  grep -c "^$leading_tabs")
 		[[ $count == "$line_count" ]] && break
 		leading_tabs=${leading_tabs#?}
 	done
