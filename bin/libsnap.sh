@@ -49,7 +49,7 @@ readonly libsnap_version=1
 ## If "set-*" is replaced by "update-" or "append-to-" or "prepend-to-",
 ##    the (initialized) variable(s) are updated rather than set;
 ##    the designator might be preceded by "did-" (returns 1 if already set).
-## The function 'run-function' will display the variables in function names.
+## The function 'run-function' will display the variables in function nqames.
 ##
 ## A function named "func-" is a faster version of "func" w/out error checking.
 ##
@@ -120,8 +120,8 @@ if [[ $our_path == */libsnap.sh ]]
 
 	! type -t shellcheck > $dev_null || shellcheck "$our_path" || exit 1
 	set -u				# for unit tests
-	_do_run_unit_tests=$true	# 90 milliseconds
-   else _do_run_unit_tests=$false	# 10 milliseconds
+	_do_run_unit_tests=$true	# ~100 milliseconds
+   else _do_run_unit_tests=$false	#  ~10 milliseconds
 fi
 
 # basename of calling script, we won't change caller's value
