@@ -1,5 +1,5 @@
 #! /usr/bin/env bash
-# shellcheck disable=SC1007,SC2004,SC2015,SC2034,SC2126,SC2128,SC2196,SC2197
+# shellcheck disable=SC1007,SC2004,SC2015,SC2034,SC2128,SC2196,SC2197
 
 readonly libsnap_version=1
 
@@ -2461,7 +2461,7 @@ function set-python_script() {
 
 	local leading_tabs='						'
 	# shellcheck disable=SC2155
-	local line_count=$(echo "$python_script" | grep '[a-z]' | wc -l)
+	local line_count=$(echo "$python_script" | grep -c '[a-z]')
 	while [[ ${#leading_tabs} != 0 ]]
 	   do	# shellcheck disable=SC2155
 		local count=$(echo "$python_script" | grep '[a-z]' |
