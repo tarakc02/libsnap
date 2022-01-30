@@ -6,7 +6,7 @@ readonly libsnap_version=1
 
 #     libsnap.sh is a library used by snap aka snapshot, snapback, & snapcrypt
 #
-#     Copyright (C) 2018-2019, Human Rights Data Analysis Group (HRDAG)
+#     Copyright (C) 2018-2022, Human Rights Data Analysis Group (HRDAG)
 #     https://hrdag.org
 #
 # This program is free software: you can redistribute it and/or modify
