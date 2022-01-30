@@ -75,16 +75,17 @@ readonly libsnap_version=1
 
 _libsnap-exit() {
 
-	if [[ $(type -t exit-normally) == function ]]
+	if type -t exit-normally > "$dev_null"
 	   then exit-normally "$@"
-	   else		 exit "$@"
+	   else exit	      "$@"
 	fi
 }
 
 # to announce errors in this script
 function _warn() {
 	[[ ${_do_run_unit_tests-} ]] && local file=${0##*/} || local file=$0
-	echo -e "\n$file line ${BASH_LINENO[1]}: $*\n" >&2
+	[[ ${FUNCNAME[1]-} == _abort ]] && local -i i=1 || local -i i=0
+	echo -e "\n$file line ~${BASH_LINENO[i]}: $*\n" >&2
 	return 1
 }
 function _abort() {
