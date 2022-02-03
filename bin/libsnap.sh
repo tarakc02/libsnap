@@ -1765,9 +1765,8 @@ function set-file_KB() {
 	# shellcheck disable=SC2046
 	set -- $(ls -sd "$_file")
 	file_KB=$1
-	continue-tracing-function
+	can-trace-final-test
 	[[ $file_KB ]]
-	profile-off
 }
 
 # ----------------------------------------------------------------------------
@@ -2086,9 +2085,8 @@ function set-popped_word-is_last_word--from-list() {
 		set +f
 	fi
 	list=$*				# retain the rest of the words
-	continue-tracing-function
+	can-trace-final-test
 	[[ $popped_word ]]
-	profile-off
 }
 
 [[ $_do_run_unit_tests ]] && {
