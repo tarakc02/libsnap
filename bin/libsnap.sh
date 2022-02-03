@@ -1181,30 +1181,32 @@ do_profile=$true
 # As a bonus, if $do_profile is non-null, it profiles that function.
 # ----------------------------------------------------------------------------
 
+declare -A _FUNCNAME2xtrace_
+
 alias can-profile-not-trace='
 	if [[ -o xtrace${force_next_function_trace-} ]]
 	   then set +x
-		[[ ${do_profile-} ]] && profile-on
-		local x_function=$FUNCNAME
-	   else local x_function=
-		[[ ${do_profile-} ]] && profile-on
+		_FUNCNAME2xtrace_[$FUNCNAME]=$true
+	   else _FUNCNAME2xtrace_[$FUNCNAME]=$false
 		force_next_function_trace=
-	fi'
+	fi
+	[[ ${do_profile-} ]] && profile-on'
 
 # shellcheck disable=SC2154 # shellcheck doesn't grok pervious alias
 alias continue-tracing-function='
-local _trc_=$?; [[ $x_function == "$FUNCNAME" ]] && set -x; [[ $_trc_ == 0 ]]'
+local _trc_=$?; [[ ${_FUNCNAME2xtrace_[$FUNCNAME]-} ]] && set -x
+[[ $_trc_ == 0 ]]'
 
 # Programmer can end function with a test on (possibly-null) computed value.
 alias can-trace-final-test='
-profile-off; [[ $x_function == "$FUNCNAME" ]] && set -x'
+profile-off; [[ ${_FUNCNAME2xtrace_[$FUNCNAME]-} ]] && set -x'
 
 # This replaces 'return', if function *might* have can-profile-not-trace ,
 # If used after '||' or '&&' , you must enclose it in {}, aka: { x-return 1; }
 # shellcheck disable=SC2154 # shellcheck doesn't grok pervious alias
 alias x-return='
 	local _x_return_default_status_=$?
-	profile-off; [[ ${x_function-} != $FUNCNAME ]] || set +x
+	profile-off; [[ ${_FUNCNAME2xtrace_[$FUNCNAME]-} ]] && set -x
 	[[ $_x_return_default_status_ == 0 ]]; return'
 
 #############################################################################
