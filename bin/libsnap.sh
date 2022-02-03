@@ -741,6 +741,7 @@ function is-integer-var() {
 	is-var "$1" && [[ $(declare -p "$1") =~ ' '-[a-zA-Z]*i[a-zA-Z]*' ' ]]
 }
 
+alias is-int-var=is-integer-var
 alias is-integer-variable=is-integer-var
 
 [[ $_do_run_unit_tests ]] && {
@@ -865,6 +866,7 @@ echoEV() {
 
 # ----------------------
 
+[[ -v      Trace_level ]] && is-int-var Trace_level ||
 declare -i Trace_level=0		# default to none (probably)
 
 _isnum() { [[ $1 =~ ^[0-9]+$ ]] ||abort -1 "Trace* first arg is (min) level"; }
@@ -872,7 +874,7 @@ function _Trace () {
 	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
 	local echo_cmd=$1; shift
 	_isnum "$1"
-	(( $1 <= $Trace_level )) || { $xtrace; return 1; }
+	(( $1 <= Trace_level )) || { $xtrace; return 1; }
 	shift
 	$echo_cmd -1 "$@"
 	$xtrace
@@ -1024,8 +1026,7 @@ declare -i -A profiled_function2count
 declare -i -A profiled_function2usecs
 declare    -A profiled_function2name
 
-declare -i profile_overhead_usecs
-[[ -v	   profile_overhead_passes ]] ||
+[[ -v	   profile_overhead_passes ]] && is-int-var profile_overhead_passes ||
 declare -i profile_overhead_passes=200	# up to 50 microseconds per pass
 
 function _set-profile_overhead_usecs() {
@@ -1038,9 +1039,9 @@ function _set-profile_overhead_usecs() {
 	   else profile_overhead_usecs=0 # for first call to profile-off
 	fi
 
-	local -i usecs min_usecs=1123123123
+	local -i i usecs min_usecs=1123123123
 	# enough to get a sample without a (longish) context switch
-	for ((i=1; i <= $profile_overhead_passes; i++))
+	for ((i=1; i <= profile_overhead_passes; i++))
 	    do	profile-on  "$FUNCNAME"
 		profile-off "$FUNCNAME"
 		usecs=${profiled_function2usecs[$FUNCNAME]}
@@ -1187,8 +1188,7 @@ alias can-profile-not-trace='
 		local x_function=$FUNCNAME
 	   else local x_function=
 		[[ ${do_profile-} ]] && profile-on
-		[[ ${force_next_function_trace-} ]] &&
-		     force_next_function_trace=
+		force_next_function_trace=
 	fi'
 
 # shellcheck disable=SC2154 # shellcheck doesn't grok pervious alias
