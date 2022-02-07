@@ -420,21 +420,21 @@ print-string-colors() {
 # main script can over-ride the following global variables after source us
 
 # the setb coloring stands out more, but fails under 'watch' on some OSs
-declare -A highlight_level2tput_b_args=(
+declare -g -A highlight_level2tput_b_args=(
          [ok]="setb 2"
      [notice]="setb 6"
     [warning]="setb 5"
       [error]="setb 4"
       [stale]="setb 1"
 )
-declare -A highlight_level2tput_args=(
+declare -g -A highlight_level2tput_args=(
          [ok]="setf 2"
      [notice]="setf 6"
     [warning]="setf 5"
       [error]="setf 4"
       [stale]="setf 3"
 )
-declare -A highlight_level2tput_args=(
+declare -g -A highlight_level2tput_args=(
          [ok]="setaf 2"
      [notice]="setaf 6"
     [warning]="setaf 5"
@@ -443,7 +443,7 @@ declare -A highlight_level2tput_args=(
 )
 clear_tput_args="sgr0"
 
-declare -A highlight_level2escape_sequence
+declare -g -A highlight_level2escape_sequence
 
 set-highlighted_string() {
 	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
@@ -514,7 +514,7 @@ set-log_date_time() {
 
 file_for_logging=$dev_null		# append to it; caller can change
 
-declare -i log_level=0			# set by getopts or configure.sh
+declare -g -i log_level=0		# set by getopts or configure.sh
 
 log_msg_prefix=				# can hold variables, it's eval'ed
 
@@ -562,7 +562,7 @@ header() {
 #############################################################################
 #############################################################################
 
-declare -i max_call_stack_args=6
+declare -g -i max_call_stack_args=6
 
 # if interactive, want to avoid these extdebug warnings:
 #    bash: /usr/share/bashdb/bashdb-main.inc: No such file or directory
@@ -866,8 +866,8 @@ echoEV() {
 
 # ----------------------
 
-[[ -v      Trace_level ]] && is-int-var Trace_level ||
-declare -i Trace_level=0		# default to none (probably)
+[[ -v         Trace_level ]] && is-int-var Trace_level ||
+declare -g -i Trace_level=0		# default to none (probably)
 
 _isnum() { [[ $1 =~ ^[0-9]+$ ]] ||abort -1 "Trace* first arg is (min) level"; }
 function _Trace () {
@@ -884,7 +884,7 @@ alias TraceV='_Trace echoEV'
 
 # ----------------------------------------------------------------------------
 
-declare -A funcname2was_tracing		# global for next three functions
+declare -g -A funcname2was_tracing	# global for next three functions
 
 # shellcheck disable=SC2120 # we merely make sure we get no args
 function remember-tracing {
@@ -1021,34 +1021,31 @@ fi
 
 # ----------------------------------------------------------------------------
 
-declare -i -A profiled_function2epoch
-declare -i -A profiled_function2count
-declare -i -A profiled_function2usecs
-declare    -A profiled_function2name
+declare -g -i -A profiled_function2epoch
+declare -g -i -A profiled_function2count
+declare -g -i -A profiled_function2usecs
+declare -g    -A profiled_function2name	# need -g, else gets unset?!
 
 [[ -v	   profile_overhead_passes ]] && is-int-var profile_overhead_passes ||
-declare -i profile_overhead_passes=200	# up to 50 microseconds per pass
+declare -g -i profile_overhead_passes=200 # up to 50 microseconds per pass
 
-function _set-profile_overhead_usecs() {
-	local name=${1-}
+declare -g -i profile_overhead_usecs=0
+function _set-profile_overhead_usecs {
 
-	[[ ${do_profile-} ]] || return 1
-
-	if [[ $name == "$FUNCNAME" ]]	# recursing?
-	   then return
-	   else profile_overhead_usecs=0 # for first call to profile-off
-	fi
+	profile_overhead_usecs=1	# do don't recurse
 
 	local -i i usecs min_usecs=1123123123
+
 	# enough to get a sample without a (longish) context switch
 	for ((i=1; i <= profile_overhead_passes; i++))
-	    do	profile-on  "$FUNCNAME"
-		profile-off "$FUNCNAME"
+	    do	profile-on
+		profile-off
 		usecs=${profiled_function2usecs[$FUNCNAME]}
 		profiled_function2usecs[$FUNCNAME]=0 # don't accumulate
 		(( $min_usecs<$usecs )) ||
 		    min_usecs=$usecs
 	done
+	(( $min_usecs > 0 )) || min_usecs=1
 	profile_overhead_usecs=$min_usecs
 	return 0
 }
@@ -1057,9 +1054,10 @@ function _set-profile_overhead_usecs() {
 
 function profile-on() {
 	local status=$?
-	[[ ${do_profile-} ]] || return $status
-	[[ -v profile_overhead_usecs ]] ||
-	 _set-profile_overhead_usecs "$@" || return $status
+	[[ -o xtrace ]] && { set +x; local xtrace="set -x"; } || local xtrace=
+	[[ ${do_profile-} ]] || { $xtrace; return $status; }
+	((   $profile_overhead_usecs > 0 )) ||
+	 _set-profile_overhead_usecs
 	local function=${FUNCNAME[1]-main}
 	local name=${1:-$function}
 	profiled_function2name[$function]=$name
@@ -1067,6 +1065,7 @@ function profile-on() {
 	local -i epoch_usecs
 	set-epoch_usecs
 	profiled_function2epoch[$name]=$epoch_usecs
+	$xtrace
 	return $status
 }
 
@@ -1078,8 +1077,6 @@ function profile-off() {
 	local -i epoch_usecs
 	set-epoch_usecs
 	[[ ${do_profile-} ]] || { $xtrace; return $status; }
-	[[ -v profile_overhead_usecs ]] ||
-	 _set-profile_overhead_usecs "$@" || { $xtrace; return $status; }
 	local function=${FUNCNAME[1]-main}
 	local name=${1:-${profiled_function2name[$function]}}
 
@@ -1144,7 +1141,7 @@ write-profile-data() {
 }
 
 [[ $_do_run_unit_tests ]] && {
-[[ -v profile_overhead_usecs ]] && _abort "profiling should be disabled"
+(( profile_overhead_usecs )) && _abort "profiling should be disabled"
 
 for do_profile in "$false" "$true"
     do	 true; profile-on  || _abort "profile-on  not null-cmd after true"
@@ -1181,7 +1178,7 @@ do_profile=$true
 # As a bonus, if $do_profile is non-null, it profiles that function.
 # ----------------------------------------------------------------------------
 
-declare -A _FUNCNAME2xtrace_
+declare -g -A _FUNCNAME2xtrace_
 
 alias can-profile-not-trace='
 	if [[ -o xtrace${force_next_function_trace-} ]]
@@ -1347,7 +1344,7 @@ function set-inode_size-data_block_size-dir_block_size--from-path() {
 
 # ----------------------------------------------------------------------------
 
-declare -i device_KB=0
+declare -g -i device_KB=0
 
 # snapback users can write a replacement in configure.sh
 function set-device_KB--from-block-device() {
