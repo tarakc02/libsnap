@@ -298,7 +298,7 @@ prepend-to-PATH-var PATH /usr/local/bin /usr/local/sbin
 
 [[ $is_darwin ]] && {
 
-readonly homebrew_install_dir=/usr/local/opt
+readonly homebrew_install_dir=/opt/homebrew/opt
 readonly homebrew_coreutils_bin=$homebrew_install_dir/coreutils/libexec/gnubin
 
 [[ -d $homebrew_coreutils_bin ]] ||
