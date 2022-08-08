@@ -1642,6 +1642,7 @@ function is-an-FS-device-mounted() {
 	[[ $# == 1 ]] || abort-function "{ device | mount-dir }"
 	local path=$1
 	[[ $path == /* ]] || path=$PWD/$path
+	[[ $path != /dev/* && ! -d $path ]] && return 1
 	[[ -b $path || -d $path ]] ||
 	    abort-function ": can't find device or directory for '$1'"
 
