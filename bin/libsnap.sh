@@ -2346,7 +2346,7 @@ function run-function() {
 	"$@"
 	local status=$?
 	set +x
-	echo -e "\nstatus=$?"
+	echo -e "\nstatus=$status"
 	# shellcheck disable=SC2086 # variable contains multiple values
 	[[ $var_names ]] && echoEV -1 ${var_names//,/ }
 	[[ $status == 0 || $is_procedure ]] || abort -1 "'$*' returned $status"
