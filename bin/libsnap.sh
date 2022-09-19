@@ -2159,6 +2159,7 @@ set-product() {
 	   else local decimal=$2 integer=$1
 	fi
 
+	declare -g -i product
 	if [[ $decimal != *.?* ]]	# not a decimal??
 	   then product=$(( ${decimal%.} * $integer ))
 		x-return
