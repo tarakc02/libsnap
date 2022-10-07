@@ -1032,7 +1032,7 @@ declare -g -i profile_overhead_passes=200 # up to 50 microseconds per pass
 declare -g -i profile_overhead_usecs=0
 function _set-profile_overhead_usecs {
 
-	profile_overhead_usecs=1	# do don't recurse
+	profile_overhead_usecs=1	# so don't recurse
 
 	local -i i usecs min_usecs=1123123123
 
@@ -1642,6 +1642,7 @@ function is-an-FS-device-mounted() {
 	[[ $# == 1 ]] || abort-function "{ device | mount-dir }"
 	local path=$1
 	[[ $path == /* ]] || path=$PWD/$path
+	[[ $path != /dev/* && ! -d $path ]] && return 1
 	[[ -b $path || -d $path ]] ||
 	    abort-function ": can't find device or directory for '$1'"
 
@@ -2146,7 +2147,7 @@ unset average
 
 # ----------------------------------------------------------------------------
 
-# takes ~150 usec, 10x faster than: awk '{print $1 * $2}' <<<"$num_1 $num_2"
+# takes ~140 usec, 7x faster than: bc <<< "$num_1 * $num_2"
 set-product() {
 	can-profile-not-trace # use x-return to leave function; can comment-out
 	[[ $# == 2 && $1 && $2 &&	# catch null parameters
@@ -2158,6 +2159,7 @@ set-product() {
 	   else local decimal=$2 integer=$1
 	fi
 
+	declare -g -i product
 	if [[ $decimal != *.?* ]]	# not a decimal??
 	   then product=$(( ${decimal%.} * $integer ))
 		x-return
@@ -2194,7 +2196,7 @@ unset product
 
 # ----------------------------------------------------------------------------
 
-# takes ~150 usec, 10x faster than: awk '{printf "%0.2f\n" $1/$2}' <<<"$n $d"
+# takes ~140 usec, 7x faster than: bc <<< "$n / $d"
 set-division() {
 	can-profile-not-trace # use x-return to leave function; can comment-out
 	local -i width=0 decimal_digits
@@ -2345,7 +2347,7 @@ function run-function() {
 	"$@"
 	local status=$?
 	set +x
-	echo -e "\nstatus=$?"
+	echo -e "\nstatus=$status"
 	# shellcheck disable=SC2086 # variable contains multiple values
 	[[ $var_names ]] && echoEV -1 ${var_names//,/ }
 	[[ $status == 0 || $is_procedure ]] || abort -1 "'$*' returned $status"
